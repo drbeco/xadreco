@@ -1,7 +1,8 @@
-Xadreco v.5.1
+Xadreco v.5.5
 By Ruben Carlo Benante.
 http://www.geocities.com/pag_sax/xadreco/
-lançamento: 23/10/2004
+http://xadreco.codigolivre.org.br/
+lançamento: 25/10/2004
 ----
 
 Arquivos:
@@ -11,8 +12,8 @@ livro.txt - livro de aberturas
 beco-logo.jpg - Foto 3x4 para logo
 winboard.ini - configuração do winboard
 xadreco-logo.jpg - Logotipo do Xadreco
-xadreco-v5.1.cpp - código fonte
-xadreco-v5.1.exe - executável para windows
+xadreco.cpp - código fonte
+xadreco.exe - executável para windows
 
 ----
 

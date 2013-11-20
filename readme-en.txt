@@ -1,4 +1,4 @@
-xadreco version 5.0. Chess engine compatible with XBoard/WinBoard Protocol (C)
+xadreco version 5.5. Chess engine compatible with XBoard/WinBoard Protocol (C)
 Copyright (C) 2004, Ruben Carlo Benante.
 
 This program is free software; you can redistribute it and/or
