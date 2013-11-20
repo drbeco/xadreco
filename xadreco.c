@@ -1,8 +1,22 @@
+//-----------------------------------------------------------------------------
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//%% Direitos Autorais segundo normas do codigo-livre: (GNU - GPL)
+//%% Universidade Estadual Paulista - UNESP, Universidade Federal de Pernambuco - UFPE
+//%% Jogo de xadrez: xadreco
+//%% Arquivo xadreco.c
+//%% Tecnica: MiniMax
+//%% Autor: Ruben Carlo Benante
+//%% criacao: 10/06/1999
+//%% versao para XBoard/WinBoard: 26/09/04
+//%% versao 5.8, de 27/10/10
+//%% e-mail do autor: rcb@beco.cc
+//%% edicao: 2013-19-11
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//-----------------------------------------------------------------------------
 /***************************************************************************
- *   xadreco version 5.7. Chess engine compatible                          *
+ *   xadreco version 5.8. Chess engine compatible                          *
  *   with XBoard/WinBoard Protocol (C)                                     *
- *   Copyright (C) 2004 by Ruben Carlo Benante                             *
- *   dr.beco@gmail.com                                                     *
+ *   Copyright (C) 2004-2014 by Ruben Carlo Benante <rcb@beco.cc>          *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -21,72 +35,10 @@
  *                                                                         *
  * To contact the author, please write to:                                 *
  * Ruben Carlo Benante.                                                    *
- * email: dr.beco@gmail.com                                                *
- * web page: http:                                                         *
- * www.geocities.com/pag_sax/xadreco/                                      *
- * address:                                                                *
- * Federal University of Pernambuco                                        *
- * Center of Computer Science                                              *
- * PostGrad Room 7-1                                                       *
- * PO Box 7851                                                             *
- * Zip Code 50670-970                                                      *
- * Recife, PE, Brazil                                                      *
- * FAX: +55 (81) 2126-8438                                                 *
- * PHONE: +55 (81) 2126-8430  x.4067                                       *
+ * email: rcb@beco.cc                                                      *
+ * web page:                                                               *
+ * http://xadreco.beco.cc/                                                 *
  ***************************************************************************/
-//
-//xadreco versao 5.7. Motor de xadrez compativel com o XBoard/WinBoard (C)
-//Copyright (C) 2004, Ruben Carlo Benante.
-//
-//Este programa e software livre; voce pode redistribui-lo e/ou
-//modifica-lo sob os termos da Licenca Publica Geral GNU, conforme
-//publicada pela Free Software Foundation; tanto a versao 2 da
-//Licenca como (a seu criterio) qualquer versao mais nova.
-//
-//Este programa e distribuido na expectativa de ser util, mas SEM
-//QUALQUER GARANTIA; sem mesmo a garantia implicita de
-//COMERCIALIZACAO ou de ADEQUACAO A QUALQUER PROPOSITO EM
-//PARTICULAR. Consulte a Licenca Publica Geral GNU para obter mais
-//detalhes.
-//
-//Voce deve ter recebido uma copia da Licenca Publica Geral GNU
-//junto com este programa; se nao, escreva para a Free Software
-//Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-//02111-1307, USA.
-//
-//Para contactar o autor, por favor escreva para:
-//Ruben Carlo Benante.
-//email: dr.beco@gmail.com
-//pagina web: http:
-//www.geocities.com/pag_sax/xadreco/
-//endereco:
-//Universidade Federal de Pernambuco
-//Centro de Informatica
-//Sala de Pos-graduacao 7-1
-//Caixa Postal 7851
-//CEP 50670-970
-//Recife, PE, Brasil
-//FAX: +55 (81) 2126-8438
-//FONE: +55 (81) 2126-8430  ramal.4067
-//
-//-----------------------------------------------------------------------------
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//%% Direitos Autorais segundo normas do codigo-livre: (GNU - GPL)
-//%% Universidade Estadual Paulista - UNESP, Universidade Federal de Pernambuco - UFPE
-//%% Jogo de xadrez: xadreco
-//%% Arquivo xadreco.cpp
-//%% Tecnica: MiniMax
-//%% Autor: Ruben Carlo Benante
-//%% criacao: 10/06/1999
-//%% versao para XBoard/WinBoard: 26/09/04
-//%% versao 5.7, de 15/05/07
-//%% e-mail do autor: dr.beco@gmail.com
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//-----------------------------------------------------------------------------
-//#include <alloc.h>
-//#include <dos.h> //not portable.
-//#include <conio.h> //not portable.
-//#include <io.h> //not portable.
 
 #ifndef _WIN32
 #include <sys/select.h>
@@ -115,7 +67,7 @@
 // 106550
 #define MARGEM_PREGUICA 400
 //margem para usar a estatica preguicosa
-//margin to use the lazy evaluetion
+//margin to use the lazy evaluation
 #define PORCENTO_MOVIMENTOS 0.85
 //a porcentagem de movimentos considerados, do total de opcoes
 //the percent of the total moves considered
@@ -158,15 +110,15 @@ typedef struct tabuleiro
     //the turn to play: -1 white, 1 black
     int peao_pulou;
     //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
-    //column pawn jump two squares. -1 used to say "cannot capture 'en passant'"
+    //column pawn jump two squares. -1 used to say " cannot capture 'en passant' "
     int roqueb, roquep;
-    //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-    //castle. 1: can do both. 0: none. 3:moved queen rook. 2:moved king rook.
+    //roque: 0:nao pode mais. 1:pode ambos. 2:mexeu Torre do Rei. Pode O-O-O. 3:mexeu Torre da Dama. Pode O-O.
+    //castle. 0: none. 1: can do both. 2:moved king's rook. Can do O-O-O. 3:moved queen's rook. Can do O-O.
     float empate_50;
-    //contador:quando chega a 50, empate.
+    //contador: quando chega a 50, empate.
     //counter: when equal 50, draw by 50 moves rule.
     int situa;
-    //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: sem resultado
+    //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: * sem resultado
     //board situation: 0:nothing, 1:draw!, 2:check!, 3:white mated, 4:black mated, 5 and 6: time fell (white and black respec.) 7: * {Game was unfinished}
     int lancex[4];
     //lance executado originador deste tabuleiro.
@@ -185,14 +137,14 @@ tabuleiro;
 typedef struct movimento
 {
     int lance[4];
-    //lance em nota�o inteira
+    //lance em notacao inteira
     //move in integer notation
     int peao_pulou;
     //contem coluna do peao que andou duas neste lance
-    //column pawn jump two squares. -1 used to say "cannot capture 'en passant'"
+    //column pawn jump two squares. -1 used to say " cannot capture 'en passant' "
     int roque;
-    //0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-    //0: moved king. 1: can yet. 2:moved king rook. 3:moved queen rook.
+    //roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+    //castle: 0:king moved. 1: can yet. 2:moved king's rook. 3:moved queen's rook.
     int flag_50;
     //Quando igual a:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
     //when equal to: 0:nothing, 1:pawn moved, 2:capture, 3:pawn capture. Put zero to empate_50;
@@ -215,7 +167,7 @@ movimento;
 
 typedef struct resultado
             //resultado de uma analise de posicao
-            //result of a position analyze
+            //result of an analyzed position
 {
     int valor;
     //valor da variante
@@ -234,7 +186,7 @@ typedef struct listab
     //[coluna][linha], exemplo, lance: [e][2] para [e][4]
     //the pieces. [column][line], example: e4
     int vez;
-    //de quem �a vez
+    //de quem e a vez
     //the turn to play: -1 white, 1 black
     int peao_pulou;
     //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
@@ -302,7 +254,7 @@ char disc;
 //sem uso. variavel de descarte, para nao sujar o stdin, dic=pega()
 //not used. discard value from pega(), just to do not waring and trash stdin
 int mostrapensando = 0;
-//mostra as linhas que o computador est�escolhendo
+//mostra as linhas que o computador esta escolhendo
 //show thinking option
 enum piece_values
 {
@@ -315,13 +267,13 @@ char primeiro = 'h', segundo = 'c';
 //primeiro e segundo jogadores: h:humano, c:computador
 //first and second players: h:human, c:computer
 int analise = 0;
-//-1 para primeira vez. 0 para nao analise. 1 para analise. ("exit" coloca ela como 0 novamente)
+//-1 para primeira vez. 0 nao analise. 1 para analise. ("exit" coloca ela como 0 novamente)
 //-1 first time. 0 do not analyze. 1 analyze game. ("exit" put it 0 again)
 int randomchess = 0;
 // 0: pensa para jogar. 1: joga ao acaso.
 // 0: think to play. 1: play at random.
 int setboard = 0;
-//-1 para primeira vez. 0 nao edita. 1 edita. Posi�o FEN.
+//-1 para primeira vez. 0 nao edita. 1 edita. Posicao FEN.
 //-1 first time. 0 do not edit. 1 edit game. FEN Position.
 char ultimo_resultado[80] = "";
 //armazena o ultimo resultado, ex: 1-0 {White mates}
@@ -331,7 +283,7 @@ char pausa;
 //pause between moves (computer x computer)
 int nivel = 3;
 //nivel de profundidade (agora com aprofundamento iterativo, esta sem uso)
-//deep level (now with iterative search deepning it is useless)
+//deep level (now with iterative search deep it is useless)
 int profflag = 1;
 //Flag de captura ou xeque para liberar mais um nivel em profsuf
 //when capturing or checking, let the search go one more level
@@ -339,7 +291,7 @@ int totalnodo = 0;
 //total de nodos analisados para fazer um lance
 //total of nodes analyzed before one move
 int totalnodonivel = 0;
-//total de nodos analisados em um nivel da �vore
+//total de nodos analisados em um nivel da arvore
 //total of nodes analyzed per level of tree
 clock_t clock1, clock2, difclock, inputcheckclock;
 clock_t cinicio, cbrancasmov, cbrancasac, cpretasmov, cpretasac, catual, cjogo;
@@ -361,7 +313,7 @@ const int pretas = 1;
 unsigned char gira = (unsigned char) 0;
 //para mostrar um rostinho sorrindo (sem uso)
 //to show a smile face (useless)
-const float version = 5.7;
+const float version = 5.8;
 //Versao do programa
 //program version
 char flog[] = "log.xadreco.second";
@@ -369,20 +321,15 @@ char flog[] = "log.xadreco.second";
 //log file name
 int ABANDONA = -2430;
 //abandona a partida quando perder algo como DAMA, 2 TORRES, 1 BISPO e 1 PEAO; ou nunca, quando jogando contra outra engine
-//the engine will resign when loosing a QUEEN, 2 ROOKS, 1 BISHOP and 1 PAWN or something like that
+//the engine will resign when loosing a QUEEN, 2 ROOKS, 1 BISHOP and 1 PAWN or something like that; it never resigns when playing against another engine
 int COMPUTER = 0;
 //flag que diz se esta jogando contra outra engine.
-//Flag that say it is playing agains other engine
+//Flag that says it is playing against other engine
 //int teminterroga = 0;
 //flag que diz que o comando "?" foi executado
 //flag to mark that command "?" run
 
 // prototipos gerais ---------------------------------------------------------
-//eliminada para portabilidade com linux: posiciona o cursor
-//eliminated to linux portability: cursor position
-//void clrscr(void);
-//eliminada para portabilidade com linux: apaga a tela
-//eliminated to linux portability: clear screen
 void imptab (tabuleiro tabu);
 //imprime o tabuleiro
 //print board
@@ -412,17 +359,16 @@ float rand_minmax (float min, float max);
 //return a random value between [min,max], inclusive
 void sai (int error);
 //termina o programa
-//to end the program
+//exit the program
 void inicia (tabuleiro * tabu);
 //para inicializar alguns valores no inicio do programa;
 //to start some values in the beggining of the program
 void coloca_pecas (tabuleiro * tabu);
 //coloca as pecas na posicao inicial
 //put the pieces in the start position
-void testapos (char *pieces, char *color, char *castle, char *enpassant,
-               char *halfmove, char *fullmove);
+void testapos (char *pieces, char *color, char *castle, char *enpassant, char *halfmove, char *fullmove);
 //testa posicao dada. devera ser melhorado.
-// used to test a determined position; should be improved.
+//used to test a determined position; should be improved.
 void testajogo (char *movinito, int numero);
 //retorna um lance do jogo de teste
 //returns a move in the test game
@@ -510,7 +456,7 @@ void copimov (movimento * dest, movimento * font);
 //copia os itens da estrutura movimento, mas nao copia ponteiro prox. dest=font
 //copy only the contents of the structure, but not the pointer. dest=font
 void copilistmovmel (movimento * dest, movimento * font);
-//mantem dest, e copia para dest->prox a lista encadeada font. Assim, a nova lista �(dest+font)
+//mantem dest, e copia para dest->prox a lista encadeada font. Assim, a nova lista e (dest+font)
 //keep dest, and copy the list font to dest->prox. So, the new list is (dest+font)
 struct movimento *copilistmov (movimento * font);
 //copia uma lista encadeada para outra nova. Retorna cabeca da lista destino
@@ -548,9 +494,9 @@ main (int argc, char *argv[])
     setbuf (stdout, NULL);
     setbuf (stdin, NULL);
     sprintf (feature, "%s%.1f%s",
-             "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=0 reuse=1 analyze=1 myname=\"Xadreco v.",
+             "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=0 reuse=1 analyze=1 myname=\"Xadreco ",
              version,
-             ", by Beco\" variants=\"normal\" colors=0 ics=0 name=0 pause=0");
+             "co\" variants=\"normal\" colors=0 ics=0 name=0 pause=0");
     if (debug)
     {
         //strcpy (flog,"log.xadreco.temp");
@@ -628,7 +574,7 @@ joga_novamente:
             else
                 resultado = humajoga (&tabu);
         if (resultado != 'w' && resultado != 'c')
-            imptab (tabu); 
+            imptab (tabu);
         switch (resultado)
         {
         case '*':
@@ -764,10 +710,10 @@ joga_novamente:
         case 'w':
             //Novo jogo
             continue;
-        case 'x': 
+        case 'x':
 						//xeque: joga novamente
         case 'y':
-            //retorna y: simplesmente jogar de novo. Troca de adv.
+            //retorna y: simplesmente gira o laco para jogar de novo. Troca de adv.
         default:
             //'-' para tudo certo...
             goto joga_novamente;
@@ -777,7 +723,7 @@ joga_novamente:
     while (true);
 
      msgsai ("quit\n", 0);
-    //vai apenas para o log, mas nao para a sa�a
+    //vai apenas para o log, mas nao para a saida
     return EXIT_SUCCESS;
 }
 
@@ -791,11 +737,11 @@ mostra_lances (tabuleiro tabu)
     m[0] = '\0';
         //nivel pontuacao tempo totalnodo variante
         //nivel esta errado!
-        printf ("%d %d %d %d ", nivel, result.valor, difclock, totalnodo);
+        printf ("%d %d %d %d ", nivel, result.valor, (int)difclock, totalnodo);
         //result.valor*10 o Winboard divide por 100. centi-peao
         if (debug)
             fprintf (fsaida, "xadreco : %d %+.2f %d %d ", nivel,
-                     result.valor / 100.0, difclock, totalnodo);
+                     result.valor / 100.0, (int)difclock, totalnodo);
         //result.valor/100 para a Dama ficar com valor 9
         imprime_linha (result.plance, tabu.numero, tabu.vez);
         printf ("\n");
@@ -838,7 +784,7 @@ imptab (tabuleiro tabu)
 				if (debug)
 				{
 						difclock = clock2 - clock1;
-						fprintf (fsaida, "xadreco : move %s c1: %d c2: %d dif: %d\n", movinito, clock1, clock2, difclock);
+                    fprintf (fsaida, "xadreco : move %s c1: %d c2: %d dif: %d\n", movinito, (int)clock1, (int)clock2, (int)difclock);
 				}
 				printf ("move %s\n", movinito);
 		}
@@ -855,6 +801,7 @@ lance2movi (char *m, int *l, int espec)
         m[2 * i + 1] = l[2 * i + 1] + '1';
     }
     m[4] = '\0';
+    m[5] = '\0';
     //n[2]='-';
     //colocar um tracinho no meio
     //if(flag_50>1)
@@ -866,22 +813,18 @@ lance2movi (char *m, int *l, int espec)
     case 4:
         //promoveu a Dama
         m[4] = 'q';
-        m[5] = '\0';
         break;
     case 5:
         //promoveu a Cavalo
         m[4] = 'n';
-        m[5] = '\0';
         break;
     case 6:
         //promoveu a Torre
         m[4] = 'r';
-        m[5] = '\0';
         break;
     case 7:
         //promoveu a Bispo
         m[4] = 'b';
-        m[5] = '\0';
         break;
     }
 }
@@ -959,8 +902,8 @@ geramov (tabuleiro tabu, int *nmovi)
         pmoviant = pmovi;
         pmovi->prox = NULL;
     }
-    for (i = 0; i < 8; i++)
-        for (j = 0; j < 8; j++)
+    for (i = 0; i < 8; i++) //#coluna
+        for (j = 0; j < 8; j++) //#linha
         {
             if ((tabu.tab[i][j]) * (tabu.vez) <= 0)
                 //casa vazia, ou cor errada:
@@ -1018,7 +961,7 @@ geramov (tabuleiro tabu, int *nmovi)
                         //roque de brancas
                         if (tabu.roqueb != 2 && tabu.tab[7][0] == -TORRE)
                         {
-                            //Nao mexeu TR (e ela est�l� Adv poderia ter comido antes de mexer)
+                            //Nao mexeu TR (e ela esta la Adv poderia ter comido antes de mexer)
                             // roque pequeno
                             if (tabu.tab[5][0] == VAZIA && tabu.tab[6][0] == VAZIA)
                                 //f1,g1
@@ -1141,7 +1084,7 @@ geramov (tabuleiro tabu, int *nmovi)
                         }
                         //mexeu TR
                         if (tabu.roquep != 3 && tabu.tab[0][7] == TORRE)
-                            //Nao mexeu TD (e a torre est�l�
+                            //Nao mexeu TD (e a torre esta la)
                         {
                             if (tabu.tab[1][7] == VAZIA && tabu.tab[2][7] == VAZIA &&
                                     tabu.tab[3][7] == VAZIA)
@@ -1707,7 +1650,7 @@ comovep:
                                 else
                                     //deixa rei em xeque
                                     if (tabu.tab[col][j] != VAZIA)
-                                        //alem de nao acabar o xeque, nao pode mais seguir nessa dire�o pois tem pe�
+                                        //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
                                         l = 1;
                             }
                             else
@@ -1777,7 +1720,7 @@ comovep:
                                 else
                                     //deixa rei em xeque
                                     if (tabu.tab[i][lin] != VAZIA)
-                                        //alem de nao acabar o xeque, nao pode mais seguir nessa dire�o pois tem pe�
+                                        //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
                                         m = 1;
                             }
                             else
@@ -1840,7 +1783,7 @@ comovep:
                                 else
                                     //deixa rei em xeque
                                     if (tabu.tab[col][lin] != VAZIA)
-                                        //alem de nao acabar o xeque, nao pode mais seguir nessa dire�o pois tem pe�
+                                        //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
                                         flag = 1;
                                 col += k;
                                 lin += l;
@@ -2009,17 +1952,19 @@ ataca (int cor, int col, int lin, tabuleiro tabu)
             while (tabu.tab[casacol][casalin] == VAZIA);
 
             if (casacol >= 0 && casacol <= 7 && casalin >= 0 && casalin <= 7)
+            {
                 if (cor == brancas)
+                {
                     if (tabu.tab[casacol][casalin] == -BISPO
                             || tabu.tab[casacol][casalin] == -DAMA)
-                        return (1);
+                        return 1;
                     else
                         continue;
-            // achou peca, mas esta nao anda em diagonal ou e' peca propria
-                else
-                    if (tabu.tab[casacol][casalin] == BISPO
-                            || tabu.tab[casacol][casalin] == DAMA)
-                        return (1);
+                }
+                else // achou peca, mas esta nao anda em diagonal ou e' peca propria
+                    if (tabu.tab[casacol][casalin] == BISPO || tabu.tab[casacol][casalin] == DAMA)
+                        return 1;
+            }
         }
     // proxima diagonal
     // ataque de rei...
@@ -2074,19 +2019,17 @@ int
 xeque_rei_das (int cor, tabuleiro tabu)
 {
     int ilin, icol;
-    for (ilin = 0; ilin < 8; ilin++)
-        //roda linha
-        for (icol = 0; icol < 8; icol++)
-            //roda coluna
-            if (tabu.tab[icol][ilin] == (REI * cor))
-                //achou o rei
-                if (ataca (adv (cor), icol, ilin, tabu))
-                    //alguem ataca o rei
-                    return (1);
+    for (ilin = 0; ilin < 8; ilin++) //roda linha
+        for (icol = 0; icol < 8; icol++)             //roda coluna
+            if (tabu.tab[icol][ilin] == (REI * cor))                 //achou o rei
+            {
+                if (ataca (adv (cor), icol, ilin, tabu))                     //alguem ataca o rei
+                    return 1;
                 else
-                    return (0);
+                    return 0;
+            }
     //ninguem ataca o rei
-    return (0);
+    return 0;
     //nao achou o rei!!
 }
 
@@ -2097,7 +2040,7 @@ humajoga (tabuleiro * tabu)
 //----------------------------------------------
 {
     char movinito[80];
-    //movimento ou comando entrado pelo usu�io ou XBoard/WinBoard
+    //movimento ou comando entrado pelo usuario ou XBoard/WinBoard
     movimento *pval = 0;
     char res;
     //    char aux;
@@ -2224,7 +2167,7 @@ humajoga (tabuleiro * tabu)
                 //humano contra humano, aceita sempre
                 return ('c');
             else
-                //humano x computador ou computador contra computador 
+                //humano x computador ou computador contra computador
             {
                 estat = -estatico (*tabu, 0, 0, -LIMITE, +LIMITE);
                 //ao receber proposta, o valor e calculado em funcao de quem e a vez.
@@ -2238,7 +2181,7 @@ humajoga (tabuleiro * tabu)
                 //Ou seja, voce precisa estar positivo em 20 pontos, para o computador aceitar
 
 				//if primeiro=='c'
-                
+
                 if (estat < QUANTO_EMPATE1)	// && !COMPUTER)
                     //bugbug deve aceitar de outro computer se esta perdendo!
                     //so se perdendo 2 peoes (e nao esta jogando contra outra engine)
@@ -2311,7 +2254,7 @@ humajoga (tabuleiro * tabu)
             continue;
         }
         if (!strcmp (movinito, "computer"))
-            //altera estrat�ia para jogar contra outra engine;
+            //altera estrategia para jogar contra outra engine;
         {
             ofereci = 2;
             //pode oferecer mais empates
@@ -2326,11 +2269,10 @@ humajoga (tabuleiro * tabu)
             return ('w');
         if (!strcmp (movinito, "resign"))
             if (tabu->vez == pretas)
-                return ('b');
-        //pretas abandonam
+                return 'b';        //pretas abandonam
             else
-                return ('B');
-        //brancas abandonam
+                return 'B';        //brancas abandonam
+        }
         if (!strcmp (movinito, "quit"))
             msgsai ("Thanks for playing Xadreco.", 0);
 
@@ -2535,24 +2477,23 @@ humajoga (tabuleiro * tabu)
                 //alguem pode
             {
                 if (strchr (movinito, 'K'))
-                    tabu->roqueb = 3;
-                //so pode REI
+                    tabu->roqueb = 3;                //so pode REI
                 if (strchr (movinito, 'Q'))
+                {
                     if (tabu->roqueb == 3)
-                        tabu->roqueb = 1;
-                //pode dos dois
+                        tabu->roqueb = 1;                 //pode dos dois
                     else
-                        tabu->roqueb = 2;
-                //so pode DAMA
+                        tabu->roqueb = 2;                 //so pode DAMA
+                }
                 if (strchr (movinito, 'k'))
                     tabu->roquep = 3;
                 if (strchr (movinito, 'q'))
+                {
                     if (tabu->roquep == 3)
-                        tabu->roquep = 1;
-                //pode dos dois
+                        tabu->roquep = 1;                //pode dos dois
                     else
-                        tabu->roquep = 2;
-                //so pode DAMA
+                        tabu->roquep = 2;                //so pode DAMA
+                }
             }
             if (testasim)
                 strcpy (movinito, enpassant);
@@ -2662,8 +2603,8 @@ humajoga (tabuleiro * tabu)
                 fprintf (fsaida, "winboard: %s\n", completo);
             tente = 1;
             continue;
-		}			
-		
+		}
+
         if (!strcmp (movinito, "ping") || !strcmp (movinito, "san")
                 || !strcmp (movinito, "usermove") || !strcmp (movinito, "time")
                 || !strcmp (movinito, "sigint") || !strcmp (movinito, "sigterm")
@@ -2774,7 +2715,7 @@ humajoga (tabuleiro * tabu)
 			cpretasac += cdestemov; //tempo acumulado
 			cjogo = catual - cinicio;
 			if (debug)
-				fprintf (fsaida, "xadreco : clock preto %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, cpretasac, cjogo, tempomovclock);
+				fprintf (fsaida, "xadreco : clock preto %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cpretasac, (int)cjogo, tempomovclock);
 		}
 		else //brancas jogou, inicia relogio preto.
 		{
@@ -2793,7 +2734,7 @@ humajoga (tabuleiro * tabu)
 			cbrancasac += cdestemov; //tempo acumulado
 			cjogo = catual - cinicio;
 			if (debug)
-				fprintf (fsaida, "xadreco : clock branco %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, cbrancasac, cjogo, tempomovclock);
+				fprintf (fsaida, "xadreco : clock branco %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cbrancasac, (int)cjogo, tempomovclock);
 			//tempomovclock --;
 		}
 	}
@@ -2921,7 +2862,7 @@ situacao (tabuleiro tabu)
                 break;
         }
     if (insuf_branca < 3 && insuf_preta < 3)
-        //os dois est� com insufici�cia de material
+        //os dois estao com insuficiencia de material
         return ('i');
     plaux = plfinal;
     //posicao repetiu 3 vezes
@@ -2932,7 +2873,7 @@ situacao (tabuleiro tabu)
         plaux = plaux->ant;
     }
     cabeca = geramov (tabu, &nmov);
-    //criar funcao gera1mov() retorna verdadeiro ou falso: quando nmov == -1, geramov retorna no primeiro v�ido
+    //criar funcao gera1mov() retorna verdadeiro ou falso: quando nmov == -1, geramov retorna no primeiro valido
     if (cabeca == NULL)
         //Sem lances: Mate ou Afogamento.
         if (!xeque_rei_das (tabu.vez, tabu))
@@ -2975,7 +2916,7 @@ compjoga (tabuleiro * tabu)
     //cloock_t e long int %ld
     //mudou para logo abaixo do scanf de humajoga
     limpa_pensa ();
-    //limpa algumas variaveis para iniciar a pondera�o
+    //limpa algumas variaveis para iniciar a ponderacao
     melhorvalor1 = -LIMITE;
     melhorcaminho1 = NULL;
     //o rostinho nao eh compativel com linux. nao imprima nunca.
@@ -3084,19 +3025,17 @@ compjoga (tabuleiro * tabu)
 							if (mostrapensando && abs (result.valor) != FIMTEMPO
 											&& abs (result.valor) != LIMITE)
 							{
-									printf ("%d %d %d %d ", nv, result.valor, difclock, totalnodo);
+                printf ("%d %d %d %d ", nv, result.valor, (int)difclock, totalnodo);
 									if (debug)
 											fprintf (fsaida, "xadreco : %d %+.2f %d %d ", nv,
-															(float) result.valor / 100.0, difclock, totalnodo);
+                             (float) result.valor / 100.0, (int)difclock, totalnodo);
 									imprime_linha (result.plance, tabu->numero + 1, -tabu->vez);
 									printf ("\n");
 									if (debug)
 											fprintf (fsaida, "\n");
 							}
 							// termino do laco infinito baseado no tempo
-							if (difclock > tempomovclock && debug != 2
-											|| (debug == 2 && nv == 3))
-									// termino do laco infinito baseado no tempo
+            if ((difclock > tempomovclock && debug != 2) || (debug == 2 && nv == 3))  // termino do laco infinito baseado no tempo
 									break;
 							nv++;
 					} //while result.plance < XEQUEMATE
@@ -3186,9 +3125,9 @@ compjoga (tabuleiro * tabu)
 			cpretasac += cpretasmov; //tempo acumulado
 			cjogo = catual - cinicio;
 			if (debug)
-				fprintf (fsaida, "xadreco : clock preto %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, cpretasac, cjogo, tempomovclock);
+				fprintf (fsaida, "xadreco : clock preto %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cpretasac, (int)cjogo, tempomovclock);
 			if(tpretasac>0.0 && tbrancasac>0.0)
-			   tempomovclock = (int)(tempomovclock * ((tbrancasac/tabu->numero)/(tpretasac/tabu->numero)));
+			   tempomovclock = (int)(tempomovclock * ((tbrancasac/tabu->numero)/(tpretasac/tabu->numero))); /*bug tirar o (int) = usar segundos */
 			if(tempomovclock>tempomovclockmax)
 				tempomovclock=tempomovclockmax;
 			if(tempomovclock<90) //minimo .9 segundo
@@ -3211,7 +3150,7 @@ compjoga (tabuleiro * tabu)
 			cbrancasac += cbrancasmov; //tempo acumulado
 			cjogo = catual - cinicio;
 			if (debug)
-				fprintf (fsaida, "xadreco : clock branco %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, cbrancasac, cjogo, tempomovclock);
+				fprintf (fsaida, "xadreco : clock branco %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cbrancasac, (int)cjogo, tempomovclock);
 			//tempomovclock --;
 			if(tpretasac>0.0 && tbrancasac>0.0)
 			   tempomovclock = (int)(tempomovclock * (float)((tpretasac/tabu->numero)/(tbrancasac/tabu->numero)));
@@ -3252,11 +3191,11 @@ analisa (tabuleiro * tabu)
         clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
 		//diftclock = difftime(tclock2 , tclock1);
         difclock = clock2 - clock1;
-        //nivel pontua�o tempo totalnodo varia�o === usado!
-        printf ("%d %d %d %d Livro: ", nv, result.valor, difclock, totalnodo);
+        //nivel pontuacao tempo totalnodo variacao === usado!
+        printf ("%d %d %d %d Livro: ", nv, result.valor, (int)difclock, totalnodo);
         if (debug)
             fprintf (fsaida, "xadreco : %d %+.2f %d %d Livro: ", nv,
-                     (float) result.valor / 100.0, difclock, totalnodo);
+                     (float) result.valor / 100.0, (int)difclock, totalnodo);
         imprime_linha (result.plance, tabu->numero + 1, -tabu->vez);
         printf ("\n");
         if (debug)
@@ -3287,10 +3226,10 @@ analisa (tabuleiro * tabu)
             //nivel pontuacao tempo totalnodo variacao === usado!
             if (abs (result.valor) != FIMTEMPO && abs (result.valor) != LIMITE)
             {
-                printf ("%d %d %d %d ", nv, result.valor, difclock, totalnodo);
+                printf ("%d %d %d %d ", nv, result.valor, (int)difclock, totalnodo);
                 if (debug)
                     fprintf (fsaida, "xadreco : %d %+.2f %d %d ", nv,
-                             (float) result.valor / 100.0, difclock, totalnodo);
+                             (float) result.valor / 100.0, (int)difclock, totalnodo);
                 imprime_linha (result.plance, tabu->numero + 1, -tabu->vez);
                 //1=numero do lance, 2=vez: pular impressao na tela
                 if (result.plance == NULL)
@@ -3298,10 +3237,12 @@ analisa (tabuleiro * tabu)
                 else
                     printf ("\n");
                 if (debug)
+                {
                     if (result.plance == NULL)
                         printf ("no moves\n");
                     else
                         fprintf (fsaida, "\n");
+                }
             }
             if (debug == 2)
             {
@@ -3355,8 +3296,8 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         // profundidade suficiente ==1 ou ==-1:tempo estourou
     {
         //coloque um nulo no ponteiro plance
-        //nao eh necessario libera_lance, pois plance eh tempor�io apesar de global.
-        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel est�analisando?)
+        //nao eh necessario libera_lance, pois plance eh temporario apesar de global.
+        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
         //if (debug == 2)
         //fprintf(fmini, "\nprofsuf! ");
         return;
@@ -3385,9 +3326,9 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         //libera_lances(result.plance); //bugbug
         result.plance = NULL;
         //coloque um nulo no ponteiro plance
-        //nao eh necessario libera_lance, pois plance eh tempor�io apesar de global.
+        //nao eh necessario libera_lance, pois plance eh temporario apesar de global.
         result.valor = estatico (atual, 0, prof, alfa, beta);
-        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. prof: qual nivel est�analisando?)
+        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. prof: qual nivel estao analisando?)
         if (debug == 2)
             fprintf (fmini, "NULL ");	//result.valor=%+.2f", result.valor);
         return;
@@ -3450,9 +3391,9 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         }
         //implementar o NULL-MOVE
         if (novo_valor >= beta)
-            //corte alfa-beta! Isso est�certo? N� �alfa<=beta? Conferir. (alfa==passo, beta==uso, para brancas)
+            //corte alfa-beta! Isso esta certo? Nao e alfa<=beta? Conferir. (alfa==passo, beta==uso, para brancas)
         {
-            alfa = beta;		//Aha! Retorna beta como o melhor poss�el desta �vore
+            alfa = beta;		//Aha! Retorna beta como o melhor possivel desta arvore
             if (debug == 2)
             {
                 lance2movi (m, succ->lance, succ->especial);
@@ -3500,7 +3441,7 @@ profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
     {
         result.plance = NULL;
         result.valor = estatico (atual, 0, prof, alfa, beta);
-        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel est�analisando?)
+        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
         return 1;
     }
     //retorna sem analisar... Deve desconsiderar o lance
@@ -3510,7 +3451,7 @@ profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
         result.valor = estatico (atual, 1, prof, alfa, beta);	//-FIMTEMPO;//
         return 1;
     }
-    //retorna sem analisar... Deve desconsiderar o lance. Usu�io clicou em "move now" (?)
+    //retorna sem analisar... Deve desconsiderar o lance. Usuario clicou em "move now" (?)
     //if((int)(difclock) % 100 == 0) // a cada 100 centesimos, examina
     //{
     //  if(moveagora())
@@ -3566,7 +3507,7 @@ profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
     {
         result.plance = NULL;
         result.valor = estatico (atual, 0, prof, alfa, beta);
-        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel est�analisando?)
+        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
         return 1;
         //a profundidade ja eh sufuciente
     }
@@ -3676,7 +3617,7 @@ joga_em (tabuleiro * tabu, movimento movi, int cod)
     for (i = 0; i < 4; i++)
         tabu->lancex[i] = movi.lance[i];
     tabu->numero++;
-    //conta os movimentos de cada peao (�chamado de dentro de funcao recursiva!)
+    //conta os movimentos de cada peao (e chamado de dentro de funcao recursiva!)
     tabu->vez = adv (tabu->vez);
     tabu->especial = movi.especial;
     if (cod)
@@ -3818,8 +3759,8 @@ copilistmov (movimento * font)
     return (cabeca);
 }
 
-//retorna o valor t�ico e estrat�ico de um tabuleiro, sendo valor positivo melhor quem esta na vez
-//cod: 1: acabou o tempo, 0: ou eh avalia�o normal?
+//retorna o valor tatico e estrategico de um tabuleiro, sendo valor positivo melhor quem esta na vez
+//cod: 1: acabou o tempo, 0: ou eh avaliacao normal?
 //niv: qual a distancia do tabuleiro real para a copia tabu avaliada?
 int
 estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
@@ -3830,7 +3771,7 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
     int menorb = 0, menorp = 0;
     int qtdb, qtdp;
     int ordem[64][7];
-    //coloca todas peoes do tabuleiro em ordem de valor
+    //coloca todas pecas do tabuleiro em ordem de valor
     //64 casas, cada uma com 7 info: 0:i, 1:j, 2:peca,
     //3: qtdataquebranco, 4: menorb, 5: qtdataquepreto, 6: menorp
     // Estranho de implementar isso. Precisa de mais testes
@@ -3856,10 +3797,10 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
         if (tabu.vez == brancas)
             //vez das brancas, mas...
             return -XEQUEMATE + 20 * (niv + 1);
-        //elas estao em xeque-mate. Conclusao: pessimo negocio, ganha -10000. Por�, quanto mais distante o mate, melhor
+        //elas estao em xeque-mate. Conclusao: pessimo negocio, ganha -10000. Porem, quanto mais distante o mate, melhor
         else
             return +XEQUEMATE - 20 * (niv + 1);
-        //na vez das pretas, o mate nas brancas �positivo, e quanto mais distante, pior...
+        //na vez das pretas, o mate nas brancas e positivo, e quanto mais distante, pior...
     case 4:
         //Pretas tomaram mate
         if (tabu.vez == pretas)
@@ -3885,7 +3826,7 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
             totb += 10;
     }
 
-    //coloca todas pe�s do tabuleiro em ordem de valor
+    //coloca todas pecas do tabuleiro em ordem de valor
     //64 casas, cada uma com 7 info: 0:i, 1:j, 2:peca,
     //3: qtdataquebranco, 4: menorb, 5: qtdataquepreto, 6: menorp
 
@@ -4085,7 +4026,7 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
         //               beta / 100.0);
         return (material - MARGEM_PREGUICA);
     }
-    //se o que ganhei e menor que minha outra opcao, retorna minha outra op�o
+    //se o que ganhei e menor que minha outra opcao, retorna minha outra opcao
     if (material + MARGEM_PREGUICA <= -alfa)
     {
         //      if (debug == 2)
@@ -4111,7 +4052,7 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
             //se peca branca:
             //totb += abs(peca);
             //qtdp = qataca(pretas, i, j, tabu, &menorp);
-            //se uma pe� preta j�comeu, ela nao pode contar de novo como atacante! (corrigir)
+            //se uma peca preta ja comeu, ela nao pode contar de novo como atacante! (corrigir)
             if (ordem[k][5] == 0)
                 continue;
             //qtdb = qataca(brancas, i, j, tabu, &menorb);
@@ -4140,14 +4081,14 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
         }
     }
 
-    //falta explicar como contar defesas com pe�s cravadas
+    //falta explicar como contar defesas com pecas cravadas
     //falta explicar que o peao passado vale muito!
-    //e passado protegido de pe� vale mais
+    //e passado protegido de peao vale mais
     //no final, cercar o rei
-    //nao est�vendo 2 defesas por exemplo com P....RQ na mesma linha. O pe� tem
+    //nao esta vendo 2 defesas por exemplo com P....RQ na mesma linha. O peao tem
     //defesa da torre e da dama.
 
-    //incluindo pe� cravada
+    //incluindo peca cravada
     for (k = 2; k < 64; k++)
         //tirando os dois reis da jogada k=2
     {
@@ -4159,13 +4100,13 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
         j = ordem[k][1];
         peca = ordem[k][2];
         //        if (tabu.vez == brancas && peca > 0)
-        //nao eh meu prejuizio a pe� cravada do adversario
+        //nao eh meu prejuizio a peca cravada do adversario
         //            continue;
         //        if (tabu.vez == pretas && peca < 0)
-        //nao eh meu prejuizio a pe� cravada do adversario
+        //nao eh meu prejuizio a peca cravada do adversario
         //            continue;
         tabu.tab[i][j] = VAZIA;
-        //imagina se essa pe� nao existisse?
+        //imagina se essa peca nao existisse?
         if (peca < 0)
         {
             qtdp = qataca (pretas, i, j, tabu, &menorp);
@@ -4178,9 +4119,9 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
             if (qtdb > ordem[k][3] && menorb < peca)
                 totp -= (peca / 7);
         }
-        //perde uma fra�o do valor da pe� cravada;
+        //perde uma fracao do valor da peca cravada;
         tabu.tab[i][j] = peca;
-        //recoloca a pe� no lugar.
+        //recoloca a peca no lugar.
     }
     //avaliando os peoes avancados
     for (k = 0; k < 64; k++)
@@ -4322,25 +4263,23 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
 
     //controle do centro
     for (cor = -1; cor < 2; cor += 2)
-        for (i = 2; i < 6; i++)
-            //c,d,e,f
-            for (j = 2; j < 6; j++)
-                //3,4,5,6
+        for (i = 2; i < 6; i++)            //c,d,e,f
+            for (j = 2; j < 6; j++)                //3,4,5,6
                 if (ataca (cor, i, j, tabu))
+                {
                     if (cor == brancas)
                     {
                         totb += 10;
                         if ((i == 3 || i == 4) && (j == 3 || j == 4))
-                            totb += 20;
-                        //mais pontos para d4,d5,e4,e5
+                            totb += 20;                         //mais pontos para d4,d5,e4,e5
                     }
                     else
                     {
                         totp += 10;
                         if ((i == 3 || i == 4) && (j == 3 || j == 4))
-                            totp += 20;
-                        //mais pontos para d4,d5,e4,e5
+                            totp += 20;                        //mais pontos para d4,d5,e4,e5
                     }
+                }
     //bonificacao para quem nao mexeu a dama na abertura
     if (tabu.numero < 32 && setboard != 1)
     {
@@ -4386,7 +4325,7 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 //pretas com roque pequeno
                 tabu.tab[6][6] == PEAO &&
                 tabu.tab[7][6] == PEAO && tabu.tab[7][7] == VAZIA)
-            //apenas pe�s g e h
+            //apenas peoes g e h
             totp += 60;
         if (tabu.tab[2][7] == REI &&
                 //pretas com roque grande
@@ -4466,9 +4405,9 @@ insere_listab (tabuleiro tabu)
         for (i = 0; i < 8; i++)
             for (j = 0; j < 8; j++)
                 plfinal->tab[i][j] = tabu.tab[i][j];
-        //posicao das pe�s
+        //posicao das pecas
         plfinal->vez = tabu.vez;
-        //de quem �a vez
+        //de quem e a vez
         plfinal->rep = 1;
         //primeira vez que aparece
         plfinal->peao_pulou = tabu.peao_pulou;
@@ -4526,7 +4465,7 @@ insere_listab (tabuleiro tabu)
                 {
                     if (plfinal->tab[i][j] != plaux->tab[i][j])
                     {
-                        //para ser diferente tem que mudar as pe�s e a vez
+                        //para ser diferente tem que mudar as pecas e a vez
                         flag = 1;
                         break;
                     }
@@ -4577,10 +4516,10 @@ volta_lance (tabuleiro * tabu)
 {
     int i, j;
     if (plcabeca == NULL || plfinal == NULL)
-        //nao tem ningu�... erro.
+        //nao tem ninguem... erro.
         return;
     if (plcabeca == plfinal)
-        //j�est�na posicao inicial
+        //ja esta na posicao inicial
         return;
     retira_listab ();
     for (i = 0; i < 8; i++)
@@ -4625,7 +4564,7 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
     //retorna o numero de ataques que a "cor" faz na casa(col,lin)
     //cor==brancas   => brancas atacam casa(col,lin)
     //cor==pretas    => pretas  atacam casa(col,lin)
-    //menor == �a menor pe� da "cor" que ataca a casa
+    //menor == e a menor peca da "cor" que ataca a casa
     int icol, ilin, casacol, casalin;
     int total = 0;
     *menor = REI;
@@ -4768,8 +4707,7 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
     for (icol = -1; icol < 2; icol += 2)
         for (ilin = -1; ilin < 2; ilin += 2)
         {
-            casacol = col;
-            //para cada diagonal, comece na casa origem.
+            casacol = col;            //para cada diagonal, comece na casa origem.
             casalin = lin;
             do
             {
@@ -4781,15 +4719,14 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
             while (tabu.tab[casacol][casalin] == 0);
 
             if (casacol >= 0 && casacol <= 7 && casalin >= 0 && casalin <= 7)
+            {
                 if (cor == brancas)
-                    if (tabu.tab[casacol][casalin] == -BISPO
-                            || tabu.tab[casacol][casalin] == -DAMA)
+                    if (tabu.tab[casacol][casalin] == -BISPO || tabu.tab[casacol][casalin] == -DAMA)
                     {
                         total++;
                         if (-tabu.tab[casacol][casalin] < *menor)
                             *menor = -tabu.tab[casacol][casalin];
-                        continue;
-                        //proxima diagonal
+                        continue;                        //proxima diagonal
                     }
                     else
                         continue;
@@ -4802,13 +4739,13 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
                         total++;
                         if (tabu.tab[casacol][casalin] < *menor)
                             *menor = tabu.tab[casacol][casalin];
-                        continue;
-                        //proxima diagonal
+                        continue;                        //proxima diagonal
                     }
+            }
         }
     // proxima diagonal
     // ataque de rei...
-    // nao preciso colocar como *menor, pois �a maior e ja come� com ele
+    // nao preciso colocar como *menor, pois e a maior e ja comeca com ele
     for (icol = col - 1; icol <= col + 1; icol++)
         for (ilin = lin - 1; ilin <= lin + 1; ilin++)
         {
@@ -4909,7 +4846,7 @@ listab2string (char *strlance)
         strlance[n] = ' ';
         n++;
         plaux = plaux->prox;
-        //gira o la�
+        //gira o laco
     }
     strlance[n] = '\0';
     return;
@@ -4962,7 +4899,7 @@ string2pmovi (int numero, char *linha)
         disc = (char) joga_em (&tab, *pmovi, 0);
         //a funcao joga_em deve inserir no listab, cod: 1:insere, 0:nao insere
         if (n / 5 >= numero)
-            //chegou na posicao atual! come� inserir na lista
+            //chegou na posicao atual! comeca inserir na lista
         {
             if (cabeca == NULL)
             {
@@ -5024,7 +4961,7 @@ usalivro (tabuleiro tabu)
                 i++;
             }
             while (linha[0] == '#')
-                //a ultima linha nao deve ser coment�io
+                //a ultima linha nao deve ser comentario
                 (void) fgets (linha, 256, flivro);
             cabeca = string2pmovi (tabu.numero, linha);
             result.valor = estatico_pmovi (tabu, cabeca);
@@ -5196,7 +5133,7 @@ inicia (tabuleiro * tabu)
 
 void
 coloca_pecas (tabuleiro * tabu)
-//coloca as pe�s na posicao inicial
+//coloca as peoes na posicao inicial
 {
     int i;
     for (i = 0; i < 8; i++)
@@ -5261,7 +5198,7 @@ enche_pmovi (movimento * pmovi, int c0, int c1, int c2, int c3, int p, int r,
 
 void
 msgsai (char *msg, int error)
-//aborta programa por falta de mem�ia
+//aborta programa por falta de memoria
 {
 		if (debug)
         fprintf (fsaida, "\nxadreco : %s\n", msg);
@@ -5327,9 +5264,9 @@ testapos (char *pieces, char *color, char *castle, char *enpassant,
     //      char *p1="8/8/8/8/8/k1Q5/2K5/8 b - - 0 1";
     //mate em 5, com possibilidades de afogamento e de mate em 1.
     char *p1 = "8/8/8/8/4BB2/1K6/7p/k7 w - - 0 1";
-    //2 bispos... mate em 1, ou em 2, ou em 3... Se comer peao, afoga
+    //2 bispos... mate em 1, ou em 2, ou em 3... Se comer peca, afoga
     //      char *p1="k7/2K5/1P6/2B5/3p4/8/8/8 w - - 0 1";
-    //mate de peao em 1 ply ou em 3 ply. se comer peao, afoga
+    //mate de peao em 1 ply ou em 3 ply. se comer peca, afoga
     //      char *p1="4k3/P6P/RP4PR/1NPPPPN1/2BQKB2/8/8/8 w - - 0 1";
     //esta se sentindo sozinho?
     //      char *p1="r1bqkb1r/1p3pp1/p1nppn1p/6B1/3NP3/2N5/PPPQ1PPP/2KR1B1R w kq - 0 9";
