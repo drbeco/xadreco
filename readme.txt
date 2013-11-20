@@ -1,4 +1,4 @@
-xadreco version 1.0. Chess engine compatible with XBoard/WinBoard Protocol (C)
+xadreco version 5.0. Chess engine compatible with XBoard/WinBoard Protocol (C)
 Copyright (C) 2004, Ruben Carlo Benante.
 
 This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ PHONE: +55 (81) 2126-8430  x.4067
 
 -----------------------------------------------------------------------------
 
-xadreco version 1.0. Motor de xadrez compatível com o XBoard/WinBoard (C)
+xadreco version 5.0. Motor de xadrez compatível com o XBoard/WinBoard (C)
 Copyright (C) 2004, Ruben Carlo Benante.
    
 Este programa é software livre; você pode redistribuí-lo e/ou
@@ -76,8 +76,9 @@ FONE: +55 (81) 2126-8430  ramal.4067
 //%% Arquivo readme.txt
 //%% Técnica: MiniMax
 //%% Autor do original: Ruben Carlo Benante
-//%% Criacao: 10/06/1999
+//%% Criacao: 19/08/1994
 //%% Versão para Winboard: 26/09/04
+//%% Versão 5.0: 19/10/04
 //%% e-mail do autor: benante@ig.com.br
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

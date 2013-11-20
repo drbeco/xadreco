@@ -47,55 +47,55 @@ PHONE: +55 (81) 2126-8430  x.4067
 
 -----------------------------------------------------------------------------
 	
-Para utilizar a engine 
-Xadreco no Fritz 7 ou superior
+To use the chess engine Xadreco with fritz 7 or higher the following:
 
-* crie a pasta:
-C:\Arquivos de programas\ChessBase\Engines.UCI\xadreco
+* Create the new folde:
+#\Arquivos de programas\ChessBase\Engines.UCI\xadreco
 
-* descompacte o arquivo
-Xadreco-UCI.zip nesta pasta.
+* unzip the file
+Xadreco-UCI.zip in this folder.
 
-* Inicie o Fritz
+* Start Fritz
 
-* Clique no menu
+* Choose the menu
 - ENGINE
 - CREATE UCI ENGINE
 
-* Clique no botão
-- BROWSE
+* Click the 
+- BROWSE buttom
 
-* Vá para a pasta
-C:\Arquivos de programas\ChessBase\Engines.UCI\xadreco
+* Go to the folder
+#\Arquivos de programas\ChessBase\Engines.UCI\xadreco
 
-* Selecione:
+* Selecte:
 Wb2Uci.exe
-clique em ABRIR
+Click "open"
 
-* Clique em OK
-Pronto, a engine está disponível.
+* Click OK
+
+It is done! The Xadreco is now available for use.
 
 ------------------------
-Para jogar uma primeira partida, faça assim:
+To play the first game, do this:
 
-* Clique no menu
+* Click the menu
 - ENGINE
 - CHANGE MAIN ENGINE... F3
 
-* Selecione o Xadreco
+* Select Xadreco
 
-* Clique em Ok
+* Click Ok
 
-* Faça seu lance de Brancas!
+* Do your white move.
 
 ------------------------
-Maiores informações sobre a transposição
-do protocolo WINBOARD para UCI, veja
-a página de Odd Gunnar Malin:
+More informations about tranporting 
+WINBOARD to UCI and vice-versa can be founded at
+Odd Gunnar Malin:
 http://home.online.no/~malin/sjakk/Wb2Uci/
 
 ------------------------
-Bom divertimento!
+Enjouy!!
 Ruben Carlo Benante
 benante@ig.com.br
 http://www.geocities.com/pag_sax/xadreco/
