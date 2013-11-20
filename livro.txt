@@ -1,17 +1,4 @@
-#Xadreco v.5.6
-#Copyright (C) 2004 by Ruben Carlo Benante                             *
-#dr.beco@gmail.com                                                     *
-#date: 21/11/2004
-#http://www.geocities.com/pag_sax/xadreco/
-#
-# This file is part of GPL program Xadreco v.5.6
-#
-# GNU program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2, or (at your option) any later version.
-# GNU program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along with program; see the file COPYING. If not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
-#
-# Livro do Xadreco (Xadreco openning book)
+# Livro do Xadreco
 #
 #Abertura doida, para teste
 #a2a3 a7a6 a3a4 a6a5
@@ -26,8 +13,8 @@
 #Abertura Ruy Lopez
 #Abertura Siciliana
 #Aberturas do cavalo do rei
-#Aberturas do peão do rei
-#Aberturas dos dois peões do rei
+#Aberturas do peao do rei
+#Aberturas dos dois peoes do rei
 #
 #Defesa Brasileira (em teste)
 #
