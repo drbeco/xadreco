@@ -1,0 +1,8 @@
+[ENGINE]
+Name=Xadreco v.2.0
+Author="Ruben Carlo Benante"
+Filename=Wb2Uci.exe
+
+[OPTIONS]
+Program=xadreco.exe xboard
+OwnBook=true
