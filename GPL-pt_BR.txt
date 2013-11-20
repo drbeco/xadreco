@@ -312,3 +312,71 @@ AO OPERAR COM QUALQUER OUTRO PROGRAMA), MESMO QUE TAL DETENTOR OU
 PARTE TENHAM SIDO AVISADOS DA POSSIBILIDADE DE TAIS DANOS.
 
 		      FIM DOS TERMOS E CONDIÇÕES
+
+	  Como Aplicar Estes Termos aos Seus Novos Programas
+
+  Se você desenvolver um novo programa, e quer que ele seja utilizado
+amplamente pelo público, a melhor forma de alcançar este objetivo é
+torná-lo software livre que qualquer um pode redistribuir e alterar,
+sob estes termos.
+
+  Para isso, anexe os seguintes avisos ao programa. É mais seguro
+anexá-los logo no início de cada arquivo-fonte para reforçarem mais
+efetivamente a inexistência de garantias; e cada arquivo deve possuir
+pelo menos a linha de "copyright" e uma indicação de onde o texto
+completo se encontra.
+
+    <uma linha que forneça o nome do programa e uma idéia do que ele faz.>
+    Copyright (C) <ano>  <nome do autor>
+   
+    Este programa é software livre; você pode redistribuí-lo e/ou
+    modificá-lo sob os termos da Licença Pública Geral GNU, conforme
+    publicada pela Free Software Foundation; tanto a versão 2 da
+    Licença como (a seu critério) qualquer versão mais nova.
+
+    Este programa é distribuído na expectativa de ser útil, mas SEM
+    QUALQUER GARANTIA; sem mesmo a garantia implícita de
+    COMERCIALIZAÇÃO ou de ADEQUAÇÃO A QUALQUER PROPÓSITO EM
+    PARTICULAR. Consulte a Licença Pública Geral GNU para obter mais
+    detalhes.
+ 
+    Você deve ter recebido uma cópia da Licença Pública Geral GNU
+    junto com este programa; se não, escreva para a Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307, USA.
+
+Inclua também informações sobre como contactá-lo eletronicamente e por
+carta.
+
+Se o programa é interativo, faça-o mostrar um aviso breve como este,
+ao iniciar um modo interativo:
+
+    Gnomovision versão 69, Copyright (C) ano nome do autor
+    O Gnomovision não possui QUALQUER GARANTIA; para obter mais
+    detalhes digite `show w'. Ele é software livre e você está
+    convidado a redistribui-lo sob certas condições; digite `show c'
+    para obter detalhes.
+
+Os comandos hipotéticos `show w' e `show c' devem mostrar as partes
+apropriadas da Licença Pública Geral. Claro, os comandos que você usar
+podem ser ativados de outra forma que `show w' e `show c'; eles podem
+até ser cliques do mouse ou itens de um menu -- o que melhor se
+adequar ao programa.
+
+Você também deve obter do seu empregador (se você trabalha como
+programador) ou escola, se houver, uma "declaração de ausência de
+direitos autorais" sobre o programa, se necessário. Aqui está um
+exemplo; altere os nomes:
+
+   Yoyodyne, Inc., aqui declara a ausência de quaisquer direitos
+   autorais sobre o programa `Gnomovision' (que executa interpretações
+   em compiladores) escrito por James Hacker.
+
+   <assinatura de Ty Coon>, 1o. de abril de 1989
+   Ty Con, Vice-presidente
+
+Esta Licença Pública Geral não permite incorporar seu programa em
+programas proprietários. Se seu programa é uma biblioteca de
+sub-rotinas, você deve considerar mais útil permitir ligar aplicações
+proprietárias com a biblioteca. Se isto é o que você deseja, use a
+Licença Pública Geral de Bibliotecas GNU, ao invés desta Licença.
