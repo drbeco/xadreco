@@ -1,4 +1,4 @@
-//xadreco version 2.1. Chess engine compatible with XBoard/WinBoard Protocol (C)
+//xadreco version 3.1. Chess engine compatible with XBoard/WinBoard Protocol (C)
 //Copyright (C) 2004, Ruben Carlo Benante.
 //
 //This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@
 //
 //-----------------------------------------------------------------------------
 //
-//xadreco version 2.1. Motor de xadrez compatível com o XBoard/WinBoard (C)
+//xadreco version 3.1. Motor de xadrez compatível com o XBoard/WinBoard (C)
 //Copyright (C) 2004, Ruben Carlo Benante.
 //
 //Este programa é software livre; você pode redistribuí-lo e/ou
@@ -76,16 +76,19 @@
 //%% Autor do original: Ruben Carlo Benante
 //%% Criacao: 10/06/1999
 //%% Versão para XBoard/WinBoard: 26/09/04
-//%% Versão 2.0, de 09/10/04
-//%% Versão 2.1, de 09/10/04 (para UCI)
+//%% Versão 3.0, de 10/10/04
 //%% e-mail do autor: benante@ig.com.br
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//%% Modificado por (Modified by):
+//%% email:
+//%% Data (date):
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 //-----------------------------------------------------------------------------
 
 //#include <alloc.h>
-//#include <dos.h>
+//#include <dos.h> //not portable.
+//#include <conio.h> //not portable.
 #include <time.h>
-#include <conio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -93,97 +96,207 @@
 // dados ----------------------
 struct tabuleiro
 {
-	int tab[8][8];              //contem as pecas, sendo [coluna][linha], ou seja: e4
-	int vez;                    //contem -1 ou 1 para 'branca' ou 'preta'
-	int peao_pulou;				 //contem coluna do peao adversario que
-										 //       andou duas, ou -1 para 'nao pode comer enpassant'
+	int tab[8][8];               //contem as pecas, sendo [coluna][linha], ou seja: e4
+                                    //the pieces. [column][line], example: e4
+	int vez;                     //contem -1 ou 1 para 'branca' ou 'preta'
+                                    //the turn to play: -1 white, 1 black
+	int peao_pulou;				 //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
+                                    //column pawn jump two squares. -1 used to say "cannot capture 'en passant'"
 	int roqueb, roquep;			 //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-	float empate_50;				 //contador:quando chega a 50, empate.
-	int situa;						 //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
-	int lancex[4];					 //lance executado originador deste tabuleiro.
-	int numero;						 //numero do lance
+                                    //castle. 1: can do both. 0: none. 3:moved queen rook. 2:moved king rook.
+	float empate_50;			 //contador:quando chega a 50, empate.
+                                    //counter: when equal 50, draw by 50 moves rule.
+	int situa;					 //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+                                    //board situation: 0:nothing, 1:draw!, 2:check!, 3:white mated, 4:black mated, 5 and 6: time fell (white and black respec.)
+	int lancex[4];				 //lance executado originador deste tabuleiro.
+                                    //the move that originate this board. (integer notation)
+	int especial;			     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu en passant. //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+                                    //0:nothing. 1:king castle. 2:queen castle. 3:en passant capture. //promotion: 4=queen, 5=knight, 6=rook, 7=bishop.
+	int numero;					 //numero do lance: 1.e2e4 e7e5, 2.g1f3...
+                                    //move number (not ply)
 };
 
 struct movimento
 {
-	int lance[4];
+	int lance[4];           //lance em notação inteira
+                                //move in integer notation
 	int peao_pulou;     	//contem coluna do peao que andou duas neste lance
+                                    //column pawn jump two squares. -1 used to say "cannot capture 'en passant'"
 	int roque;          	//0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-	int flag_50;		   //Quando igual a:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
-	int especial;			//0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
-								//promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-	movimento *prox;
+                                    //0: moved king. 1: can yet. 2:moved king rook. 3:moved queen rook.
+	int flag_50;		    //Quando igual a:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
+                                    //when equal to: 0:nothing, 1:pawn moved, 2:capture, 3:pawn capture. Put zero to empate_50;
+	int especial;			//0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+                                    //0:nothing. 1:king castle. 2:queen castle. 3:en passant capture. //promotion: 4=queen, 5=knight, 6=rook, 7=bishop.
+	movimento *prox;        //ponteiro para o próximo movimento da lista
+                                    //pointer to the next move on the list
 };
 
-struct resultado
-{
-	int valor;
-	movimento *plance;
+struct resultado            //resultado de uma análise de posição
+{                               //result of a position analyze
+	int valor;             //valor da variante
+                                //variation value
+	movimento *plance;     //os movimentos da variante
+                                //variation moves
 };
 
-struct listab
-{
-	int tab[8][8]; //[coluna][linha], exemplo, lance: [e][2] para [e][4]
-	int vez;
+struct listab                   //usado para armazenar o histórico do jogo e comparar posições repetidas
+{                                   //used to store the history of the game and analyze the repeated positions
+	int tab[8][8];             //[coluna][linha], exemplo, lance: [e][2] para [e][4]
+                                    //the pieces. [column][line], example: e4
+	int vez;                   //de quem é a vez
+                                    //the turn to play: -1 white, 1 black
+	int peao_pulou;			   //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+                                    //column pawn jump two squares. -1 used to say "cannot capture 'en passant'"
+	int roqueb, roquep;		   //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
+                                    //castle. 1: can do both. 0: none. 3:moved queen rook. 2:moved king rook.
+	float empate_50;		   //contador:quando chega a 50, empate.
+                                    //counter: when equal 50, draw by 50 moves rule.
+	int situa;				   //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+                                    //board situation: 0:nothing, 1:draw!, 2:check!, 3:white mated, 4:black mated, 5 and 6: time fell (white and black respec.)
+	int lancex[4];			   //lance executado originador deste tabuleiro.
+                                    //the move that originate this board. (integer notation)
+	int especial;			   //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+                                    //0:nothing. 1:king castle. 2:queen castle. 3:en passant capture. //promotion: 4=queen, 5=knight, 6=rook, 7=bishop.
+	int numero;				   //numero do lance
+                                    //move number (not ply)
+
 	int rep;				//quantidade de vezes que essa posicao ja repetiu comparada
-	listab *prox;
-	listab *ant;   	//com as posicoes de traz da lista encadeada.
+                                    //how many times this position repeated
+	listab *prox;           //ponteiro para o próximo da lista
+                                    //pointer to next on list
+	listab *ant;   	        //ponteiro para o anterior da lista
+                                    //pointer to before on list
 };
 
-resultado result;
-listab *plcabeca;  //cabeca da lista encadeada de posicoes repetidas
-listab *plfinal;	 //fim da lista encadeada
-int  xboard=0;
-FILE *fsaida;
-int debug=1; //coloque zero para evitar gravar arquivo
+resultado result;       //a melhor variante achada
+                            //the best variation found
+listab *plcabeca;       //cabeca da lista encadeada de posicoes repetidas
+                            //pointer to the first position on list
+listab *plfinal;	   //fim da lista encadeada
+                            //pointer to the last position on list
+int  xboard=0;          //1:usando interface gráfica. 0:somente no prompt
+                            //1:using GUI. 0:only prompt
+FILE *fsaida;           //arquivo de log xadreco.log
+                            //log file xadreco.log
+int debug=1;            //coloque zero para evitar gravar arquivo
+                            //0:do not save file xadreco.log, 1:save file
+int USALIVRO=1;         //1:consulta o livro de aberturas livro.txt. 0:nao consulta
+                            //1:use opening book. 0:do not use.
+char disc;              //sem uso. variável de descarte, para nao sujar o stdin, dic=pega()
+                            //not used. discart value from pega(), just to do not waring and trash stdin
 
-enum {REI=1000,DAMA=100,TORRE=50,BISPO=32,CAVALO=30,PEAO=10,VAZIA=0};
-char primeiro='h',segundo='c';
-int analise=-1; //-1 para primeira vez. 0 para não analise. 1 para analise.
-char pausa;
-int nivel=2;					//nivel de profundidade
-int profflag=0;				//Flag de captura ou xeque para liberar mais um nivel em profsuf
-int totalnodo=0;            //total de nodos analisados para fazer um lance
-clock_t clock1, clock2, difclock; //calcular o tempo gasto no minimax
-const int brancas=-1;
-const int pretas=1;
-unsigned char gira=(unsigned char)0;
-long int tempomov=1200; //3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min
+enum {REI=1000,DAMA=100,TORRE=50,BISPO=32,CAVALO=30,PEAO=10,VAZIA=0}; //valor das pecas (positivo==pretas)
+                                                                            //pieces value (positive==black)
+char primeiro='h',segundo='c'; //primeiro e segundo jogadores: h:humano, c:computador
+                                //first and second players: h:human, c:computer
+int analise=-1; //-1 para primeira vez. 0 para não analise. 1 para analise. ("exit" coloca ela como 0 novamente)
+                    //-1 first time. 0 do not analyze. 1 analyze game. ("exit" put it 0 again)
+char pausa;     //pause entre lances (computador x computador)
+                    //pause between moves (computer x computer)
+int nivel=2;    //nivel de profundidade (agora com aprofundamento iterativo, está sem uso)
+                    //deep level (now with iterative search deepning it is useless)
+int profflag=0;	//Flag de captura ou xeque para liberar mais um nivel em profsuf
+                    //when capturing or checking, let the search go one more level
+int totalnodo=0;    //total de nodos analisados para fazer um lance
+                        //total of nodes analyzed before one move
+clock_t clock1, clock2, difclock; //calcular o tempo gasto no minimax e outras
+                                    //calculating time in minimax function and others
+const int brancas=-1; //peças brancas são negativas
+                        //white pieces are negatives
+const int pretas=1; //peças pretas são positivas
+                        //black pieces are positives
+unsigned char gira=(unsigned char)0; //para mostrar um rostinho sorrindo (sem uso)
+                                        //to show a smile face (useless)
+long int tempomov=1200; //3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min por jogo (de 100 lances)
+                        //time per move. Examplo: 3000milisec = 3 sec per move = 300 sec per 100 moves = 5 min per game (of 100 moves)
 
-// prototipos -----------------
+// prototipos gerais -----------------
+void gotoxy(int x, int y); //eliminada para portabilidade com linux: posiciona o cursor
+                            //eliminated to linux portability: cursor position
+void clrscr(void); //eliminada para portabilidade com linux: apaga a tela
+                            //eliminated to linux portability: clear screen
 void imptab(tabuleiro tabu);	//imprime o tabuleiro
+                                //print board
+void mostra_lances(tabuleiro tabu); //mostra na tela informacoes do jogo e análises
+                                    //show on screen game information and analyzes
 void lance2movi(char *m, int *l, int flag_50, int especial); //transforma lances int 0077 em char tipo a1h8
+                                                                //change integer notation to algebric notation
 int movi2lance(int *l, char *m);	//faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.
+                                        //change algebric notation to integer notation. Return FALSE if it is not possible.
 inline int adv(int vez);				//retorna o adversario de quem esta na vez
+                                        //return the other player to play
 inline int sinal(int x);    		//retorna 1, -1 ou 0. Sinal de x
-movimento *geramov(tabuleiro tabu);	//retorna lista de lances possiveis, ordenados.
-void copitab(tabuleiro *dest, tabuleiro *font);	//copia font para dest
-int ataca(int cor, int col, int lin, tabuleiro tabu); //retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
-int qataca(int cor, int col, int lin,tabuleiro tabu, int *menor);  //retorna o numero de ataques da "cor" na casa(col,lin) de tabu, *menor é a menor peça que ataca.
-int xeque_rei_das(int cor, tabuleiro tabu); //retorna 1 se o rei de cor "cor" esta em xeque
-movimento *valido(tabuleiro tabu, int *lanc);//procura nos movimentos de geramov se o lance em questao eh valido. Se nao, retorna NULL
+                                    //return 1, -1 or 0: signal of x.
 int igual(int *lance1,int *lance2);	//compara dois vetores de lance[4]. Se igual, retorna 1
-void mostra_lances(tabuleiro tabu); //mostra na tela informacoes do jogo
-char situacao(tabuleiro tabu);	//retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
-void libera_lances(movimento *cabeca);//libera da memoria uma lista encadeada de movimentos
-void retira_tudo_listab(void); //zera a lista de tabuleiros
-void gotoxy(int x, int y);
-void clrscr(void);
+                                    //return 1 if lance1==lance2
+char pega(char *no, char *msg); //pegar caracter (linux e windows)
+                                //to solve getch, getche, getchar and whatever problems of portability
+float rand_minmax(float min, float max); //retorna um valor entre [min,max], inclusive
+                                        //return a random value between [min,max], inclusive
 
+// apoio xadrez ---------
+int ataca(int cor, int col, int lin, tabuleiro tabu); //retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
+                                                        //return 1 if "color" atack square(col, lin) in board tabu
+int qataca(int cor, int col, int lin,tabuleiro tabu, int *menor);  //retorna o numero de ataques da "cor" na casa(col,lin) de tabu, *menor é a menor peça que ataca.
+                                                                    //return the number of atacks of "color" at square(col,lin) in board tabu, *menor is the minor piece that atack
+int xeque_rei_das(int cor, tabuleiro tabu); //retorna 1 se o rei de cor "cor" esta em xeque
+                                            //return 1 if "color" king is in check
+void volta_lance(tabuleiro *tabu); //para voltar um movimento. Use duas vezes para voltar um lance inteiro.
+                                    //take back one ply. Use twice to take back one move
 char analisa(tabuleiro *tabu); //analisa uma posição mas não joga
-void minimax(tabuleiro atual,int prof,int uso,int passo, int niv);//coloca em result a melhor variante e seu valor.
-int profsuf(int prof, int niv);	//retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
-int estatico(tabuleiro tabu, int cod);//retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==-1: tempo estourou
-char joga_em(tabuleiro *tabu, movimento movi);//joga o movimento movi em tabuleiro tabu. retorna situacao.
-movimento *copimel(movimento pmovi, movimento *plance); //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
-void copimov(movimento *dest, movimento *font);  //copia os itens da estrutura movimento, mas nao copia ponteiro prox.
-void copilistmovmel(movimento *dest, movimento *font); //mantem dest, e copia para dest->prox a lista encadeada font
-movimento *copilistmov(movimento *font); //copia uma lista encadeada para outra nova. Retorna cabeca da lista destino
-void insere_listab(tabuleiro tabu); //posiciona plcabeca, plfinal.   Para casos de empate de repeticao de lances.
-void retira_listab(void); //posiciona plfinal no *ant. ou seja: apaga o ultimo da lista.
+                                //analyze a position, but do not play it
+movimento *valido(tabuleiro tabu, int *lanc);//procura nos movimentos de geramov se o lance em questao eh valido. Retorna o *movimento preenchido. Se nao, retorna NULL.
+                                                //search on the list generated by geramov if the move lanc is valid. Return *movimento fullfiled. If not, return NULL.
+char situacao(tabuleiro tabu);	//retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
+                                    //return a char that indicate the situation of the board, as mate, draw, etc...
 
-char humajoga(tabuleiro *tabu);
-char compjoga(tabuleiro *tabu);
+// livro -----------------
+void usalivro(tabuleiro tabu); //retorna em result.plance uma variante do livro, baseado na posição do tabuleiro tabu
+                                //put in result.plance a line found in the book, from the position on the board tabu
+void listab2string(char *strlance); //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
+                                        //generate a string with all moves, like "e1e2 e7e5"
+movimento *string2pmovi(tabuleiro tabu, char *linha); //retorna uma (lista) linha de jogo como se fosse a resposta do minimax
+                                                        //return a variation on a list, like the minimax's return.
+int igual_strlances_strlinha(char *strlances, char *strlinha); //retorna verdadeiro se o jogo atual strlances casa com a linha do livro atual strlinha
+                                                                //return true if the game strlances match with one line strlinha of the opening book
+
+// computador joga ---------------
+movimento *geramov(tabuleiro tabu);	//retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
+                                    //return a list of possibles moves, ordered by check and capture. Should put a best order here.
+void minimax(tabuleiro atual,int prof,int uso,int passo, int niv);//coloca em result a melhor variante e seu valor.
+                                                                    //put in result the better variation and its value
+int profsuf(int prof, int niv);	//retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
+                                //return TRUE if (deep>level) or (deep==level and not capture or check) or (it is a draw)
+int estatico(tabuleiro tabu, int cod);//retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==-1: tempo estourou no meio da busca
+                                        //return the static value of a position. If cod=-1, means that this position was here only because the time is over in the middle of the search
+char joga_em(tabuleiro *tabu, movimento movi, int cod);//joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
+                                                            //do the move! Move movi on board tabu. Return the situation. Insert the new board in the listab *plfina list if cod==1
+
+// listas dinamicas -------------
+movimento *copimel(movimento pmovi, movimento *plance); //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
+                                                        //return a new list adding (new single move pmovi)+(old list moves plance)
+void copimov(movimento *dest, movimento *font);  //copia os itens da estrutura movimento, mas nao copia ponteiro prox. dest=font
+                                                    //copy only the contents of the structure, but not the pointer. dest=font
+void copilistmovmel(movimento *dest, movimento *font); //mantem dest, e copia para dest->prox a lista encadeada font. Assim, a nova lista é (dest+font)
+                                                        //keep dest, and copy the list font to dest->prox. So, the new list is (dest+font)
+movimento *copilistmov(movimento *font); //copia uma lista encadeada para outra nova. Retorna cabeca da lista destino
+                                            //copy one list to another new one. Return the new head.
+void insere_listab(tabuleiro tabu); //Insere o tabuleiro tabu na lista listab. posiciona plcabeca, plfinal.   Para casos de empate de repeticao de lances, e para pegar o histórico de lances
+                                    //insert the board tabu in the list listab *plcabeca, positioning plcabeca and plfinal. Use to see draw, and to get history
+void retira_listab(void); //posiciona plfinal no *ant. ou seja: apaga o ultimo da lista. (usada para voltar de variantes ruins ou para voltar um lance a pedido do jogador)
+                            //delete the last board in the listab. (used to retract from worst variations, or to take back a move asked by player)
+void copitab(tabuleiro *dest, tabuleiro *font);	//copia font para dest. dest=font.
+                                                //copy font to dest. dest=font
+void libera_lances(movimento *cabeca);//libera da memoria uma lista encadeada de movimentos
+                                        //free memory of a list of moves
+void retira_tudo_listab(void); //zera a lista de tabuleiros
+                                //free all listab list.
+
+char humajoga(tabuleiro *tabu); //humano joga. Aceita comandos XBoard/WinBoard.
+                                //human play. Accept XBoard/WinBoard commands.
+char compjoga(tabuleiro *tabu); //computador joga. Chama o livro de aberturas ou o minimax.
+                                //computer play. Call the opening book or the minimax functions.
 
 
 // funcoes --------------------
@@ -202,13 +315,13 @@ int main(int argc, char *argv[])
     if(debug)
 	   	fsaida=fopen("xadreco.log","w");
 
-    printf("Xadreco version 2.0, Copyright (C) 2004 Ruben Carlo Benante\n\
+    printf("Xadreco version 3.1, Copyright (C) 2004 Ruben Carlo Benante\n\
 Xadreco comes with ABSOLUTELY NO WARRANTY;\n\
 This is free software, and you are welcome to redistribute it \
 under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n\
 for details.\n\n");
 
-	printf("Xadreco versão 2.0, Copyright (C) 2004 Ruben Carlo Benante\n\
+	printf("Xadreco versão 3.1, Copyright (C) 2004 Ruben Carlo Benante\n\
 O Xadreco não possui QUALQUER GARANTIA;\n\
 Ele é software livre e você está convidado a redistribui-lo \
 sob certas condições; Por favor, visite http://www.fsf.org/licenses/gpl.html\n\
@@ -216,12 +329,12 @@ para obter detalhes.\n\n");
 
 	if(debug)
     {
-	    fprintf(fsaida, "Xadreco version 2.0, Copyright (C) 2004 Ruben Carlo Benante\n\
+	    fprintf(fsaida, "Xadreco version 3.1, Copyright (C) 2004 Ruben Carlo Benante\n\
 Xadreco comes with ABSOLUTELY NO WARRANTY;\n\
 This is free software, and you are welcome to redistribute it \
 under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n for details.\n\n");
 
-		fprintf(fsaida, "Xadreco versão 2.0, Copyright (C) 2004 Ruben Carlo Benante\n\
+		fprintf(fsaida, "Xadreco versão 3.1, Copyright (C) 2004 Ruben Carlo Benante\n\
 O Xadreco não possui QUALQUER GARANTIA;\n\
 Ele é software livre e você está convidado a redistribui-lo \
 sob certas condições; Por favor, visite http://www.fsf.org/licenses/gpl.html\n\
@@ -236,18 +349,18 @@ para obter detalhes.\n\n");
         {
 	       	xboard=1;
 //    	    scanf("%s",&comando);
-//        	if(!strcmp(comando,"protover 2")) //protocolo versao 2.0 ou superior
+//        	if(!strcmp(comando,"protover 2")) //protocolo versão 2.0 ou superior
 //            {
 			    if(debug)
                 {
 	                fprintf(fsaida,"xadreco: feature done=0\n");
-		        	fprintf(fsaida,"xadreco: feature ping=0 setboard=0 playother=0 san=0 usermove=0 time=0 draw=1 sigint=1 sigterm=1 reuse=1 analyze=1 myname=\"Xadreco v.2, by Beco\" variants=\"normal\" colors=0 ics=0 name=0 pause=0\n");
+		        	fprintf(fsaida,"xadreco: feature ping=0 setboard=0 playother=0 san=0 usermove=0 time=0 draw=1 sigint=1 sigterm=1 reuse=1 analyze=1 myname=\"Xadreco v.3.1, by Beco\" variants=\"normal\" colors=0 ics=0 name=0 pause=0\n");
         	        fprintf(fsaida,"xadreco: feature done=1\n");
                 }
                 printf("feature done=0\n");
-	        	printf("feature ping=0 setboard=0 playother=0 san=0 usermove=0 time=0 draw=1 sigint=1 sigterm=1 reuse=1 analyze=1 myname=\"Xadreco v.2, by Beco\" variants=\"normal\" colors=0 ics=0 name=0 pause=0\n");
+	        	printf("feature ping=0 setboard=0 playother=0 san=0 usermove=0 time=0 draw=1 sigint=1 sigterm=1 reuse=1 analyze=1 myname=\"Xadreco v.3.1, by Beco\" variants=\"normal\" colors=0 ics=0 name=0 pause=0\n");
                 printf("feature done=1\n");
-		   //	printf("tellicsnoalias kibitz Hello from Xadreco v.2\n");
+		   //	printf("tellicsnoalias kibitz Hello from Xadreco v.3.1\n");
 
 //		        scanf("%s",&comando);
 //        		if(strcmp(comando,"accepted")==0) //aceitou os parâmetros
@@ -270,7 +383,9 @@ para obter detalhes.\n\n");
 		pausa='n';
 		result.valor=0;
 		result.plance=NULL;
+        retira_tudo_listab();
 		plcabeca=NULL;         //cabeca da lista de repeteco
+        USALIVRO=1;
 		// inicializar variaveis do roque e peao_pulou
 		tabu.roqueb=1;   		//0:mexeu R e/ou 2T. 1:pode dos 2 lados. 2:mexeu TR. 3:mexeu TD.
 		tabu.roquep=1;
@@ -282,6 +397,7 @@ para obter detalhes.\n\n");
 			tabu.lancex[i]=0;
 		tabu.numero=0;
         tabu.situa=0;
+        tabu.especial=0;
 
 		for(i=0;i<8;i++)
 			for(j=2;j<6;j++)
@@ -309,8 +425,12 @@ para obter detalhes.\n\n");
         }
         else
         {
-			printf("\n\n\nQuem joga de brancas (c:Computador, h ou espaco:Humano)? ");
-			primeiro=getch();
+//			printf("\n\n\nQuem joga de brancas (c:Computador, h ou espaco:Humano)? ");
+			printf("\n\n");
+            primeiro=pega("ch ","\nQuem joga de brancas (c:Computador, h ou espaco:Humano)? ");
+//            primeiro=getchar();
+//            getchar();
+//			scanf("%c",&primeiro); //primeiro=getche();
 			if(primeiro==' ')
 			{
 				primeiro='h';
@@ -318,8 +438,11 @@ para obter detalhes.\n\n");
 			}
 			else
 				printf("%c",primeiro);
-			printf("\nQuem joga de  pretas (c ou espaco:Computador, h:Humano)? ");
-			segundo=getch();
+//			printf("\nQuem joga de  pretas (c ou espaco:Computador, h:Humano)? ");
+            segundo=pega("ch ","\nQuem joga de  pretas (c ou espaco:Computador, h:Humano)? ");
+//            segundo=getchar();
+//            getchar();
+//			scanf("%c",&segundo); //segundo=getche();
 			if(segundo==' ')
 			{
 				segundo='c';
@@ -334,8 +457,11 @@ para obter detalhes.\n\n");
 			}
 			if(primeiro==segundo && primeiro=='c')
 			{
-				printf("\n\nPausa entre os lances? (s ou espaco / n): ");
-				pausa=getch();
+//				printf("\n\nPausa entre os lances? (s ou espaco / n): ");
+                pausa=pega("sn ","\nPausa entre os lances? (s ou espaco / n): ");
+//                pausa=getchar();
+//                getchar();
+//				scanf("%c",&pausa); //pausa==getche();
 				if(pausa==' ')
 					pausa='s';
 			}
@@ -344,8 +470,11 @@ para obter detalhes.\n\n");
 		if(!xboard && pausa=='s')
 		{
 			gotoxy(10,20);
-			printf("Tecle algo para prosseguir. c-comando.");
-			pausa=getch();
+//			printf("Tecle <ESPACO>+<ENTER> para prosseguir ou <c>+<ENTER> para comando.");
+            pausa=pega("c ","\nTecle <ESPACO>+<ENTER> para prosseguir ou <c>+<ENTER> para comando.\n");
+//            pausa=getchar();
+//            getchar();
+//			scanf("%c",&pausa); //pausa=getche();
 			if(pausa!='c')
 				pausa='s';
 		}
@@ -545,8 +674,11 @@ joga_novamente:
         		    if(!xboard && (pausa=='s' || pausa=='c'))
 					{
 						gotoxy(10,20);
-						printf("Tecle algo para prosseguir. c-comando.");
-						pausa=getch();
+//						printf("Tecle <ESPACO> para prosseguir ou <c> para comando.");
+                        pausa=pega("c ","\nTecle <ESPACO>+<ENTER> para prosseguir ou <c>+<ENTER> para comando.");
+//                        pausa=getchar();
+//                        getchar();
+//						scanf("%c",&pausa); //pausa=getche();
 						if(pausa!='c')
 							pausa='s';
 					}
@@ -554,8 +686,13 @@ joga_novamente:
 		}
 	if(!xboard)
     {
-		printf("\nQuer recomecar? (s/n): ");
-		do{opc=getche();}while(opc!='s' && opc!='n');
+//		printf("\nQuer recomecar? (s/n): ");
+//		do{
+            opc=pega("sn","\nQuer recomecar? (s/n): ");
+//            opc=getchar();
+//            getchar();
+//            scanf("%c",&opc); //opc=getche();
+//        }while(opc!='s' && opc!='n');
     }
     else
     {
@@ -802,23 +939,23 @@ void lance2movi(char *m,int *l, int flag_50, int espec)  //int para char
 	//    n[3]=m[2];n[4]=m[3];
 //  n[2]=m[2];n[3]=m[3];//comentei pois não lembrei para que serve
 
-	if(flag_50==-1 && espec==-1)
-	{
+//	if(flag_50==-1 && espec==-1)
+//	{
 //		m=strcpy(m,n); //comentei pois não lembrei para que serve
-		return;
-	}
+//		return;
+//	}
 //	if(flag_50>1)                      // ou xizinho caso capturou
 //		n[2]='x';
 
 	switch(espec)    //promocao para 4,5,6,7 == D,C,T,B
 	{
-		case 0: break;
-		case 1: //n[0]='o';n[1]='-';n[2]='o';n[3]='\0';        //roque pequeno
-        		break;
-		case 2: //n[0]='o';n[1]='-';n[2]='o';n[3]='-';n[4]='o';n[5]='\0';   //roque grande
-				break;
-		case 3: //n[5]='.';n[6]='e';n[7]='p';n[8]='\0';    //comeu en passant
-				break;
+//		case 0: break;
+//		case 1: //n[0]='o';n[1]='-';n[2]='o';n[3]='\0';        //roque pequeno
+//        		break;
+//		case 2: //n[0]='o';n[1]='-';n[2]='o';n[3]='-';n[4]='o';n[5]='\0';   //roque grande
+//				break;
+//		case 3: //n[5]='.';n[6]='e';n[7]='p';n[8]='\0';    //comeu en passant
+//				break;
 		case 4: //n[5]='=';n[6]='D';n[7]='\0';     //promoveu a Dama
         		m[4]='q';m[5]='\0';
 				break;
@@ -892,6 +1029,7 @@ void copitab(tabuleiro *dest, tabuleiro *font)
 	for(i=0;i<4;i++)
 		dest->lancex[i]=font->lancex[i];
 	dest->numero=font->numero;
+    dest->especial=font->especial; //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
 }
 
 movimento *geramov(tabuleiro tabu)
@@ -1868,7 +2006,8 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 {
 	char movinito[80]; //desisto
 	movimento *pval;
-	char peca, res, aux;
+	char res, aux;
+    char peca;
 	int tente, lanc[4], moves, minutes, incre;
 
 	int i,j, casacor;  //nao
@@ -1906,7 +2045,22 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
             tente=1;
             continue;
         }
-        //analise 
+        if(!strcmp(movinito,"undo")) // nao joga, apenas acompanha
+        {
+            primeiro='h';
+            segundo='h';
+            volta_lance(tabu);
+            tente=1;
+            continue;
+        }
+        if(!strcmp(movinito,"remove")) // nao joga, apenas acompanha
+        {
+            volta_lance(tabu);
+            volta_lance(tabu);
+            tente=1;
+            continue;
+        }
+        //analise
 		if(!strcmp(movinito,"analyze") && xboard) // analise inicia
 		{
             if(analise==-1)
@@ -1941,8 +2095,10 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 				{
 	                if(!xboard)
                     {
-						printf("Empate nao foi aceito. Jogue!");
-						getch();
+//						printf("\nEmpate nao foi aceito. Jogue! (Tecle <ESPACO>)");
+                        disc=pega(" ","\nEmpate nao foi aceito. Jogue!\nTecle <ESPACO>+<ENTER>");
+//                      getchar();
+//						getchar();
 						imptab(*tabu);
                     }
                     tente=1;
@@ -1953,15 +2109,17 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 		{
         	if(!xboard)
             {
-				printf("Xadreco versao 2.0 para WinBoard\nBaseado no Algoritmo Minimax.\n\n		Por Ruben Carlo Benante, 04/06/04.");
-				getch();
+//				printf("Xadreco versão 3.1 para WinBoard\nBaseado no Algoritmo Minimax.\n\n		Por Ruben Carlo Benante, 04/06/04.\nTecle <ESPACO>+<ENTER>");
+//				printf("\nTecle <ESPACO> e <ENTER>.");
+                disc=pega(" ","Xadreco versão 3.1 para WinBoard\nBaseado no Algoritmo Minimax.\n\n		Por Ruben Carlo Benante, 04/06/04.\nTecle <ESPACO>+<ENTER>");
+//				getchar();
 				imptab(*tabu);
             }
             else
             {
             	if(debug)
-				    fprintf(fsaida,"tellopponent Xadreco v.2 para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 04/06/04.\n");
-			    printf("tellopponent Xadreco v.2 para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 04/06/04.\n");
+				    fprintf(fsaida,"tellopponent Xadreco v.3.1 para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 04/06/04.\n");
+			    printf("tellopponent Xadreco v.3.1 para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 04/06/04.\n");
             }
 			tente=1;
 			continue;
@@ -2008,8 +2166,12 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 //        }
 		if(!strcmp(movinito,"adv") && !xboard)
 		{
-			printf("\n\n\nQuem joga de brancas (c:Computador, h ou espaco:Humano)? ");
-			primeiro=getch();
+//			printf("\n\n\nQuem joga de brancas (c:Computador, h ou espaco:Humano)? ");
+			printf("\n\n");
+            primeiro=pega("ch ","\nQuem joga de brancas (c:Computador, h ou espaco:Humano)? ");
+//            primeiro=getchar();
+//            getchar();
+//			scanf("%c",&primeiro); //primeiro=getche();
 			if(primeiro==' ')
 			{
 				primeiro='h';
@@ -2017,10 +2179,13 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 			}
 			else
 				printf("%c",primeiro);
-				printf("\nQuem joga de  pretas (c ou espaco:Computador, h:Humano)? ");
-			segundo=getch();
+//			printf("\nQuem joga de  pretas (c ou espaco:Computador, h:Humano)? ");
+            segundo=pega("ch ","\nQuem joga de  pretas (c ou espaco:Computador, h:Humano)? ");
+//            segundo=getchar();
+//            getchar();
+//			scanf("%c",&segundo); //segundo=getche();
 			if(segundo==' ')
-				{
+			{
 				segundo='c';
 				printf("c");
 			}
@@ -2028,8 +2193,11 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 				printf("%c",segundo);
 			if(primeiro==segundo && primeiro=='c')
 			{
-				printf("\n\nPausa entre os lances? (s ou espaco / n): ");
-				pausa=getch();
+//				printf("\nPausa entre os lances? (s ou espaco / n): ");
+                pausa=pega("sn ","\nPausa entre os lances? (s ou espaco / n): ");
+//                pausa=getchar();
+//                getchar();
+//				scanf("%c",&pausa); //pausa=getche();
 				if(pausa==' ')
 					pausa='s';
 			}
@@ -2127,7 +2295,7 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
         || !strcmp(movinito,"accepted") || !strcmp(movinito,"done")
         || !strcmp(movinito,"random") || !strcmp(movinito,"post")
         || !strcmp(movinito,"hard") || !strcmp(movinito,".")
-        || !strcmp(movinito,"computer"))
+        || !strcmp(movinito,"computer") || !strcmp(movinito,"easy"))
         {
 			tente=1;
 			continue;
@@ -2135,7 +2303,7 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 		if(!strcmp(movinito,"mem") && !xboard)		//So Deus explica esta funcao funcionar!
 		{
 //			printf("Memoria livre: \%lu bytes\n"/*, (unsigned long) coreleft()*/);
-//			getch();
+//			getchar();
 			imptab(*tabu);
 			tente=1;
 			continue;
@@ -2214,14 +2382,16 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 				printf("  a  b  c  d  e  f  g  h\n\n\r");
 //				textcolor(10);
 //				textbackground(0);
-				printf("repetiu: %d vez(es). Lance num.: %.0f\n",plaux->rep,lan);
-				printf("\nTecle algo para prosseguir.");
-				getch();
+				printf("repetiu: %d vez(es). Lance num.: %d\n",plaux->rep,plaux->numero);//lan);
+//				printf("Tecle <ESPACO> e <ENTER>.\n");
+                disc=pega(" ","\nTecle <ESPACO>+<ENTER>");
+//				getchar();
 				plaux=plaux->prox;
 			} //fim do while
-		printf("\nA lista de tabuleiros acabou. Tecle algo, c-comando.");
-
-		getch();
+		printf("\nA lista de tabuleiros acabou.");
+//		printf("\nTecle <ESPACO> e <ENTER>.");
+        disc=pega(" ","\nTecle <ESPACO>+<ENTER>");
+//		getchar();
 		imptab(*tabu);
 		res=situacao(*tabu);
 		if(res=='x')
@@ -2237,7 +2407,7 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 		{
         	if(!xboard)
             {
-				if(strcmp(movinito,"lista") && strcmp(movinito,"adv") && strcmp(movinito,"go"))	//se nao eh o comando lista e nao eh adv
+				if(strcmp(movinito,"lista") && strcmp(movinito,"adv") && strcmp(movinito,"go"))	//se nao eh o comando lista e nao eh adv //esse if não é mais necessário?
 				{
 					printf("\nPara jogar por exemplo C3BD (notacao descritiva),");
 					printf(" digite assim: b1c3<enter>");
@@ -2255,8 +2425,10 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 					printf("\n'partida' lista os lances desta partida.");
 					printf("\n'quit' para abortar o programa.");
 					printf("\n'mem' para avaliar a memoria disponivel.");
-					printf("\n                          Tecle <enter> para continuar.");
-					getch();
+//					printf("\n                          Tecle <enter> para continuar.");
+//    				printf("\nTecle <ESPACO> e <ENTER>.\n");
+                    disc=pega(" ","\nTecle <ESPACO>+<ENTER>");
+//					getchar();
 				}
 			imptab(*tabu);
             }
@@ -2280,8 +2452,11 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
             }
             else
             {
-				printf("\n\nMovimento Ilegal. Tente outra vez.\n");
-				getch();
+//				printf("\n\nMovimento Ilegal. Tente outra vez.\n");
+				printf("\n");
+//				printf("\nTecle <ESPACO> e <ENTER>.\n");
+                disc=pega(" ","\nMovimento Ilegal. Tente outra vez.\nTecle <ESPACO>+<ENTER>");
+//				getchar();
 				imptab(*tabu);
 				res=situacao(*tabu);
 				if(res=='x' && !xboard)
@@ -2310,16 +2485,21 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
         }
         else
         {
-			do
+			do		//promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
 			{
-				printf("\n\nO peao foi promovido. Escolha uma peca (d,t,b,c)? ");
-				peca=getche();
+//				printf("\n\nO peao foi promovido. Escolha uma peca (d,t,b,c)? ");
+				printf("\n");
+                peca=pega("dtcb","\nO peao foi promovido. Escolha uma peca (d,t,b,c)? ");
+//                peca=getchar();
+//                getchar();
+                printf("peca:%c",peca); //comentar. teste.
+//				scanf("%c",&peca); //peca=getche();
 				switch(peca)
 				{
 					case 'd': pval->especial=4; break;
+					case 'c': pval->especial=5; break;
 					case 't': pval->especial=6; break;
 					case 'b': pval->especial=7; break;
-					case 'c': pval->especial=5; break;
 					default : continue;
 				}
 			}while(0);	//falso sempre!
@@ -2327,7 +2507,7 @@ char humajoga(tabuleiro *tabu) //----------------------------------------------
 	}
 
 //	insere_listab(*tabu);
-	res=joga_em(tabu,*pval); //a funcao joga_em deve inserir no listab
+	res=joga_em(tabu,*pval, 1); //a funcao joga_em deve inserir no listab cod==1
 	//lancex.lance[i]
 	free(pval);
 
@@ -2484,7 +2664,11 @@ char compjoga(tabuleiro *tabu)
 					if(!strcmp(command,"lista"))
 					{
 						mostra_lances(*tabu);
-						com=getch();
+//        				printf("\nTecle <ESPACO> e <ENTER>.\n");
+                        com=pega(" ","\nTecle <ESPACO>+<ENTER>");
+//                        com=getchar();
+//                        getchar();
+//						scanf("%c",&com); //com=getche();
 					}
 					else
 						if(!strcmp(command,"repete"))
@@ -2560,21 +2744,29 @@ char compjoga(tabuleiro *tabu)
 								printf("  a  b  c  d  e  f  g  h\n\n\r");
 //								textcolor(10);
 //								textbackground(0);
-								printf("repetiu: %d vez(es). Lance num.: %.0f\n",plaux->rep,lan);
-								printf("\nTecle algo para prosseguir.");
-								getch();
+								printf("repetiu: %d vez(es). Lance num.: %d\n",plaux->rep,plaux->numero);//lan);
+//								printf("\nTecle algo para prosseguir.");
+//                				printf("\nTecle <ESPACO> e <ENTER>.\n");
+                                disc=pega(" ","\nTecle <ESPACO>+<ENTER>");
+//								getchar();
 								plaux=plaux->prox;
 							} //fim do while
-						printf("\nA lista de tabuleiros acabou. Tecle algo, c-comando.");
-						com=getch();
+//						printf("\nA lista de tabuleiros acabou. Tecle <ESPACO> ou <c> para comando.");
+                        com=pega("c ","\nA lista de tabuleiros acabou. \nTecle <ESPACO>+<ENTER> para prosseguir ou <c>+<ENTER> para comando.");
+//                        com=getchar();
+//                        getchar();
+//						scanf("%c",&com); //com=getche();
 					} //comando repete
 				else
 					if(!strcmp(command,"nivel"))
 					{
 						printf("\nNivel atual:%d. Qual o novo nivel de dificuldade (1-6)? ",nivel);
 						scanf("%d",&nivel);
-						printf("\nTecle algo, c-comando.");
-						com=getch();
+//						printf("\nTecle <ESPACO> ou <c> comando.");
+                        com=pega("c ","\nTecle <ESPACO>+<ENTER> para prosseguir ou <c>+<ENTER> para comando.");
+//                        com=getchar();
+//                        getchar();
+//						scanf("%c",&com); //com=getche();
 					}
 					else
 					{
@@ -2584,8 +2776,11 @@ char compjoga(tabuleiro *tabu)
 						printf("	exit   : termino anormal do programa.\n");
 						printf("	repete : mostra a lista de tabuleiros.\n");
 						printf("	nivel  : muda o nivel de dificuldade atual.\n");
-						printf("\nTecle algo para prosseguir, c-comando");
-						com=getch();
+//						printf("\nTecle <ESPACO> para prosseguir, c-comando");
+                        com=pega("c ","\nTecle <ESPACO>+<ENTER> para prosseguir ou <c>+<ENTER> para comando.");
+//                        com=getchar();
+//                        getchar();
+//						scanf("%c",&com); //com=getche();
 					}
 		}while(com=='c');	 //outro comando
 	} //variavel pausa!='c'
@@ -2605,32 +2800,44 @@ char compjoga(tabuleiro *tabu)
 		printf(":)");
     }
 
-    //mudou para busca em amplitude: variavel nivel obsoleta!
-    nv=1;
-    while(true) //for(nv=1; nv<=7; nv++) //funcao COMPJOGA
+    if(USALIVRO && tabu->numero<25)
     {
-        // tabuleiro atual, profundidade zero, limite maximo de estatico (beta ou uso), limite minimo de estatico (alfa ou passo), nivel da busca
-    	minimax(*tabu,0,10001,-10001, nv);  //retorna o melhor caminho a partir de tab...
-        if(melhorvalor1<result.valor) //Será que esse teste é necessário? Não é melhor atualizar sempre?
-        {
-            libera_lances(melhorcaminho1);
-            melhorvalor1=result.valor;
-            melhorcaminho1=copilistmov(result.plance);
-        }
+
+        usalivro(*tabu);
+		if(result.plance==NULL)
+			USALIVRO=0;
         clock2=clock();
         difclock=clock2-clock1;
-        if(difclock>tempomov)
-            break;
-        nv++;
     }
-    libera_lances(result.plance);
-    result.valor=melhorvalor1;
-    result.plance=copilistmov(melhorcaminho1);
+	if(!USALIVRO)
+    {
+        //mudou para busca em amplitude: variavel nivel obsoleta!
+        nv=1;
+        while(true) //for(nv=1; nv<=7; nv++) //funcao COMPJOGA
+        {
+            // tabuleiro atual, profundidade zero, limite maximo de estatico (beta ou uso), limite minimo de estatico (alfa ou passo), nivel da busca
+        	minimax(*tabu,0,10001,-10001, nv);  //retorna o melhor caminho a partir de tab...
+            if(melhorvalor1<result.valor) //Será que esse teste é necessário? Não é melhor atualizar sempre?
+            {
+                libera_lances(melhorcaminho1);
+                melhorvalor1=result.valor;
+                melhorcaminho1=copilistmov(result.plance);
+            }
+            clock2=clock();
+            difclock=clock2-clock1;
+            if(difclock>tempomov)
+                break;
+            nv++;
+        }
+        libera_lances(result.plance);
+        result.valor=melhorvalor1;
+        result.plance=copilistmov(melhorcaminho1);
+    }
 
 	if(result.plance==NULL)
 		return('e');		//erro! computador sem lances!? nivel deve ser > zero
 
-	res=joga_em(tabu,*result.plance); // joga_em já usa insere_listab(*tabu); //insere o lance jogado na lista de repeteco
+	res=joga_em(tabu,*result.plance, 1); // joga_em já usa insere_listab(*tabu); //insere o lance jogado na lista de repeteco
 	return(res); //vez da outra cor jogar. retorna a situacao(*tabu)
 }
 
@@ -2742,7 +2949,7 @@ void minimax(tabuleiro atual,int prof, int uso, int passo, int niv)
 	{
 		copitab(&tab, &atual);
 
-		joga_em(&tab,*succ); 					//joga o lance atual, a funcao joga_em deve inserir no listab
+		disc=(char)joga_em(&tab,*succ, 1); 					//joga o lance atual, a funcao joga_em deve inserir no listab
         totalnodo++;
 
 		profflag=succ->flag_50;					//flag_50== 2 ou 3 : houve captura :Liberou
@@ -2797,7 +3004,7 @@ int profsuf(int prof, int niv)
 	return 0; //se OU Nem-Chegou-no-Nivel OU Liberou, pode ir fundo
 }
 
-char joga_em(tabuleiro *tabu, movimento movi)
+char joga_em(tabuleiro *tabu, movimento movi, int cod)
 {
 	int i;
 	char res;
@@ -2866,8 +3073,10 @@ char joga_em(tabuleiro *tabu, movimento movi)
 	if(tabu->vez==brancas)
 		tabu->numero++;
 	tabu->vez=adv(tabu->vez);
+    tabu->especial=movi.especial;
 
-	insere_listab(*tabu);					//insere o lance no listab
+    if(cod)
+        insere_listab(*tabu);					//insere o lance no listab cod==1
 	res=situacao(*tabu);
 	switch(res)
 	{
@@ -3283,7 +3492,7 @@ void insere_listab(tabuleiro tabu)
 	int i,j, flag;
 	listab *plaux;
 
-	if(plcabeca==NULL)
+	if(plcabeca==NULL) //lista vazia?
 	{
 		plcabeca=(listab *)malloc(sizeof(listab));
 		if(plcabeca==NULL)
@@ -3297,9 +3506,18 @@ void insere_listab(tabuleiro tabu)
 		plfinal->prox=NULL;
 		for(i=0;i<8;i++)
 			for(j=0;j<8;j++)
-				plfinal->tab[i][j]=tabu.tab[i][j];
-		plfinal->vez=tabu.vez;
-		plfinal->rep=1;
+				plfinal->tab[i][j]=tabu.tab[i][j];      //posição das peças
+		plfinal->vez=tabu.vez;                          //de quem é a vez
+		plfinal->rep=1;                                 //primeira vez que aparece
+	    plfinal->peao_pulou=tabu.peao_pulou;			//contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+        plfinal->roqueb=tabu.roqueb;
+        plfinal->roquep=tabu.roquep;			        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
+        plfinal->empate_50=tabu.empate_50;				//contador:quando chega a 50, empate.
+        plfinal->situa=tabu.situa;						//0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+        for(i=0;i<4;i++)
+            plfinal->lancex[i]=tabu.lancex[i];			//lance executado originador deste tabuleiro.
+        plfinal->numero=tabu.numero;					//numero do lance
+        plfinal->especial=tabu.especial;
 	}
 	else
 	{
@@ -3320,6 +3538,15 @@ void insere_listab(tabuleiro tabu)
 			for(j=0;j<8;j++)
 				plfinal->tab[i][j]=tabu.tab[i][j];
 		plfinal->vez=tabu.vez;
+	    plfinal->peao_pulou=tabu.peao_pulou;			//contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+        plfinal->roqueb=tabu.roqueb;
+        plfinal->roquep=tabu.roquep;			        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
+        plfinal->empate_50=tabu.empate_50;				//contador:quando chega a 50, empate.
+        plfinal->situa=tabu.situa;						//0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+        for(i=0;i<4;i++)
+            plfinal->lancex[i]=tabu.lancex[i];			//lance executado originador deste tabuleiro.
+        plfinal->numero=tabu.numero;					//numero do lance
+        plfinal->especial=tabu.especial;
 		//compara o inserido agora com todos os anteriores...
 		plaux=plfinal->ant;
 		while(plaux!=NULL)
@@ -3329,7 +3556,7 @@ void insere_listab(tabuleiro tabu)
 			{
 				for(j=0;j<8;j++)
 				{
-					if(plfinal->tab[i][j]!=plaux->tab[i][j])
+					if(plfinal->tab[i][j]!=plaux->tab[i][j]) //para ser diferente tem que mudar as peças e a vez
 						flag=1;		//flag==1:tabuleiro diferente nao eh posicao repetida.
 					if(flag)    //flag == 1?
 						break;
@@ -3342,7 +3569,7 @@ void insere_listab(tabuleiro tabu)
 			if(!flag)     //flag == 0?
 			{
 //				printf("Esta posicao repetiu: %d.",plaux->rep+1);
-//				getch();
+//				getchar();
 				plfinal->rep=plaux->rep+1;
 				break;
 			}
@@ -3351,7 +3578,7 @@ void insere_listab(tabuleiro tabu)
 		if(flag)       //flag == 1?
 //		{
 //			printf("Primeira vez que vejo essa!");
-//			getch();
+//			getchar();
 			plfinal->rep=1;
 //		}
 	}
@@ -3373,6 +3600,34 @@ void retira_listab(void)  //retira o plfinal;
 	}
 	plfinal=plaux;
 	plfinal->prox=NULL;
+}
+
+void volta_lance(tabuleiro *tabu) //para voltar um lance
+{
+    int i,j;
+
+    if(plcabeca==NULL || plfinal==NULL) //nao tem ninguém... erro.
+        return;
+    if(plcabeca==plfinal) //já está na posição inicial
+        return;
+
+    retira_listab();
+
+	for(i=0;i<8;i++)
+		for(j=0;j<8;j++)
+			tabu->tab[i][j]=plfinal->tab[i][j];     //posição das peças
+	tabu->vez=plfinal->vez;                         //de quem é a vez
+    tabu->peao_pulou=plfinal->peao_pulou;			//contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+    tabu->roqueb=plfinal->roqueb;
+    tabu->roquep=plfinal->roquep;			        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
+    tabu->empate_50=plfinal->empate_50;				//contador:quando chega a 50, empate.
+    tabu->situa=plfinal->situa;						//0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+    for(i=0;i<4;i++)
+        tabu->lancex[i]=plfinal->lancex[i];			//lance executado originador deste tabuleiro.
+    tabu->numero=plfinal->numero;					//numero do lance
+    tabu->especial=plfinal->especial;               //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+    if(tabu->numero<25)
+        USALIVRO=1;
 }
 
 void retira_tudo_listab(void) //zera a lista de tabuleiros
@@ -3637,4 +3892,216 @@ int qataca(int cor, int col, int lin,tabuleiro tabu, int *menor)
 
 void gotoxy(int x, int y){}
 void clrscr(void){}
+
+// ----------------------------------------------------------------------------
+// Livro de aberturas
+
+void listab2string(char *strlance) //pega a lista de tabuleiros e cria uma string de movimentos
+{
+	listab *plaux;
+    char m[8];
+    int n=0, i;
+
+	if(plcabeca==NULL)
+    {
+        strlance=NULL;
+		return;
+    }
+    plaux=plcabeca->prox; //o primeiro tabuleiro nao tem lancex
+    while(plaux!=NULL)
+	{
+        lance2movi(m, plaux->lancex, 0, plaux->especial); //flag_50 nao esta sendo usada!
+        m[4]='\0';
+        for(i=0;i<4;i++)
+        {
+            strlance[n+i]=m[i];
+        }
+        n += 4;
+        strlance[n]=' ';
+        n++;
+        plaux=plaux->prox; //gira o laço
+    }
+    strlance[n]='\0';
+  return;
+}
+
+movimento *string2pmovi(tabuleiro tabu, char *linha) //retorna uma linha de jogo como se fosse a resposta do minimax
+{
+    char m[8];
+    int n=0, lanc[4], i, conta=0;
+	movimento *pmovi, *pmoviant, *cabeca;
+
+    cabeca=NULL;
+    pmoviant=NULL;
+    pmovi=NULL;
+
+    while (linha[n]!='\0')
+    {
+        n++;
+        conta++;
+    }
+    n=0;
+
+    while(n<conta-1)
+    {
+        for(i=0;i<4;i++)
+            m[i]=linha[n+i];
+        m[4]='\0';
+
+        movi2lance(lanc, m);
+        pmovi=valido(tabu, lanc); //lanc eh int lanc[4]; cria pval com tudo preenchido
+        if(pmovi==NULL)
+        {
+        	n+=5;
+            continue;
+//            if(!xboard)
+//                printf("\nErro no livro de abertura!");
+//            break;
+    	}
+      	disc=(char)joga_em(&tabu,*pmovi, 0); //a funcao joga_em deve inserir no listab, cod: 1:insere, 0:nao insere
+        if(cabeca==NULL)
+        {
+            cabeca=pmovi;
+            pmoviant=pmovi;
+        }
+        else
+        {
+            pmoviant->prox=pmovi;
+            pmoviant=pmoviant->prox;
+            pmoviant->prox=NULL;
+        }
+        pmovi=NULL;
+        n+=5;
+    }
+    return cabeca;
+}
+
+int igual_strlances_strlinha(char *strlances, char *strlinha) //retorna verdadeiro se o jogo atual casa com a linha do livro atual
+{
+    int i=0;
+
+    if(strlances[0]=='\0')
+        return 1;
+
+    while(strlances[i]!='\0')
+    {
+        if(strlances[i]!=strlinha[i])
+            return 0;
+        i++;
+    }
+    return 1;
+}
+
+
+void usalivro(tabuleiro tabu) //retorna em result.plance uma variante do livro
+{
+
+    movimento *cabeca;
+    char linha[256], strlance[256], melhorlinha[256];
+    FILE *flivro;
+    int i=0, sorteio;	//, novovalor, melhorvalor;
+
+	//melhorvalor=-10001;
+
+    cabeca=NULL;
+    flivro=fopen("livro.txt","r");
+    if(!flivro)
+    {
+        if(!xboard)
+            printf("Erro ao ler o livro de abertura: livro.txt nao existe.\n");
+    }
+    else
+    {
+        if(tabu.numero == 0)    // No primeiro lance, sorteia uma abertura
+        {
+            sorteio=(int)rand_minmax(0,408); //maximo de linhas no livro!
+            while(!feof(flivro) && i<sorteio)
+            {
+                fgets(linha,256,flivro);
+                i++;
+            }
+            while(linha[0]=='#')               //a ultima linha não deve ser comentário
+                fgets(linha,256,flivro);    
+            cabeca=string2pmovi(tabu, linha);
+        }
+        else    //Responde com a primeira abertura que achar (primeira tentativa)
+        {       //Pega a primeira, e troca por outras via sorteio. (segunda tentativa) (mudar isso para avaliar as linhas e escolher a melhor)
+            listab2string(strlance);
+//            fgets(linha,256,flivro);
+//            strcmp(melhorlinha,linha);
+//            melhorvalor=analisa_variante(linha);
+            while(!feof(flivro))
+            {
+	           fgets(linha,256,flivro);
+	           if(igual_strlances_strlinha(strlance, linha))
+               {
+                    if(cabeca==NULL)
+    	                cabeca=string2pmovi(tabu, linha);
+                    else
+                    {
+                        sorteio=(int)rand_minmax(0,90);
+                        if(sorteio>80) //as melhores linhas devem estar no topo do livro
+                        {
+                            libera_lances(cabeca);
+        	                cabeca=string2pmovi(tabu, linha);
+                        }
+                    }
+//                  novovalor=analisa_variante(linha);
+//	                if(novovalor>melhorvalor)
+//                  {
+//	                    melhorvalor=novovalor
+//                      strcmp(melhorlinha,linha);
+//	                }
+//                  else
+//                  {
+//                      libera_lances(cabeca);
+//    	                cabeca=string2pmovi(tabu,linha);
+//                  }
+	           }
+            }
+        }
+    }
+    result.valor=0;
+    if(cabeca!=NULL)
+        result.plance=copilistmov(cabeca);
+
+    if(flivro)
+        fclose(flivro);
+    return;
+}
+
+char pega(char *no, char *msg) //pegar caracter (linux e windows)
+{
+    int p;
+
+    printf("%s",msg);
+    p=getchar();
+    while(!strchr(no, p))
+    {
+        printf("?");
+        p=getchar();
+    }
+    return p;
+}
+
+float rand_minmax(float min, float max) //retorna um valor entre [min,max], inclusive
+{
+	float sorteio;
+    clock_t s;
+   	time_t t;
+
+
+    s=clock();
+    static int ini=1;
+    if(ini)
+    {
+    	srand((unsigned) s +(unsigned) time(&t));
+        ini--;
+    }
+ 	sorteio = rand()%2719;
+	sorteio /= 2718.281828459;
+	sorteio *= (max-min);
+	sorteio += min;
+	return sorteio;
+}
 
