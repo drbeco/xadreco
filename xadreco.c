@@ -2385,7 +2385,7 @@ humajoga (tabuleiro * tabu)
                 fprintf (fsaida, "winboard: %s\n", movinito);
             incre = atoi (movinito);
             if (moves <= 0)
-                moves = 100;
+                moves = 100; /* bug? v56 moves=40 */
             if (minutes < 0)
                 minutes = 0;
             if (incre < 0)
