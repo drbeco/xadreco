@@ -61,10 +61,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define VERSION 20131201.0211744
 #define TRUE 1
 #define FALSE 0
 
-// 106550
+#define TOTAL_MOVIMENTOS 60
+//estimativa da duracao do jogo
+//estimate of game lenght
 #define MARGEM_PREGUICA 400
 //margem para usar a estatica preguicosa
 //margin to use the lazy evaluation
@@ -96,7 +99,7 @@
 //pede empate se lances > MOVE_EMPATE2 e tem menos que 0.2 PEAO
 //ask for draw if ply > MOVE_EMPATE2 and he has less then 0.2 PAWN
 // dados ----------------------
-int debug = 0;
+int debug = 1;
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:debug, 2:debug minimax
 //0:do not save file xadreco.log, 1:save file, 2:minimax debug
 
@@ -238,12 +241,10 @@ struct listab *plfinal;
 struct movimento *succ_geral;
 //ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas;
 //pointer to the first list move that should be analyzed
-FILE *fsaida, *ftemp, *fmini;
-//fsaida: arquivo de log xadreco.log, ftemp: arquivo de trava
+//FILE *fsaida,
+FILE *fmini;
+//fsaida: arquivo de log xadreco.log
 //log file xadreco.log
-int machine = 0;
-//numero da engine na memoria;
-//number of engines in memory
 int USALIVRO = 1;
 //1:consulta o livro de aberturas livro.txt. 0:nao consulta
 //1:use opening book. 0:do not use.
@@ -293,15 +294,14 @@ int totalnodo = 0;
 int totalnodonivel = 0;
 //total de nodos analisados em um nivel da arvore
 //total of nodes analyzed per level of tree
-clock_t clock1, clock2, difclock, inputcheckclock;
-clock_t cinicio, cbrancasmov, cbrancasac, cpretasmov, cpretasac, catual, cjogo;
-//float tclock1, tclock2, diftclock, inputchecktclock;
-time_t tinicio, tbrancasmov, tpretasmov, tatual;
-float tbrancasac, tpretasac, tjogo;
+
+time_t tinijogo, tinimov, tatual, tultimoinput;
+double tbrancasac, tpretasac; //tempo brancas/pretas acumulado
+double tdifs; // diferenca em segundos tdifs=difftime(t2,t1)
 //calcular o tempo gasto no minimax e outras
 //calculating time in minimax function and others
-int tempomovclock = 300;	//120 centiseg = 1,2 seg
-int tempomovclockmax; // max allowed
+double tempomovclock;	//em segundos
+double tempomovclockmax; // max allowed
 //3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min por jogo (de 100 lances)
 //time per move. Examplo: 3000milisec = 3 sec per move = 300 sec per 100 moves = 5 min per game (of 100 moves)
 const int brancas = -1;
@@ -313,10 +313,10 @@ const int pretas = 1;
 unsigned char gira = (unsigned char) 0;
 //para mostrar um rostinho sorrindo (sem uso)
 //to show a smile face (useless)
-const float version = 5.71;
+const float version = 5.72;
 //Versao do programa
 //program version
-char flog[] = "log.xadreco.second";
+char flog[80] = "log.xadreco.second";
 //Nome do arquivo de log
 //log file name
 int ABANDONA = -2430;
@@ -375,8 +375,7 @@ void testajogo (char *movinito, int numero);
 void limpa_pensa (void);
 //limpa algumas variaveis para iniciar a ponderacao
 //to clean some variables to start pondering
-void enche_pmovi (movimento * pmovi, int c0, int c1, int c2, int c3, int p,
-                  int r, int e, int f);
+void enche_pmovi (movimento * pmovi, int c0, int c1, int c2, int c3, int p, int r, int e, int f);
 //preenche a estrutura movimento
 //fullfil movimento structure
 void msgsai (char *msg, int error);
@@ -388,6 +387,15 @@ void imprime_linha (movimento * loop, int numero, int vez);
 int pollinput (void);
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 // return true if there are some character in the buffer to be read
+double build(void);
+// compiled time - build version
+// hora da compilacao - versao de construcao
+// difclocks = valores em segundos
+double difclocks(void);
+//calcula diferenca de tempo em segundo do lance atual
+//calculates time difference in seconds for the current move
+//return tdifs = difftime(tatual, tinimov);
+
 
 // apoio xadrez -----------------------------------------------------
 int ataca (int cor, int col, int lin, tabuleiro tabu);
@@ -490,85 +498,92 @@ main (int argc, char *argv[])
     tabuleiro tabu;
     char feature[256];
     char resultado;
+    char movinito[80]="";
+//    time_t temptimet;
+//    struct tm *temptimes;
+
 //     int moves, minutes;//, incre;
     setbuf (stdout, NULL);
     setbuf (stdin, NULL);
-    sprintf (feature, "%s%.2f%s",
-             "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=0 reuse=1 analyze=1 myname=\"Xadreco ",
-             version,
-             "\" variants=\"normal\" colors=0 ics=0 name=0 pause=0");
+    sprintf (feature, "%s%.2f%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 myname=\"Xadreco ",
+             version, "\" variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 egt=0");
     if (debug)
     {
         //strcpy (flog,"log.xadreco.temp");
-        if ((ftemp = fopen ("log.xadreco.temp", "r")) == NULL)
-            //arquivo nao exite? entao e machine 1.
-        {
-            ftemp = fopen ("log.xadreco.temp", "w");
-            if (ftemp != NULL)
-                fprintf (ftemp, "xadreco : first engine active!\n");
-            (void) fclose (ftemp);
-            strcpy (flog, "log.xadreco.first");
-            fsaida = fopen (flog, "w");
-            machine = 1;
-        }
-        else
-            //arquivo ja existe? entao e machine 2.
-        {
-            (void) fclose (ftemp);
-            machine = 2;
-            debug = 1;
-            //maquina 2 nao pode fazer debug avancado.
-            strcpy (flog, "log.xadreco.second");
-            fsaida = fopen (flog, "w");
-        }
-        if (!fsaida)
-            debug = 0;
-        //nao conseguiu abrir nenhum dos dois arquivos. desliga debug!
+//        temptimet = time(NULL);
+//        temptimes = localtime(&temptimet);
+//        strftime(flog, sizeof(flog), "xadreco-%Y%m%d-%H%M%S.log", temptimes);
+//        sprintf(flog, "xadreco-%s.log", flog);
+//        fsaida = fopen (flog, "a");
+//        if (!fsaida)
+//            debug = 0; //nao conseguiu abrir nenhum dos dois arquivos. desliga debug!
     }
-    printf ("Xadreco version %.2f, Copyright (C) 2004 Ruben Carlo Benante\n"
-            "Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
-            "This is free software, and you are welcome to redistribute it "
-            "under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
-            "for details.\n\n", version);
-    if (debug)
-    {
-        fprintf (fsaida,
-                 "Xadreco version %.2f, Copyright (C) 2004 Ruben Carlo Benante\n"
-                 "Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
-                 "This is free software, and you are welcome to redistribute it "
-                 "under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n for details.\n\n",
-                 version);
-        if (machine == 1)
-            fprintf (fsaida, "xadreco : primeira maquina\n");
-        else if (machine == 2)
-            fprintf (fsaida, "xadreco : segunda maquina\n");
-    }
+    printf ("# Xadreco version %.2f build %f, Copyright (C) 1998-2014, by Dr. Beco\n"
+            "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
+            "# This is free software, and you are welcome to redistribute it "
+            "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
+            "# for details.\n\n", version, build());
     setboard = -1;
     analise = -1;
     printf ("feature done=0\n");
+    if (debug) printf ("# xadreco : feature done=0\n");
     printf ("%s\n", feature);
+    if (debug) printf ("# xadreco : %s\n", feature);
     printf ("feature done=1\n");
+    if (debug) printf ("# xadreco : feature done=1\n");
+
+    do
+    {
+        scanf ("%s", movinito);	// aguarda done
+        if (debug) printf ("# xboard: protocol %s\n", movinito);
+    }while(strcmp(movinito,"done"));
+    do
+    {
+        scanf ("%s", movinito);	// aguarda done
+        if (debug) printf ("# xboard: features %s\n", movinito);
+    }while(strcmp(movinito,"done"));
+
     if (argc > 1)
         if (!strcmp (argv[1], "-r"))
             randomchess=1;
 
     do
     {
-        inicia (&tabu);
-        coloca_pecas (&tabu);
+        //------------------------------------------------------------------------------
+        // novo jogo
+        inicia (&tabu); // zera variaveis
+        coloca_pecas (&tabu); //coloca pecas na posicao inicial
         insere_listab (tabu);
         //------------------------------------------------------------------------------
-        primeiro = 'h';
-        segundo = 'c';
 joga_novamente:
-        if (tabu.vez == brancas)
-            // jogam as brancas
+        tatual=time(NULL);
+        if(debug) printf ("# xadreco : tatual %s\n", ctime(&tatual));
+        if(tabu.numero==2) //pretas jogou o primeiro. Relogios iniciam
+        {
+            tinijogo=tinimov=tatual;
+            if(debug) printf ("# xadreco : Lance numero 2. tinijogo=tinimov= %s\n", ctime(&tinijogo));
+        }
+        if(tabu.numero>2)
+        {
+            tdifs=difftime(tatual, tinimov);
+            if(tabu.vez == brancas) //iniciando vez das brancas
+            {
+                tpretasac += tdifs; //acumulou lance anterior, das pretas
+                if (debug) printf ("# xadreco : Tempo preto Lance numero %d. Este %f s. Acumulado: %f s. Hora atual %s \n", tabu.numero, tdifs, tpretasac, ctime(&tatual));
+            }
+            else
+            {
+                tbrancasac += tdifs;
+                if (debug) printf ("# xadreco : Tempo branco. Lance numero %d: Este %f s. Acumulado: %f s. Hora atual %s \n", tabu.numero, tdifs, tbrancasac, ctime(&tatual));
+            }
+            tinimov=tatual; //ancora para proximo tempo acumulado
+        }
+        if (tabu.vez == brancas) // jogam as brancas
             if (primeiro == 'c')
                 resultado = compjoga (&tabu);
             else
                 resultado = humajoga (&tabu);
-        else
-            // jogam as pretas
+        else // jogam as pretas
             if (segundo == 'c')
                 resultado = compjoga (&tabu);
             else
@@ -580,150 +595,150 @@ joga_novamente:
         case '*':
             strcpy (ultimo_resultado, "* {Game was unfinished}");
             if (debug)
-                fprintf (fsaida, "xadreco : * {Game was unfinished}\n");
+                printf ("# xadreco : * {Game was unfinished}\n");
             printf ("* {Game was unfinished}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'M':
             strcpy (ultimo_resultado, "0-1 {Black mates}");
             if (debug)
-                fprintf (fsaida, "xadreco : 0-1 {Black mates}\n");
+                printf ("# xadreco : 0-1 {Black mates}\n");
             printf ("0-1 {Black mates}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'm':
             strcpy (ultimo_resultado, "1-0 {White mates}");
             if (debug)
-                fprintf (fsaida, "xadreco : 1-0 {White mates}\n");
+                printf ("# xadreco : 1-0 {White mates}\n");
             printf ("1-0 {White mates}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'a':
             strcpy (ultimo_resultado, "1/2-1/2 {Stalemate}");
             if (debug)
-                fprintf (fsaida, "xadreco : 1/2-1/2 {Stalemate}\n");
+                printf ("# xadreco : 1/2-1/2 {Stalemate}\n");
             printf ("1/2-1/2 {Stalemate}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'p':
             strcpy (ultimo_resultado, "1/2-1/2 {endless check}");
             if (debug)
-                fprintf (fsaida, "xadreco : 1/2-1/2 {endless check}\n");
+                printf ("# xadreco : 1/2-1/2 {endless check}\n");
             printf ("1/2-1/2 {endless check}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'c':
-            strcpy (ultimo_resultado,
-                    "1/2-1/2 {both players agreed to draw}");
+            strcpy (ultimo_resultado, "1/2-1/2 {both players agreed to draw}");
             //aceitar empate
             if (debug)
             {
-                fprintf (fsaida, "xadreco : draw accepted\n");
-                fprintf (fsaida,
-                         "xadreco : 1/2-1/2 {both players agreed to draw}\n");
+                printf ("# xadreco : draw accepted\n");
+                printf ("# xadreco : 1/2-1/2 {both players agreed to draw}\n");
             }
             printf ("draw accepted\n");
             printf ("1/2-1/2 {both players agreed to draw}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'i':
             strcpy (ultimo_resultado,
                     "1/2-1/2 {insufficient mating material}");
             if (debug)
-                fprintf (fsaida,
-                         "xadreco : 1/2-1/2 {insufficient mating material}\n");
+                printf ("# xadreco : 1/2-1/2 {insufficient mating material}\n");
             printf ("1/2-1/2 {insufficient mating material}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case '5':
             strcpy (ultimo_resultado, "1/2-1/2 {Draw by fifty moves rule}");
             if (debug)
-                fprintf (fsaida,
-                         "xadreco : 1/2-1/2 {Draw by fifty moves rule}\n");
+                printf ("# xadreco : 1/2-1/2 {Draw by fifty moves rule}\n");
             printf ("1/2-1/2 {Draw by fifty moves rule}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'r':
-            strcpy (ultimo_resultado,
-                    "1/2-1/2 {Draw by triple repetition}");
+            strcpy (ultimo_resultado, "1/2-1/2 {Draw by triple repetition}");
             if (debug)
-                fprintf (fsaida,
-                         "xadreco : 1/2-1/2 {Draw by triple repetition}\n");
+                printf ("# xadreco : 1/2-1/2 {Draw by triple repetition}\n");
             printf ("1/2-1/2 {Draw by triple repetition}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'T':
             strcpy (ultimo_resultado, "0-1 {White flag fell}");
             if (debug)
-                fprintf (fsaida, "xadreco : 0-1 {White flag fell}\n");
+                printf ("# xadreco : 0-1 {White flag fell}\n");
             printf ("0-1 {White flag fell}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 't':
             strcpy (ultimo_resultado, "1-0 {Black flag fell}");
             if (debug)
-                fprintf (fsaida, "xadreco : 1-0 {Black flag fell}\n");
+                printf ("# xadreco : 1-0 {Black flag fell}\n");
             printf ("1-0 {Black flag fell}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'B':
             strcpy (ultimo_resultado, "0-1 {White resigns}");
             if (debug)
-                fprintf (fsaida, "xadreco : 0-1 {White resigns}\n");
+                printf ("# xadreco : 0-1 {White resigns}\n");
             printf ("0-1 {White resigns}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
         case 'b':
             strcpy (ultimo_resultado, "1-0 {Black resigns}");
             if (debug)
-                fprintf (fsaida, "xadreco : 1-0 {Black resigns}\n");
+                printf ("# xadreco : 1-0 {Black resigns}\n");
             printf ("1-0 {Black resigns}\n");
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
-        case 'e':
+            continue;
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
+        case 'e': //se existe um resultado, envia ele para finalizar a partida
             if (ultimo_resultado[0] != '\0')
-                //se existe um resultado, envia ele para finalizar a partida
             {
                 if (debug)
-                    fprintf (fsaida, "xadreco : %s\n", ultimo_resultado);
+                    printf ("# xadreco : %s\n", ultimo_resultado);
                 printf ("%s\n", ultimo_resultado);
             }
             else
                 msgsai ("Computador sem lances validos 1", 35);
             //algum problema ocorreu que esta sem lances
-            primeiro = 'h';
-            segundo = 'h';
-            goto joga_novamente;
-        case 'w':
-            //Novo jogo
             continue;
-        case 'x':
-            //xeque: joga novamente
-        case 'y':
-            //retorna y: simplesmente gira o laco para jogar de novo. Troca de adv.
-        default:
-            //'-' para tudo certo...
+//            primeiro = 'h';
+//            segundo = 'h';
+//            goto joga_novamente;
+        case 'w': //Novo jogo
+            continue;
+        case 'x': //xeque: joga novamente
+        case 'y': //retorna y: simplesmente gira o laco para jogar de novo. Troca de adv.
+        default: //'-' para tudo certo...
             goto joga_novamente;
-        }
-        //fim do switch(resultado)
-    }
-    while (TRUE);
+        } //fim do switch(resultado)
+    } while (TRUE);
 
-    msgsai ("quit\n", 0);
-    //vai apenas para o log, mas nao para a saida
+    msgsai ("out of do{...}while(true);\n", 0); //vai apenas para o log, mas nao para a saida
     return EXIT_SUCCESS;
 }
 
@@ -737,16 +752,16 @@ mostra_lances (tabuleiro tabu)
 //     m[0] = '\0';
     //nivel pontuacao tempo totalnodo variante
     //nivel esta errado!
-    printf ("%d %d %d %d ", nivel, result.valor, (int)difclock, totalnodo);
-    //result.valor*10 o Winboard divide por 100. centi-peao
+    printf ("%d %d %d %d ", nivel, result.valor, (int)difclocks(), totalnodo);
+    //result.valor*10 o xboard divide por 100. centi-peao
     if (debug)
-        fprintf (fsaida, "xadreco : %d %+.2f %d %d ", nivel,
-                 result.valor / 100.0, (int)difclock, totalnodo);
+        printf ("# xadreco : %d %+.2f %d %d ", nivel,
+                 result.valor / 100.0, (int)difclocks(), totalnodo);
     //result.valor/100 para a Dama ficar com valor 9
     imprime_linha (result.plance, tabu.numero, tabu.vez);
     printf ("\n");
     if (debug)
-        fprintf (fsaida, "\n");
+        printf ("# \n");
     fflush(stdout);
 }
 
@@ -768,6 +783,8 @@ libera_lances (movimento * cabeca)
     cabeca = NULL;
 }
 
+// imprime o movimento
+// funcao intermediaria chamada no intervalo humajoga / 'ga
 void
 imptab (tabuleiro tabu)
 {
@@ -775,19 +792,37 @@ imptab (tabuleiro tabu)
     //nao precisa se tem textbackground
 //     int colmax, colmin, linmax, linmin, inc;
     char movinito[80];
+    double razao;
     movinito[79] = '\0';
     lance2movi (movinito, tabu.lancex, tabu.especial);
     //imprime o movimento
-    if ((tabu.vez == brancas && segundo == 'c')
-            || (tabu.vez == pretas && primeiro == 'c'))
+    if ((tabu.vez == brancas && segundo == 'c') || (tabu.vez == pretas && primeiro == 'c'))
     {
         if (debug)
         {
-            difclock = clock2 - clock1;
-            fprintf (fsaida, "xadreco : move %s c1: %d c2: %d dif: %d\n", movinito, (int)clock1, (int)clock2, (int)difclock);
+//            difclock = clock2 - clock1;
+            tatual=time(NULL); //atualiza, pois a funcao difclocks() a atualiza tambem e pode ficar errada a conta
+            printf ("# xadreco : move %s (tatual %d - tinimov %d = dif %d)\n", movinito, (int)tatual, (int)tinimov, (int)difclocks());
         }
         printf ("move %s\n", movinito);
     }
+    // estimar tempo de movimento em segundos:
+    if(tpretasac>5.0 && tbrancasac>5.0)
+    {
+        if(primeiro=='c') //computador brancas
+            razao = (tpretasac/(tabu.numero/2.0)) / (tbrancasac/(tabu.numero/2.0));
+        else //computador pretas
+            razao = (tbrancasac/(tabu.numero/2.0)) / (tpretasac/(tabu.numero/2.0));
+        tempomovclock *= razao;
+        if(tempomovclock>tempomovclockmax)
+            tempomovclock=tempomovclockmax; //maximo tempomovclockmax
+        if(tempomovclock<1) //minimo 1 segundo
+            tempomovclock=1;
+
+        printf ("# xadreco : tempomovclock=%f\n", tempomovclock);
+    }
+
+
 }
 
 void
@@ -810,20 +845,16 @@ lance2movi (char *m, int *l, int espec)
     switch (espec)
         //promocao para 4,5,6,7 == D,C,T,B
     {
-    case 4:
-        //promoveu a Dama
+    case 4: //promoveu a Dama
         m[4] = 'q';
         break;
-    case 5:
-        //promoveu a Cavalo
+    case 5: //promoveu a Cavalo
         m[4] = 'n';
         break;
-    case 6:
-        //promoveu a Torre
+    case 6: //promoveu a Torre
         m[4] = 'r';
         break;
-    case 7:
-        //promoveu a Bispo
+    case 7: //promoveu a Bispo
         m[4] = 'b';
         break;
     }
@@ -2044,54 +2075,49 @@ humajoga (tabuleiro * tabu)
     movimento *pval = 0;
     char res;
     //    char aux;
-//     char peca;
+    //     char peca;
     int tente;
-    int lanc[4], moves, minutes, incre;
+    int lanc[4], moves, minutes;
+    double secs, incre;
     int i, j, k;
-//     int casacor;
+    //     int casacor;
     //nao precisa se tem textbackground
-//     listab *plaux;
-    char pieces[80],
-         color[80], castle[80], enpassant[80], halfmove[80], fullmove[80];
-    //para testar uma posicao
+    //     listab *plaux;
+    char pieces[80], color[80], castle[80], enpassant[80], halfmove[80], fullmove[80]; //para testar uma posicao
     int testasim = 0, estat;
     movinito[79] = '\0';
 
-    if (!fsaida)
-        debug = 0;
+//    if (!fsaida)
+//        debug = 0;
     do
     {
         tente = 0;
-        scanf ("%s", movinito);	//---------------- (*quase) Toda entrada do Winboard
-        clock1 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock1 em centesimos de segundos...
-        inputcheckclock = clock1;
-        //cloock1 marca o tempo do jogo do adversaio. difcloock=cloock2-cloock1. e long int %ld
-        difclock = 0;
-        if(debug)
-        {
-            fflush (fsaida);		//grava o arquivo atual, para o caso de bug, poder ler algo
-            fclose (fsaida);
-            fsaida = fopen (flog, "a");
-        }
+        scanf ("%s", movinito);	//---------------- (*quase) Toda entrada do xboard
+        // clock1 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock1 em centesimos de segundos...
+        // inputcheckclock = clock1; //marca o tempo do jogo do adversaio. difcloock=cloock2-cloock1. e long int %ld
+        // difclock = 0;
+//        if(debug)
+//        {
+//            fflush(fsaida);		//grava o arquivo atual, para o caso de bug, poder ler algo
+//            fclose (fsaida);
+//            fsaida = fopen (flog, "a");
+//        }
         if (debug)
-            fprintf (fsaida, "winboard: %s\n", movinito);
-        if (!strcmp (movinito, "hint"))
-            // Dica
+            printf ("# xboard: %s\n", movinito);
+        if (!strcmp (movinito, "hint")) // Dica
         {
             mostra_lances (*tabu);
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "force"))
-            // nao joga, apenas acompanha
+        if (!strcmp (movinito, "force")) // nao joga, apenas acompanha
         {
             primeiro = 'h';
             segundo = 'h';
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "undo"))
-            // volta um movimento (ply)
+        if (!strcmp (movinito, "undo")) // volta um movimento (ply)
         {
             primeiro = 'h';
             segundo = 'h';
@@ -2099,44 +2125,39 @@ humajoga (tabuleiro * tabu)
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "remove"))
-            // volta dois movimentos == 1 lance
+        if (!strcmp (movinito, "remove")) // volta dois movimentos == 1 lance
         {
             volta_lance (tabu);
             volta_lance (tabu);
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "post"))
+        if (!strcmp (movinito, "post")) //showthinking ou mostrapensando
         {
-            //showthinking ou mostrapensando
             analise = 0;
             mostrapensando = 1;
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "nopost"))
+        if (!strcmp (movinito, "nopost")) //no show thinking ou desliga o mostrapensando
         {
-            //no show thinking ou desliga o mostrapensando
             mostrapensando = 0;
             tente = 1;
             continue;
         }
-        //randomchess: pensa ou joga ao acaso
-        if (!strcmp (movinito, "randomchess"))
+        if (!strcmp (movinito, "randomchess")) //randomchess: pensa ou joga ao acaso
         {
             randomchess = 1;
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "norandomchess"))
+        if (!strcmp (movinito, "norandomchess")) //desliga randomchess
         {
             randomchess = 0;
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "analyze") )
-            // analise inicia
+        if (!strcmp (movinito, "analyze")) // analise inicia
         {
             if (analise == -1)
             {
@@ -2148,27 +2169,21 @@ humajoga (tabuleiro * tabu)
             mostrapensando = 0;
             primeiro = 'h';
             segundo = 'h';
-            disc = analisa (tabu);
-            //disc=variavel de descarte
+            disc = analisa (tabu); //disc=variavel de descarte
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "exit"))
-            // analise termina
+        if (!strcmp (movinito, "exit")) // analise termina
         {
             analise = 0;
-            //            testasim=0; nao e necessaria, pois e variavel local.
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "draw"))
-            //aceitar empate? (o outro esta oferecendo)
+        if (!strcmp (movinito, "draw")) //aceitar empate? (o outro esta oferecendo)
         {
-            if (primeiro == segundo && primeiro == 'h')
-                //humano contra humano, aceita sempre
+            if (primeiro == segundo && primeiro == 'h') //humano contra humano, aceita sempre
                 return ('c');
-            else
-                //humano x computador ou computador contra computador
+            else //humano x computador ou computador contra computador
             {
                 estat = -estatico (*tabu, 0, 0, -LIMITE, +LIMITE);
                 //ao receber proposta, o valor e calculado em funcao de quem e a vez.
@@ -2188,15 +2203,14 @@ humajoga (tabuleiro * tabu)
                     //so se perdendo 2 peoes (e nao esta jogando contra outra engine)
                 {
                     if (debug) //bug: eu era branca, e ele tinha dama aceitou empate.
-                        fprintf (fsaida,
-                                 "xadreco : draw accepted (HumaJ-1) %d  turn: %d\n",
+                        printf ("# xadreco : draw accepted (HumaJ-1) %d  turn: %d\n",
                                  estat, tabu->vez);
                     return ('c');
                 }
                 else
                 {
                     if (debug)
-                        fprintf (fsaida, "xadreco : draw rejected (HumaJ-2) %d  turn: %d\n", estat, tabu->vez);
+                        printf ("# xadreco : draw rejected (HumaJ-2) %d  turn: %d\n", estat, tabu->vez);
                     tente = 1;
                     continue;
                 }
@@ -2205,25 +2219,19 @@ humajoga (tabuleiro * tabu)
         if (!strcmp (movinito, "version"))
         {
             if (debug)
-                fprintf (fsaida,
-                         "tellopponent Xadreco v.%.2f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n",
-                         version);
-            printf
-            ("tellopponent Xadreco v.%.2f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n",
-             version);
+                printf ("# tellopponent Xadreco v.%.2f Compilacao %f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n", version, build());
+            printf ("tellopponent Xadreco v.%.2f build %f for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 2004-2014.\n", version, build());
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "sd"))
-            //set deep: coloca o nivel de profundidade. Nao esta sendo usado. Implementar.
+        if (!strcmp (movinito, "sd")) //set deep: coloca o nivel de profundidade. Nao esta sendo usado. Implementar.
         {
             nivel = (int) (movinito[3] - '0');
             nivel = (nivel > 6 || nivel < 0) ? 2 : nivel;
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "go"))
-            //troca de lado e joga. (o mesmo que "adv")
+        if (!strcmp (movinito, "go")) //troca de lado e joga. (o mesmo que "adv")
         {
             if (tabu->vez == brancas)
             {
@@ -2235,11 +2243,9 @@ humajoga (tabuleiro * tabu)
                 primeiro = 'h';
                 segundo = 'c';
             }
-            return ('y');
-            //returna para jogar ou humano ou computador.
+            return ('y'); //retorna para jogar ou humano ou computador.
         }
-        if (!strcmp (movinito, "playother"))
-            //coloca o computador com a cor que nao ta da vez.
+        if (!strcmp (movinito, "playother")) //coloca o computador com a cor que nao ta da vez. (switch)
         {
             if (tabu->vez == brancas)
             {
@@ -2254,19 +2260,15 @@ humajoga (tabuleiro * tabu)
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "computer"))
-            //altera estrategia para jogar contra outra engine;
+        if (!strcmp (movinito, "computer")) //altera estrategia para jogar contra outra engine;
         {
-            ofereci = 2;
-            //pode oferecer mais empates
-            ABANDONA = -LIMITE;
-            //nao abandona nunca
+            ofereci = 2; //pode oferecer mais empates
+            ABANDONA = -LIMITE; //nao abandona nunca
             COMPUTER = 1;
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "new"))
-            //novo jogo
+        if (!strcmp (movinito, "new")) //novo jogo
             return ('w');
         if (!strcmp (movinito, "resign"))
         {
@@ -2283,14 +2285,14 @@ humajoga (tabuleiro * tabu)
         {
             scanf ("%s", movinito);
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             myrating = atoi (movinito);
             scanf ("%s", movinito);
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             opprating = atoi (movinito);
             if (debug)
-                fprintf (fsaida, "xboard: myrating: %d opprating: %d\n", myrating, opprating);
+                printf ("# xboard: myrating: %d opprating: %d\n", myrating, opprating);
             tente = 1;
             continue;
         }
@@ -2318,21 +2320,21 @@ humajoga (tabuleiro * tabu)
         {
             scanf ("%s", movinito);
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             moves = atoi (movinito);
             scanf ("%s", movinito);
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             minutes = atoi (movinito);
             scanf ("%s", movinito);
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
-            incre = atoi (movinito);
+                printf ("# xboard: %s\n", movinito);
+            incre = atof (movinito);
             if (moves <= 0)
-                moves = 100; /* bug? v56 moves=40 */
-            if (minutes < 0)
+                moves = TOTAL_MOVIMENTOS;
+            if (minutes <= 0)
                 minutes = 0;
-            if (incre < 0)
+            if (incre <= 0)
                 incre = 0;
             //quantos minutos tenho para 40 lances?
             //tempomovclock = (40.0 * minutes) / (float)moves;
@@ -2340,21 +2342,28 @@ humajoga (tabuleiro * tabu)
             //tempomovclock += incre * 40.0;
             // tempo maximo por lance:
             //tempomovclock /= 40.0;
-            //            tempomovcloock/=2;
-            //usar metade do tempo disponivel.
+            // tempomovcloock/=2;
+            // ?? usar metade do tempo disponivel.
 //            tempomovtclock /= 2.0;
-            //apesar de correto, esta gastando o dobro do tempo. Problema com as rotinas de apoio? Problema com o minimax que nao sabe retornar?
-            tempomovclockmax = minutes * 6000 / moves + incre * 100; //em cent  1800cs=18.00s 180cs=1.8s bom para 3 min.
-            tempomovclock = (tempomovclockmax+90)/2;
+            //bug apesar de correto, esta gastando o dobro do tempo. Problema com as rotinas de apoio? Problema com o minimax que nao sabe retornar?
+            if(minutes == 0)
+            {
+                if(incre != 0.0)
+                    secs = 10.0; /* no start time, use 10s */
+                else //minutes == 0 && incre == 0; untimed
+                    secs = 30.0 * 60.0; /* no time, use 30 min */
+            }
+            else //minutes !=0
+                secs = minutes * 60.0;
+            tempomovclockmax = secs / (float)moves + incre; //em segundos
+            tempomovclock = tempomovclockmax; //+90)/2;
 
             if (debug)
-                fprintf (fsaida, "xadreco : ajustado para st %.6f s por lance\n",
-                         (float) tempomovclock/100);
+                printf ("# xadreco : ajustado para st %f s por lance\n", tempomovclock);
             tente = 1;
             continue;
         }
-        if (!strcmp (movinito, "setboard"))
-            //funciona no prompt tambem
+        if (!strcmp (movinito, "setboard")) //funciona no prompt tambem
         {
             if (setboard == -1)
             {
@@ -2366,31 +2375,24 @@ humajoga (tabuleiro * tabu)
             setboard = 1;
             //o jogo e editado
             //Posicao FEN
-            scanf ("%s", movinito);
-            //trava se colocar uma posicao FEN invalida!
+            scanf ("%s", movinito); //trava se colocar uma posicao FEN invalida!
             if (!strcmp (movinito, "testpos"))
             {
-                testasim = 1;
-                //a posicao vem da funcao testapos, e nao de scanf()
+                testasim = 1; //a posicao vem da funcao testapos, e nao de scanf()
                 testapos (pieces, color, castle, enpassant, halfmove, fullmove);
             }
             if (testasim)
                 strcpy (movinito, pieces);
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
-            j = 7;
-            //linha de '8' a '1'
-            i = 0;
-            //coluna de 'a' a 'h'
-            k = 0;
-            //indice da string
+                printf ("# xboard: %s\n", movinito);
+            j = 7; //linha de '8' a '1'
+            i = 0; //coluna de 'a' a 'h'
+            k = 0; //indice da string
             while (movinito[k] != '\0')
             {
-                if (i < 0 || i > 8)
-                    //8 ta errado, mas ta atingido. precisa arrumar isso. (bug)
+                if (i < 0 || i > 8) //BUG 8 ta errado, mas ta atingido. precisa arrumar isso.
                     msgsai ("Posicao FEN incorreta.", 24);
-                switch (movinito[k])
-                    //KkQqRrBbNnPp
+                switch (movinito[k]) //KkQqRrBbNnPp
                 {
                 case 'K':
                     tabu->tab[i][j] = -REI;
@@ -2458,7 +2460,7 @@ humajoga (tabuleiro * tabu)
             else
                 scanf ("%s", movinito);
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             if (movinito[0] == 'w')
                 tabu->vez = brancas;
             else
@@ -2470,13 +2472,12 @@ humajoga (tabuleiro * tabu)
                 scanf ("%s", movinito);
             //Roque
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             tabu->roqueb = 0;
             //nao pode mais
             tabu->roquep = 0;
             //nao pode mais
-            if (!strchr (movinito, '-'))
-                //alguem pode
+            if (!strchr (movinito, '-')) //alguem pode
             {
                 if (strchr (movinito, 'K'))
                     tabu->roqueb = 3;                //so pode REI
@@ -2503,7 +2504,7 @@ humajoga (tabuleiro * tabu)
                 scanf ("%s", movinito);
             //En passant
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             tabu->peao_pulou = -1;
             //nao pode
             if (!strchr (movinito, '-'))
@@ -2516,7 +2517,7 @@ humajoga (tabuleiro * tabu)
                 scanf ("%s", movinito);
             //Num. de movimentos (ply)
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             tabu->empate_50 = atoi (movinito);
             //contador:quando chega a 50, empate.
             if (testasim)
@@ -2525,7 +2526,7 @@ humajoga (tabuleiro * tabu)
                 scanf ("%s", movinito);
             //Num. de lances
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", movinito);
+                printf ("# xboard: %s\n", movinito);
             tabu->numero = 0;
             //mudou para ply.
             //(atoi(movinito)-1)+0.3;
@@ -2535,48 +2536,35 @@ humajoga (tabuleiro * tabu)
             res = situacao (*tabu);
             switch (res)
             {
-            case 'a':
-                //afogado
-            case 'p':
-                //perpetuo
-            case 'i':
-                //insuficiencia
-            case '5':
-                //50 lances
-            case 'r':
+            case 'a': //afogado
+            case 'p': //perpetuo
+            case 'i': //insuficiencia
+            case '5': //50 lances
+            case 'r': //repeticao
                 tabu->situa = 1;
                 break;
-                //repeticao
-            case 'x':
+            case 'x': //xeque
                 tabu->situa = 2;
                 break;
-                //xeque
-            case 'M':
+            case 'M': //Brancas perderam por Mate
                 tabu->situa = 3;
                 break;
-                //Brancas perderam por Mate
-            case 'm':
+            case 'm': //Pretas perderam por mate
                 tabu->situa = 4;
                 break;
-                //Pretas perderam por mate
-            case 'T':
+            case 'T': //Brancas perderam por Tempo
                 tabu->situa = 5;
                 break;
-                //Brancas perderam por Tempo
-            case 't':
+            case 't': //Pretas perderam  por tempo
                 tabu->situa = 6;
                 break;
-                //Pretas perderam  por tempo
-            case '*':
+            case '*': //sem resultado * {Game was unfinished}
                 tabu->situa = 7;
                 break;
-                //sem resultado * {Game was unfinished}
-            default:
+            default: //'-' nada...
                 tabu->situa = 0;
-                //'-' nada...
             }
-            USALIVRO = 0;
-            // Baseado somente nos movimentos, nao na posicao.
+            USALIVRO = 0; // Baseado somente nos movimentos, nao na posicao.
             imptab (*tabu);
             insere_listab (*tabu);
             tente = 1;
@@ -2587,7 +2575,7 @@ humajoga (tabuleiro * tabu)
                     scanf ("%s", movinito);
                     printf("pong %s",movinito);
                     if (debug)
-        	            fprintf (fsaida, "pong %s\n", movinito);
+        	            printf ("# pong %s\n", movinito);
                     tente = 1;
                     continue;
         		}*/
@@ -2602,7 +2590,7 @@ humajoga (tabuleiro * tabu)
                 strcat(completo, movinito);
             }
             if (debug)
-                fprintf (fsaida, "winboard: %s\n", completo);
+                printf ("# xboard: %s\n", completo);
             tente = 1;
             continue;
         }
@@ -2631,115 +2619,103 @@ humajoga (tabuleiro * tabu)
             testajogo (movinito, tabu->numero);
         //retorna um lance do jogo de teste (em movinito)
         //e vai la embaixo jogar ele
-        if (!movi2lance (lanc, movinito))
-            //se nao existe este lance
+        if (!movi2lance (lanc, movinito)) //se nao existe este lance
         {
             if (debug)
-                fprintf (fsaida, "xadreco : Error (unknown command): %s\n", movinito);
-//                printf ("Illegal move: %s\n", movinito);
+                printf ("# xadreco : Error (unknown command): %s\n", movinito);
             printf ("Error (unknown command): %s\n", movinito);
             tente = 1;
             continue;
         }
-        //fim do if(nao existe o lance)
-        pval = valido (*tabu, lanc);
-        //lanc eh int lanc[4]; cria pval com tudo preenchido
+        pval = valido (*tabu, lanc); //lanc eh int lanc[4]; cria pval com tudo preenchido
         if (pval == NULL)
         {
             if (debug)
-                fprintf (fsaida, "xadreco : Illegal move: %s\n", movinito);
+                printf ("# xadreco : Illegal move: %s\n", movinito);
             printf ("Illegal move: %s\n", movinito);
             tente = 1;
             continue;
         }
-    }
-    while (tente);
+    } while (tente); // BUG checar tempo dentro do laco e dar abort se demorar, ou flag...
 
-    if (pval->especial > 3)
-        //promocao do peao 4,5,6,7: Dama,Cavalo, Torre, Bispo
+    if (pval->especial > 3) //promocao do peao 4,5,6,7: Dama, Cavalo, Torre, Bispo
     {
-        switch (movinito[4])
-            //exemplo: e7e8q
+        switch (movinito[4]) //exemplo: e7e8q
         {
-        case 'q':
+        case 'q': //dama
             pval->especial = 4;
             break;
-            //dama
-        case 'r':
-            pval->especial = 6;
-            break;
-            //torre
-        case 'b':
-            pval->especial = 7;
-            break;
-            //bispo
-        case 'n':
+        case 'n': //cavalo
             pval->especial = 5;
             break;
-            //cavalo
-        default:
+        case 'r': //torre
+            pval->especial = 6;
+            break;
+        case 'b': //bispo
+            pval->especial = 7;
+            break;
+        default: //se erro, vira dama
             pval->especial = 4;
             break;
-            //dama
         }
     }
     //joga_em e calcula tempo //humano joga
     res = joga_em (tabu, *pval, 1);
-    if(tabu->numero==2) //pretas jogou o primeiro. Relogio branco inicia
-    {
-        tinicio=time(NULL);
-        tbrancasmov=tinicio;
-        tjogo=0.0;
-        tpretasac=0.0;
-        tbrancasac=0.0;
-        cinicio=clock();
-        cbrancasmov=cinicio;
-        cjogo=cinicio;
-        cpretasac=0;
-        cbrancasac=0;
-    }
-    if(tabu->numero>2)
-    {
-        if(tabu->vez==brancas) //pretas jogou, inicia relogio das brancas //computador eh brancas
-        {
-            float tdestemov;
-            int cdestemov;
-            tatual = time(NULL);
-            tbrancasmov = tatual; //comeca contar tempo das pretas
-            tdestemov = difftime(tatual,tpretasmov);
-            tpretasac += tdestemov; //tempo acumulado
-            tjogo = difftime(tatual, tinicio);
-            if (debug)
-                fprintf (fsaida, "xadreco : tempo preto %d: %.6f acumulado: %.2f jogo: %.2f\n", tabu->numero, tdestemov, tpretasac, tjogo);
-            catual = clock();
-            cbrancasmov = catual; //comeca contar tempo das pretas
-            cdestemov = catual - cpretasmov; //tempo gasto
-            cpretasac += cdestemov; //tempo acumulado
-            cjogo = catual - cinicio;
-            if (debug)
-                fprintf (fsaida, "xadreco : clock preto %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cpretasac, (int)cjogo, tempomovclock);
-        }
-        else //brancas jogou, inicia relogio preto.
-        {
-            float tdestemov;
-            int cdestemov;
-            tatual = time(NULL);
-            tpretasmov = tatual; //comeca contar tempo das pretas
-            tdestemov = difftime(tatual,tbrancasmov);
-            tbrancasac += tdestemov; //tempo acumulado
-            tjogo = difftime(tatual, tinicio);
-            if (debug)
-                fprintf (fsaida, "xadreco : tempo branco %d: %.4f acumulado: %.2f jogo: %.2f\n", tabu->numero, tdestemov, tbrancasac, tjogo);
-            catual = clock();
-            cpretasmov = catual; //comeca contar tempo das pretas
-            cdestemov = catual - cbrancasmov; //tempo gasto
-            cbrancasac += cdestemov; //tempo acumulado
-            cjogo = catual - cinicio;
-            if (debug)
-                fprintf (fsaida, "xadreco : clock branco %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cbrancasac, (int)cjogo, tempomovclock);
-            //tempomovclock --;
-        }
-    }
+//    if(tabu->numero==2) //pretas jogou o primeiro. Relogio branco inicia
+//    {
+//        tinicio=time(NULL); /* bug = iniciar relogio imediatamente! */
+//        tbrancasmov=tinicio;
+//        tjogo=0.0;
+//        tpretasac=0.0;
+//        tbrancasac=0.0;
+//        cinicio=clock();
+//        cbrancasmov=cinicio;
+//        cjogo=cinicio;
+//        cpretasac=0;
+//        cbrancasac=0;
+//    }
+//    if(tabu->numero>2)
+//    {
+//        if(tabu->vez==brancas) //pretas jogou, inicia relogio das brancas //computador eh brancas
+//        {
+//            float tdestemov;
+//            int cdestemov;
+//            tatual = time(NULL);
+//            tbrancasmov = tatual; //comeca contar tempo das pretas
+//            tdestemov = difftime(tatual,tpretasmov);
+//            tpretasac += tdestemov; //tempo acumulado
+//            tjogo = difftime(tatual, tinicio);
+//            if (debug)
+//                printf ("# xadreco : tempo preto %d: %.6f acumulado: %.2f jogo: %.2f\n", tabu->numero, tdestemov, tpretasac, tjogo);
+//            catual = clock();
+//            cbrancasmov = catual; //comeca contar tempo das pretas
+//            cdestemov = catual - cpretasmov; //tempo gasto
+//            cpretasac += cdestemov; //tempo acumulado
+//            cjogo = catual - cinicio;
+//            if (debug)
+//                printf ("# xadreco : clock preto %d: %d acumulado: %d jogo: %d Limite: %d cs\n", tabu->numero, cdestemov, (int)cpretasac, (int)cjogo, tempomovclock);
+//        }
+//        else //brancas jogou, inicia relogio preto.
+//        {
+//            float tdestemov;
+//            int cdestemov;
+//            tatual = time(NULL);
+//            tpretasmov = tatual; //comeca contar tempo das pretas
+//            tdestemov = difftime(tatual,tbrancasmov);
+//            tbrancasac += tdestemov; //tempo acumulado
+//            tjogo = difftime(tatual, tinicio);
+//            if (debug)
+//                printf ("# xadreco : tempo branco %d: %.4f acumulado: %.2f jogo: %.2f\n", tabu->numero, tdestemov, tbrancasac, tjogo);
+//            catual = clock();
+//            cpretasmov = catual; //comeca contar tempo das pretas
+//            cdestemov = catual - cbrancasmov; //tempo gasto
+//            cbrancasac += cdestemov; //tempo acumulado
+//            cjogo = catual - cinicio;
+//            if (debug)
+//                printf ("# xadreco : clock branco %d: %d acumulado: %d jogo: %d Limite: %d cs\n", tabu->numero, cdestemov, (int)cbrancasac, (int)cjogo, tempomovclock);
+//            //tempomovclock --;
+//        }
+//    }
 
     //a funcao joga_em deve inserir no listab cod==1
     free (pval);
@@ -2928,8 +2904,7 @@ compjoga (tabuleiro * tabu)
     //    {
     //        printf(":)");
     //    }
-    if (debug == 2)
-        //nivel extra de debug
+    if (debug == 2) //nivel extra de debug
     {
         fmini = fopen ("minimax.log", "w");
         if (fmini == NULL)
@@ -2944,9 +2919,9 @@ compjoga (tabuleiro * tabu)
         melhorcaminho1 = copilistmov (result.plance);
         melhorvalor1 = result.valor;
 //        tclock2 = time(NULL);
-        clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
+//        clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
 //		diftclock = difftime(tclock2 , tclock1);
-        difclock = clock2 - clock1;
+//        difclock = clock2 - clock1;
     }
     if (result.plance == NULL)
     {
@@ -2954,8 +2929,7 @@ compjoga (tabuleiro * tabu)
         nv = 1;
         nmov = 0;
         libera_lances (succ_geral);
-        succ_geral = geramov (*tabu, &nmov);
-        //gera os sucessores
+        succ_geral = geramov (*tabu, &nmov); //gera os sucessores
         totalnodo = 0;
         //funcao COMPJOGA (CONFERIR)
         if(randomchess)
@@ -2983,8 +2957,7 @@ compjoga (tabuleiro * tabu)
             while (result.valor < XEQUEMATE)
             {
                 limpa_pensa ();
-                if (debug == 2)
-                    //nivel extra de debug
+                if (debug == 2) //nivel extra de debug
                 {
                     fprintf (fmini,
                              "\n\n*************************************************************");
@@ -2999,8 +2972,9 @@ compjoga (tabuleiro * tabu)
                 if (result.plance == NULL)
                     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
                     break;
-                if (difclock < tempomovclock)
-                    //18/10/2004, 19:20 +3 GMT. Descobri e criei esse teste apos muito sofrimento em debugs. Fim da ver. cinco!
+                //18/10/2004, 19:20 +3 GMT. Descobri e criei esse teste apos muito sofrimento em debugs. Fim da ver. cinco!
+                //01/12/2013, funcao difclocks trabalhando com segundos (nao mais centisegundos)
+                if (difclocks() < tempomovclock)
                 {
                     libera_lances (melhorcaminho1);
                     melhorcaminho1 = copilistmov (result.plance);
@@ -3008,40 +2982,34 @@ compjoga (tabuleiro * tabu)
                 }
                 totalnodo += totalnodonivel;
                 //tclock2 = time(NULL);
-                clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
+//                clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
                 //			diftclock = difftime(tclock2 , tclock1);
-                difclock = clock2 - clock1;
+//                difclock = clock2 - clock1;
                 ordena_succ (nmov);
                 //ordena succ_geral
                 if (debug == 2)
                 {
-                    fprintf (fmini,
-                             "\nresult.valor: %+.2f totalnodo: %d\nresult.plance: ",
-                             result.valor / 100.0, totalnodo);
-                    if (!mostrapensando || abs (result.valor) == FIMTEMPO
-                            || abs (result.valor) == LIMITE)
+                    fprintf (fmini, "\nresult.valor: %+.2f totalnodo: %d\nresult.plance: ", result.valor / 100.0, totalnodo);
+                    if (!mostrapensando || abs (result.valor) == FIMTEMPO || abs (result.valor) == LIMITE)
                         imprime_linha (result.plance, 1, 2);
                     //1=numero do lance, 2=vez: pular impressao na tela.
                     //tabu->numero+1, -tabu->vez);
                 }
                 //nivel pontuacao tempo totalnodo variacao === usado!
                 //nivel tempo valor lances no arena. (nao usado aqui. testar)
-                if (mostrapensando && abs (result.valor) != FIMTEMPO
-                        && abs (result.valor) != LIMITE)
+                if (mostrapensando && abs (result.valor) != FIMTEMPO && abs (result.valor) != LIMITE)
                 {
-                    printf ("%d %d %d %d ", nv, result.valor, (int)difclock, totalnodo);
+                    printf ("%d %d %d %d ", nv, result.valor, (int)difclocks(), totalnodo);
                     if (debug)
-                        fprintf (fsaida, "xadreco : %d %+.2f %d %d ", nv,
-                                 (float) result.valor / 100.0, (int)difclock, totalnodo);
+                        printf ("# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
                     imprime_linha (result.plance, tabu->numero + 1, -tabu->vez);
                     printf ("\n");
-                    if (debug)
-                        fprintf (fsaida, "\n");
+                    if (debug) printf ("# \n");
                 }
                 // termino do laco infinito baseado no tempo
-                if ((difclock > tempomovclock && debug != 2) || (debug == 2 && nv == 3))  // termino do laco infinito baseado no tempo
+                if ((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))  // termino do laco infinito baseado no tempo
                     break;
-                nv++;
+                nv++; // busca em amplitude: aumenta um nivel.
             } //while result.plance < XEQUEMATE
     }
     // fim do se nao usou livro
@@ -3049,14 +3017,12 @@ compjoga (tabuleiro * tabu)
     result.plance = copilistmov (melhorcaminho1);
     result.valor = melhorvalor1;
     //nivel extra de debug
-    if (debug == 2)
-        (void) fclose (fmini);
+    if (debug == 2) (void) fclose (fmini);
     //Utilizado: ABANDONA==-2730, alterado quando contra outra engine
     if (result.valor < ABANDONA && ofereci == 0)
     {
         if (debug)
-            fprintf (fsaida, "xadreco : resign. value: %+.2f\n",
-                     result.valor / 100.0);
+            printf ("# xadreco : resign. value: %+.2f\n", result.valor / 100.0);
         --ofereci;
         printf ("resign\n");
     }
@@ -3071,22 +3037,20 @@ compjoga (tabuleiro * tabu)
     }
 
     //oferecer empate: result.valor esta invertido na vez.
-    if (result.valor < QUANTO_EMPATE1 && tabu->numero > MOVE_EMPATE1
-            && tabu->numero < MOVE_EMPATE2 && ofereci > 0)
+    if (result.valor < QUANTO_EMPATE1 && tabu->numero > MOVE_EMPATE1 && tabu->numero < MOVE_EMPATE2 && ofereci > 0)
     {
         if (debug)
-            fprintf (fsaida, "xadreco : offer draw (1) value: %+.2f\n",
+            printf ("# xadreco : offer draw (1) value: %+.2f\n",
                      result.valor / 100.0);
         --ofereci;
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
         printf ("offer draw\n");
     }
     //oferecer empate: result.valor esta invertido na vez.
-    if (result.valor < QUANTO_EMPATE2 && tabu->numero >= MOVE_EMPATE2
-            && ofereci > 0)
+    if (result.valor < QUANTO_EMPATE2 && tabu->numero >= MOVE_EMPATE2 && ofereci > 0)
     {
         if (debug)
-            fprintf (fsaida, "xadreco : offer draw (2) value: %+.2f\n",
+            printf ("# xadreco : offer draw (2) value: %+.2f\n",
                      result.valor / 100.0);
         --ofereci;
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
@@ -3097,73 +3061,73 @@ compjoga (tabuleiro * tabu)
     if (result.plance == NULL)
         return ('e');
     res = joga_em (tabu, *result.plance, 1); // computador joga
-    if(tabu->numero==2) //pretas jogou o primeiro. Relogio branco inicia
-    {
-        tinicio=time(NULL);
-        tbrancasmov=tinicio;
-        tjogo=0.0;
-        tpretasac=0.0;
-        tbrancasac=0.0;
-        cinicio=clock();
-        cbrancasmov=cinicio;
-        cjogo=cinicio;
-        cpretasac=0;
-        cbrancasac=0;
-    }
-    if(tabu->numero>2)
-    {
-        if(tabu->vez==brancas) //pretas jogou, inicia relogio das brancas (computador eh pretas)
-        {
-            float tdestemov;
-            int cdestemov;
-            tatual = time(NULL);
-            tbrancasmov = tatual; //comeca contar tempo das pretas
-            tdestemov = difftime(tatual,tpretasmov);
-            tpretasac += tdestemov; //tempo acumulado
-            tjogo = difftime(tatual, tinicio);
-            if (debug)
-                fprintf (fsaida, "xadreco : tempo preto %d: %.6f acumulado: %.2f jogo: %.2f\n", tabu->numero, tdestemov, tpretasac, tjogo);
-            catual = clock();
-            cbrancasmov = catual; //comeca contar tempo das pretas
-            cdestemov = catual - cpretasmov; //tempo gasto
-            cpretasac += cpretasmov; //tempo acumulado
-            cjogo = catual - cinicio;
-            if (debug)
-                fprintf (fsaida, "xadreco : clock preto %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cpretasac, (int)cjogo, tempomovclock);
-            if(tpretasac>0.0 && tbrancasac>0.0)
-                tempomovclock = (int)(tempomovclock * ((tbrancasac/tabu->numero)/(tpretasac/tabu->numero))); /*bug tirar o (int) = usar segundos */
-            if(tempomovclock>tempomovclockmax)
-                tempomovclock=tempomovclockmax;
-            if(tempomovclock<90) //minimo .9 segundo
-                tempomovclock=90;
-        }
-        else //brancas jogou, inicia relogio preto. //computador eh brancas
-        {
-            float tdestemov;
-            int cdestemov;
-            tatual = time(NULL);
-            tpretasmov = tatual; //comeca contar tempo das pretas
-            tdestemov = difftime(tatual,tbrancasmov);
-            tbrancasac += tdestemov; //tempo acumulado
-            tjogo = difftime(tatual, tinicio);
-            if (debug)
-                fprintf (fsaida, "xadreco : tempo branco %d: %.4f acumulado: %.2f jogo: %.2f\n", tabu->numero, tdestemov, tbrancasac, tjogo);
-            catual = clock();
-            cpretasmov = catual; //comeca contar tempo das pretas
-            cdestemov = catual - cbrancasmov; //tempo gasto
-            cbrancasac += cbrancasmov; //tempo acumulado
-            cjogo = catual - cinicio;
-            if (debug)
-                fprintf (fsaida, "xadreco : clock branco %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cbrancasac, (int)cjogo, tempomovclock);
-            //tempomovclock --;
-            if(tpretasac>0.0 && tbrancasac>0.0)
-                tempomovclock = (int)(tempomovclock * (float)((tpretasac/tabu->numero)/(tbrancasac/tabu->numero)));
-            if(tempomovclock>tempomovclockmax)
-                tempomovclock=tempomovclockmax;
-            if(tempomovclock<90) //minimo .9 segundo
-                tempomovclock=90;
-        }
-    }
+//    if(tabu->numero==2) //pretas jogou o primeiro. Relogio branco inicia
+//    {
+//        tinicio=time(NULL);
+//        tbrancasmov=tinicio;
+//        tjogo=0.0;
+//        tpretasac=0.0;
+//        tbrancasac=0.0;
+//        cinicio=clock();
+//        cbrancasmov=cinicio;
+//        cjogo=cinicio;
+//        cpretasac=0;
+//        cbrancasac=0;
+//    }
+//    if(tabu->numero>2)
+//    {
+//        if(tabu->vez==brancas) //pretas jogou, inicia relogio das brancas (computador eh pretas)
+//        {
+//            float tdestemov;
+//            int cdestemov;
+//            tatual = time(NULL);
+//            tbrancasmov = tatual; //comeca contar tempo das pretas
+//            tdestemov = difftime(tatual,tpretasmov);
+//            tpretasac += tdestemov; //tempo acumulado
+//            tjogo = difftime(tatual, tinicio);
+//            if (debug)
+//                printf ("# xadreco : tempo preto %d: %.6f acumulado: %.2f jogo: %.2f\n", tabu->numero, tdestemov, tpretasac, tjogo);
+//            catual = clock();
+//            cbrancasmov = catual; //comeca contar tempo das pretas
+//            cdestemov = catual - cpretasmov; //tempo gasto
+//            cpretasac += cpretasmov; //tempo acumulado
+//            cjogo = catual - cinicio;
+//            if (debug)
+//                printf ("# xadreco : clock preto %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cpretasac, (int)cjogo, tempomovclock);
+//            if(tpretasac>0.0 && tbrancasac>0.0)
+//                tempomovclock = (int)(tempomovclock * ((tbrancasac/tabu->numero)/(tpretasac/tabu->numero))); /*bug tirar o (int) = usar segundos */
+//            if(tempomovclock>tempomovclockmax)
+//                tempomovclock=tempomovclockmax;
+//            if(tempomovclock<90) //minimo .9 segundo
+//                tempomovclock=90;
+//        }
+//        else //brancas jogou, inicia relogio preto. //computador eh brancas
+//        {
+//            float tdestemov;
+//            int cdestemov;
+//            tatual = time(NULL);
+//            tpretasmov = tatual; //comeca contar tempo das pretas
+//            tdestemov = difftime(tatual,tbrancasmov);
+//            tbrancasac += tdestemov; //tempo acumulado
+//            tjogo = difftime(tatual, tinicio);
+//            if (debug)
+//                printf ("# xadreco : tempo branco %d: %.4f acumulado: %.2f jogo: %.2f\n", tabu->numero, tdestemov, tbrancasac, tjogo);
+//            catual = clock();
+//            cpretasmov = catual; //comeca contar tempo das pretas
+//            cdestemov = catual - cbrancasmov; //tempo gasto
+//            cbrancasac += cbrancasmov; //tempo acumulado
+//            cjogo = catual - cinicio;
+//            if (debug)
+//                printf ("# xadreco : clock branco %d: %d acumulado: %d jogo: %d Limite: %d\n", tabu->numero, cdestemov, (int)cbrancasac, (int)cjogo, tempomovclock);
+//            //tempomovclock --;
+//            if(tpretasac>0.0 && tbrancasac>0.0)
+//                tempomovclock = (int)(tempomovclock * (float)((tpretasac/tabu->numero)/(tbrancasac/tabu->numero)));
+//            if(tempomovclock>tempomovclockmax)
+//                tempomovclock=tempomovclockmax;
+//            if(tempomovclock<90) //minimo .9 segundo
+//                tempomovclock=90;
+//        }
+//    }
     //vez da outra cor jogar. retorna a situacao(*tabu)
     return (res);
 }
@@ -3192,18 +3156,16 @@ analisa (tabuleiro * tabu)
     if (result.plance != NULL)
     {
         //tclock2 = time(NULL);
-        clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
+//        clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
         //diftclock = difftime(tclock2 , tclock1);
-        difclock = clock2 - clock1;
+//        difclock = clock2 - clock1;
         //nivel pontuacao tempo totalnodo variacao === usado!
-        printf ("%d %d %d %d Livro: ", nv, result.valor, (int)difclock, totalnodo);
+        printf ("%d %d %d %d Livro: ", nv, result.valor, (int)difclocks(), totalnodo);
         if (debug)
-            fprintf (fsaida, "xadreco : %d %+.2f %d %d Livro: ", nv,
-                     (float) result.valor / 100.0, (int)difclock, totalnodo);
+            printf ("# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d Livro: ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
         imprime_linha (result.plance, tabu->numero + 1, -tabu->vez);
         printf ("\n");
-        if (debug)
-            fprintf (fsaida, "\n");
+        if (debug) printf ("# \n");
     }
     else
     {
@@ -3222,18 +3184,17 @@ analisa (tabuleiro * tabu)
             minimax (*tabu, 0, -LIMITE, LIMITE, nv);
             //retorna o melhor caminho a partir de tab...
             totalnodo += totalnodonivel;
-            clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
+//            clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
             //tclock2 = time(NULL);
             //diftclock = difftime(tclock2 , tclock1);
-            difclock = clock2 - clock1;
+//            difclock = clock2 - clock1;
             ordena_succ (nmov);
             //nivel pontuacao tempo totalnodo variacao === usado!
             if (abs (result.valor) != FIMTEMPO && abs (result.valor) != LIMITE)
             {
-                printf ("%d %d %d %d ", nv, result.valor, (int)difclock, totalnodo);
+                printf ("%d %d %d %d ", nv, result.valor, (int)difclocks(), totalnodo);
                 if (debug)
-                    fprintf (fsaida, "xadreco : %d %+.2f %d %d ", nv,
-                             (float) result.valor / 100.0, (int)difclock, totalnodo);
+                    printf ("# xadreco : nv=%d value=%+.2f time=%ds nodos=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
                 imprime_linha (result.plance, tabu->numero + 1, -tabu->vez);
                 //1=numero do lance, 2=vez: pular impressao na tela
                 if (result.plance == NULL)
@@ -3245,30 +3206,24 @@ analisa (tabuleiro * tabu)
                     if (result.plance == NULL)
                         printf ("no moves\n");
                     else
-                        fprintf (fsaida, "\n");
+                        printf ("# \n");
                 }
             }
             if (debug == 2)
             {
-                fprintf (fmini,
-                         "\nresult.valor: %+.2f totalnodo: %d\nresult.plance: ",
-                         result.valor / 100.0, totalnodo);
+                fprintf (fmini, "\nresult.valor: %+.2f totalnodo: %d\nresult.plance: ", result.valor / 100.0, totalnodo);
                 imprime_linha (result.plance, 1, 2);
                 //1=numero do lance, 2=vez: pular impressao na tela.
                 // tabu->numero+1, -tabu->vez);
             }
-            if ((difclock > tempomovclock && debug != 2)
-                    || (debug == 2 && nv == 3))
-                // termino do laco infinito baseado no tempo
+            if ((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3)) // termino do laco infinito baseado no tempo
                 break;
-            if (result.plance == NULL)
-                //Nova definicao: sem lances, pode ser que queira avancar apos mate.
+            if (result.plance == NULL) //Nova definicao: sem lances, pode ser que queira avancar apos mate.
                 break;
             nv++;
         }
     }
-    if (debug == 2)
-        //nivel extra de debug
+    if (debug == 2)         //nivel extra de debug
         (void) fclose (fmini);
     if (result.plance == NULL)
         //...apos o termino da partida, so pode-se usar edicao, undo, etc.
@@ -3308,9 +3263,7 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
     }
     if (debug == 2)
     {
-        fprintf (fmini,
-                 "\n----------------------------------------------Minimax prof: %d",
-                 prof);
+        fprintf (fmini, "\n----------------------------------------------Minimax prof: %d", prof);
         //fprintf(fmini, "\nalfa= %d     beta= %d", alfa, beta);
     }
     if (prof == 0)
@@ -3337,8 +3290,7 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
             fprintf (fmini, "NULL ");	//result.valor=%+.2f", result.valor);
         return;
     }
-    cabeca_succ = succ;
-    //laco para analisar todos sucessores (ou corta no porcento)
+    cabeca_succ = succ; //laco para analisar todos sucessores (ou corta no porcento)
     while (succ != NULL)
     {
         copitab (&tab, &atual);
@@ -3352,15 +3304,12 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         switch (tab.situa)
         {
         case 0:
-            break;
-            //0:nada... Quem decide eh flag_50;
+            break; //0:nada... Quem decide eh flag_50;
         case 2:
             profflag = 4;
-            break;
-            //2:Xeque!  Liberou
+            break; //2:Xeque!  Liberou
         default:
-            profflag = 0;
-            //tab.situa: 1=Empate, 3,4=Mate ou 5,6=Tempo. 7=sem resultado. Nao pode passar o nivel
+            profflag = 0; //tab.situa: 1=Empate, 3,4=Mate ou 5,6=Tempo. 7=sem resultado. Nao pode passar o nivel
         }
         if (debug == 2)
         {
@@ -3369,18 +3318,15 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
                      totalnodonivel, m, succ->lance[0], succ->lance[1],
                      succ->lance[2], succ->lance[3]);
         }
-        minimax (tab, prof + 1, -beta, -alfa, niv);
-        //analisa o novo tabuleiro
+        minimax (tab, prof + 1, -beta, -alfa, niv); //analisa o novo tabuleiro
         retira_listab ();
         novo_valor = -result.valor;
         //implementar o "random"
-        if (novo_valor > alfa)
-            // || (novo_valor==alfa && rand()%10>7))
+        if (novo_valor > alfa) // || (novo_valor==alfa && rand()%10>7))
         {
             alfa = novo_valor;
             libera_lances (melhor_caminho);
-            melhor_caminho = copimel (*succ, result.plance);
-            //cria nova cabeca
+            melhor_caminho = copimel (*succ, result.plance); //cria nova cabeca
         }
         if (debug == 2 && prof == 0)
         {
@@ -3415,8 +3361,7 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         contamov++;
         if (contamov > nmov * PORCENTO_MOVIMENTOS + 1 && prof != 0)	//tentando com 60%
             break;
-    }
-    //while(succ!=NULL)
+    } //while(succ!=NULL)
     result.valor = alfa;
     result.plance = copilistmov (melhor_caminho);
     //funcao retorna uma cabeca nova
@@ -3437,8 +3382,8 @@ profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
 
     //tclock2 = time(NULL);
     //diftclock = difftime(tclock2 , tclock1);
-    clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
-    difclock = clock2 - clock1;
+//    clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
+//    difclock = clock2 - clock1;
     //se tem captura ou xeque... liberou
     //se ja passou do nivel estipulado, pare a busca incondicionalmente
     if (prof > niv)
@@ -3449,7 +3394,7 @@ profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
         return 1;
     }
     //retorna sem analisar... Deve desconsiderar o lance
-    if (difclock > tempomovclock && debug != 2)
+    if (difclocks() >= tempomovclock && debug != 2)
     {
         result.plance = NULL;
         result.valor = estatico (atual, 1, prof, alfa, beta);	//-FIMTEMPO;//
@@ -3467,7 +3412,8 @@ profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
     //  }
     //  }
 
-    if(clock2 - inputcheckclock > 8) // && teminterroga==0) //CLOCKS_PER_SEC/10000)
+//    if(clock2 - inputcheckclock > 8) // && teminterroga==0) //CLOCKS_PER_SEC/10000)
+    if(difftime(tatual, tultimoinput)>=1) //faz poll uma vez por segundo apenas
     {
         //		printf("(%d) ",clock2 - inputcheckclock);
         if (pollinput ())
@@ -3492,9 +3438,9 @@ profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
             else
             {
                 ungetc (input, stdin);
-                inputcheckclock = clock2;
+//                inputcheckclock = clock2;
+                tultimoinput = time(NULL);
                 //				return 0;
-                //inputcheckclock = clock2;
             }
         }
     }
@@ -3529,35 +3475,27 @@ joga_em (tabuleiro * tabu, movimento movi, int cod)
     int i;
     char res;
 
-    if (movi.especial == 7)
-        //promocao do peao: BISPO
+    if (movi.especial == 7) //promocao do peao: BISPO
         tabu->tab[movi.lance[0]][movi.lance[1]] = BISPO * tabu->vez;
-    if (movi.especial == 6)
-        //promocao do peao: TORRE
+    if (movi.especial == 6) //promocao do peao: TORRE
         tabu->tab[movi.lance[0]][movi.lance[1]] = TORRE * tabu->vez;
-    if (movi.especial == 5)
-        //promocao do peao: CAVALO
+    if (movi.especial == 5) //promocao do peao: CAVALO
         tabu->tab[movi.lance[0]][movi.lance[1]] = CAVALO * tabu->vez;
-    if (movi.especial == 4)
-        //promocao do peao: DAMA
+    if (movi.especial == 4) //promocao do peao: DAMA
         tabu->tab[movi.lance[0]][movi.lance[1]] = DAMA * tabu->vez;
-    if (movi.especial == 3)
-        //comeu en passant
+    if (movi.especial == 3) //comeu en passant
         tabu->tab[tabu->peao_pulou][movi.lance[1]] = VAZIA;
-    if (movi.especial == 2)
-        //roque grande
+    if (movi.especial == 2) //roque grande
     {
         tabu->tab[0][movi.lance[1]] = VAZIA;
         tabu->tab[3][movi.lance[1]] = TORRE * tabu->vez;
     }
-    if (movi.especial == 1)
-        //roque pequeno
+    if (movi.especial == 1) //roque pequeno
     {
         tabu->tab[7][movi.lance[1]] = VAZIA;
         tabu->tab[5][movi.lance[1]] = TORRE * tabu->vez;
     }
-    if (movi.flag_50)
-        //empate de 50 lances sem mover peao ou capturar
+    if (movi.flag_50) //empate de 50 lances sem mover peao ou capturar
         tabu->empate_50 = 0;
     else
         tabu->empate_50 += .5;
@@ -5073,13 +5011,15 @@ sai (int error)
 //termina o programa
 {
     if (debug)
-    {
-        (void) fclose (fsaida);
+//    {
+        printf ("# xadreco : exit ( %d )\n", error);
+//        fflush(fsaida);
+//        (void) fclose (fsaida);
         //achar funcao para LINUX/WINDOWS que apaga arquivo
         //find function to LINUX/WINDOWS that remove a file (bugbug)
-        if (machine == 1)
-            remove("log.xadreco.temp");
-    }
+//        if (machine == 1)
+//            remove("log.xadreco.temp");
+//    }
     libera_lances (result.plance);
     result.plance = NULL;
     retira_tudo_listab ();
@@ -5126,14 +5066,19 @@ inicia (tabuleiro * tabu)
     for (i = 0; i < 8; i++)
         for (j = 0; j < 8; j++)
             tabu->tab[i][j] = VAZIA;
-    primeiro = 'h';
-    segundo = 'h';
+    primeiro = 'h'; //humano inicia, com comandos para acertar detalhes do jogo
+    segundo = 'c'; //computador espera para saber se jogara de brancas ou pretas
     nivel = 3;
     ABANDONA = -2430;
     // volta o abandona para jogar contra humanos...
     COMPUTER = 0;
     mostrapensando = 0;
     //post e nopost command
+    tempomovclock = 3.0;	//em segundos
+    tempomovclockmax = 3.0; // max allowed
+    tbrancasac=0.0; //tempo acumulado
+    tpretasac=0.0;  //acumulated time
+    tultimoinput = time(NULL); //pausa para nao fazer muito poll seguido
 }
 
 void
@@ -5141,7 +5086,7 @@ coloca_pecas (tabuleiro * tabu)
 //coloca as peoes na posicao inicial
 {
     int i;
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++) //i = column
     {
         tabu->tab[i][1] = -PEAO;
         tabu->tab[i][6] = PEAO;
@@ -5206,7 +5151,7 @@ msgsai (char *msg, int error)
 //aborta programa por falta de memoria
 {
     if (debug)
-        fprintf (fsaida, "\nxadreco : %s\n", msg);
+        printf ("# \nxadreco : %s\n", msg);
     sai (error);
 }
 
@@ -5294,52 +5239,42 @@ imprime_linha (movimento * loop, int numero, int tabuvez)
 {
     int num, vez;
     char m[80];
-    FILE *fimprime;
+//    FILE *fimprime;
     num = (int) ((numero + 1.0) / 2.0);
     vez = tabuvez;
-    fimprime = NULL;
-    if (debug == 2)
-        fimprime = fmini;
-    if (debug == 1)
-        fimprime = fsaida;
+//    fimprime = NULL;
+//    if (debug == 2)
+//        fimprime = fmini;
+//    if (debug == 1)
+//        fimprime = fsaida;
     while (loop != NULL)
     {
         lance2movi (m, loop->lance, loop->especial);
-        if (vez == brancas)
-            //jogou anterior as pretas
+        if (vez == brancas) //jogou anterior as pretas
         {
             if (tabuvez == brancas && num == (int) ((numero + 1.0) / 2.0))
             {
-                printf ("%d. ... %s ", num, m);
-                //primeiro lance da variante
-                if (fimprime != NULL)
-                    fprintf (fimprime, "%d. ... %s ", num, m);
-                //primeiro lance da variante
+                printf ("%d. ... %s ", num, m); //primeiro lance da variante
+                if (debug == 2) fprintf (fmini, "%d. ... %s ", num, m);
             }
             else
             {
                 if (tabuvez != 2)
                     printf ("%s ", m);
-                if (fimprime != NULL)
-                    fprintf (fimprime, "%s ", m);
+                if (debug == 2) fprintf (fmini, "%s ", m);
             }
             num++;
         }
-        else
-            // jogou anterior as brancas
+        else // jogou anterior as brancas
         {
-            if (tabuvez == 2)
-                //codigo so para log, nao imprimir na tela.
+            if (tabuvez == 2) //codigo so para log, nao imprimir na tela.
             {
-                if (fimprime != NULL)
-                    fprintf (fimprime, "%s ", m);
+                if (debug == 2 ) fprintf (fmini, "%s ", m);
             }
-            else
-                //vez das pretas, normal. Tela e log.
+            else //vez das pretas, normal. Tela e log.
             {
                 printf ("%d. %s ", num, m);
-                if (fimprime != NULL)
-                    fprintf (fimprime, "%d. %s ", num, m);
+                if (debug == 2) fprintf (fmini, "%d. %s ", num, m);
             }
         }
         loop = loop->prox;
@@ -5490,3 +5425,50 @@ pollinput (void)
 //retorna verdadeiro se leu o comando "?" para mover agora
 //return true if there is a "?" command to move now
 //int moveagora(void)
+
+
+// data e hora da compilacao
+// date and time of compilation
+double build(void)
+{
+  const char *data=__DATE__;
+  const char *tempo=__TIME__;
+  const char smes[12][3]={"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+  int ano, mes, dia, hora, min, seg;
+  double fv1, fv2;
+  char sversion[]="20130910.001339";
+
+  if(strlen(data)!=11||strlen(tempo)!=8)
+	return VERSION;
+
+  ano=atoi(&data[7]);
+  dia=atoi(&data[4]);
+
+  for(mes=0; mes<12; mes++)
+	if(!strncmp(smes[mes], data, 3))
+	  break;
+	if(mes==12)
+	  return VERSION;
+
+  hora=atoi(tempo);
+  min=atoi(&tempo[3]);
+  seg=atoi(&tempo[6]);
+  sprintf(sversion,"%04d%02d%02d.%02d%02d%02d", ano, mes+1, dia, hora, min, seg);
+  fv1=atof(sversion);
+  sprintf(sversion,"%04d%02d%02d,%02d%02d%02d", ano, mes+1, dia, hora, min, seg);
+  fv2=atof(sversion);
+  if(fv1>fv2)
+	return fv1;
+  else
+	return fv2;
+}
+
+//    clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
+//    difclock = clock2 - clock1;
+// difclocks = valores em segundos
+double difclocks(void)
+{
+    tatual=time(NULL);
+    tdifs = difftime(tatual, tinimov);
+    return tdifs;
+}
