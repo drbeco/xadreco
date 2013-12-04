@@ -542,7 +542,7 @@ main (int argc, char *argv[])
         {
             analise = 0;
             mostrapensando = 1;
-            printf("# xboard: post. Xadreco will show what its thinking.\n");
+            printf("# xboard: post. Xadreco will show what its thinking. (1)\n");
         }
         else
             if(!strcmp(movinito,"done"))
@@ -698,13 +698,40 @@ main (int argc, char *argv[])
                 {
                     if (debug) printf ("# xadreco : case 'e' (empty) %s\n", ultimo_resultado);
                     printf ("%s\n", ultimo_resultado);
+                    primeiro = segundo = 'h';
                 }
                 else
                 {
-                    if(debug) printf("# case 'e' 732: Computador sem lances validos 1. Erro: 35\n");
+//                    if(debug) printf("# case 'e' 732: Computador sem lances validos 1. Erro: 35\n");
+                    printf ("# xadreco : Error. I don't know what to play... (main)\n");
+                    resultado = randommove(&tabu);
+                    if(resultado =='e') //vazio mesmo! Nem aleatorio foi!
+                    {
+                        printf ("# xadreco : I really don't know what to play... resigning!\n");
+                        primeiro = segundo = 'h';
+                        printf("resign");
+                        if(primeiro == 'c')
+                        {
+                            resultado = 'B';
+                            strcpy (ultimo_resultado, "0-1 {White resigns}");
+                            printf ("0-1 {White resigns}\n");
 
+                        }
+                        else
+                        {
+                            resultado = 'b';
+                            strcpy (ultimo_resultado, "1-0 {Black resigns}");
+                            printf ("1-0 {Black resigns}\n");
+                        }
+                    }
+                    else
+                    {
+                        printf ("# xadreco : Playing a random move (main)!\n");
+                        resultado = joga_em (&tabu, *result.plance, 1);
+                    }
                 }
-                primeiro = segundo = 'h';
+//                primeiro = segundo = 'h';
+                break;
     //            continue;
             case 'x': //xeque: joga novamente
             case 'y': //retorna y: simplesmente gira o laco para jogar de novo. Troca de adv.
@@ -798,8 +825,8 @@ imptab (tabuleiro tabu)
         tempomovclock *= razao;
         if(tempomovclock>tempomovclockmax)
             tempomovclock=tempomovclockmax; //maximo tempomovclockmax
-        if(tempomovclock<1) //minimo 1 segundo
-            tempomovclock=1;
+        if(tempomovclock<2) //minimo 1 segundo
+            tempomovclock=2; /* evita ficar sem lances */
 
 //        printf ("# xadreco : tempomovclock=%f\n", tempomovclock);
     }
@@ -2071,7 +2098,7 @@ humajoga (tabuleiro * tabu)
             analise = 0;
             mostrapensando = 1;
             tente = 1;
-            printf("# xboard: post. Xadreco will show what its thinking.\n");
+            printf("# xboard: post. Xadreco will show what its thinking. (2)\n");
             continue;
         }
         if (!strcmp (movinito, "nopost")) //no show thinking ou desliga o mostrapensando
@@ -2317,7 +2344,7 @@ humajoga (tabuleiro * tabu)
             //o jogo e editado
             //Posicao FEN
             scanf ("%s", movinito); //trava se colocar uma posicao FEN invalida!
-            if (!strcmp (movinito, "testpos"))
+            if (!strcmp (movinito, "testpos")) //xadreco command
             {
                 testasim = 1; //a posicao vem da funcao testapos, e nao de scanf()
                 testapos (pieces, color, castle, enpassant, halfmove, fullmove);
@@ -2386,8 +2413,7 @@ humajoga (tabuleiro * tabu)
                     i = 0;
                     j--;
                     break;
-                default:
-                    //numero de casas vazias
+                default: //numero de casas vazias
                     i += (movinito[k] - '0');
                 }
                 k++;
@@ -2409,14 +2435,11 @@ humajoga (tabuleiro * tabu)
             if (testasim)
                 strcpy (movinito, castle);
             else
-                scanf ("%s", movinito);
-            //Roque
+                scanf ("%s", movinito); //Roque
             if (debug)
                 printf ("# xboard: %s\n", movinito);
-            tabu->roqueb = 0;
-            //nao pode mais
-            tabu->roquep = 0;
-            //nao pode mais
+            tabu->roqueb = 0; //nao pode mais
+            tabu->roquep = 0; //nao pode mais
             if (!strchr (movinito, '-')) //alguem pode
             {
                 if (strchr (movinito, 'K'))
@@ -2441,36 +2464,27 @@ humajoga (tabuleiro * tabu)
             if (testasim)
                 strcpy (movinito, enpassant);
             else
-                scanf ("%s", movinito);
-            //En passant
+                scanf ("%s", movinito); //En passant
             if (debug)
                 printf ("# xboard: %s\n", movinito);
-            tabu->peao_pulou = -1;
-            //nao pode
-            if (!strchr (movinito, '-'))
-                //alguem pode
-                tabu->peao_pulou = movinito[0] - 'a';
-            //pulou 2 na coluna dada
+            tabu->peao_pulou = -1; //nao pode
+            if (!strchr (movinito, '-')) //alguem pode
+                tabu->peao_pulou = movinito[0] - 'a'; //pulou 2 na coluna dada
             if (testasim)
                 strcpy (movinito, halfmove);
             else
-                scanf ("%s", movinito);
-            //Num. de movimentos (ply)
+                scanf ("%s", movinito); //Num. de movimentos (ply)
             if (debug) printf ("# xboard: %s\n", movinito);
-            tabu->empate_50 = atoi (movinito);
-            //contador:quando chega a 50, empate.
+            tabu->empate_50 = atoi (movinito); //contador:quando chega a 50, empate.
             if (testasim)
                 strcpy (movinito, fullmove);
             else
-                scanf ("%s", movinito);
-            //Num. de lances
+                scanf ("%s", movinito); //Num. de lances
             if (debug) printf ("# xboard: %s\n", movinito);
-            tabu->numero = 0;
-            //mudou para ply.
+            tabu->numero = 0; //mudou para ply.
             //(atoi(movinito)-1)+0.3;
             //inicia no 0.3 para indicar 0
-            ultimo_resultado[0] = '\0';
-            //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+            ultimo_resultado[0] = '\0'; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
             res = situacao (*tabu);
             switch (res)
             {
@@ -2822,7 +2836,7 @@ compjoga (tabuleiro * tabu)
                 //retorna o melhor caminho a partir de tab...
                 if (result.plance == NULL)
                 {
-//                    printf ("# compjoga 2857: Sem lances; result.plance==NULL; break; \n");
+//                    printf ("# Error compjoga 2857: Sem lances; result.plance==NULL; break; \n");
                     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
                     //20131202 NULL nao implica nao ter lance. Pode ter no nivel anterior
                     break;
@@ -2924,7 +2938,7 @@ compjoga (tabuleiro * tabu)
         res = randommove(tabu);
         if(res=='e')
             return res; //vazio mesmo! Nem aleatorio foi!
-        printf ("# xadreco : I don't know what to play... Playing a random move!\n");
+        printf ("# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
     }
     res = joga_em (tabu, *result.plance, 1); // computador joga
     //vez da outra cor jogar. retorna a situacao(*tabu)
@@ -3352,8 +3366,7 @@ joga_em (tabuleiro * tabu, movimento movi, int cod)
     tabu->vez = adv (tabu->vez);
     tabu->especial = movi.especial;
     if (cod)
-        insere_listab (*tabu);
-    //insere o lance no listab cod==1
+        insere_listab (*tabu); //insere o lance no listab cod==1
     res = situacao (*tabu);
     switch (res)
     {
@@ -3386,9 +3399,8 @@ joga_em (tabuleiro * tabu, movimento movi, int cod)
         tabu->situa = 0;
     }
     return (res);
-}
+} //fim da joga_em
 
-//fim da joga_em
 //copia ummovi no comeco da lista *plan, e retorna a cabeca desta NOVA lista (mel)
 movimento *
 copimel (movimento ummovi, movimento * plan)
@@ -3403,8 +3415,7 @@ copimel (movimento ummovi, movimento * plan)
 }
 
 // copia do segundo lance para frente, mantendo o primeiro
-void
-copilistmovmel (movimento * dest, movimento * font)
+void copilistmovmel (movimento * dest, movimento * font)
 {
     movimento *loop;
     if (font == dest)
@@ -3435,9 +3446,8 @@ copilistmovmel (movimento * dest, movimento * font)
     loop->prox = NULL;
 }
 
-void
-copimov (movimento * dest, movimento * font)
 //nao compia o ponteiro prox
+void copimov (movimento * dest, movimento * font)
 {
     int i;
     for (i = 0; i < 4; i++)
@@ -3450,15 +3460,13 @@ copimov (movimento * dest, movimento * font)
     dest->valor_estatico = font->valor_estatico;
 }
 
-movimento *
-copilistmov (movimento * font)
 //cria nova lista de movimentos para destino
+movimento * copilistmov (movimento * font)
 {
     movimento *cabeca, *pmovi;
     if (font == NULL)
         return NULL;
-    cabeca = (movimento *) malloc (sizeof (movimento));
-    //valor novo que sera do result.plance
+    cabeca = (movimento *) malloc (sizeof (movimento)); //valor novo que sera do result.plance
     if (cabeca == NULL)
         msgsai ("# Erro ao alocar memoria em copilistmov 1", 30);
     pmovi = cabeca;
@@ -3481,8 +3489,7 @@ copilistmov (movimento * font)
 //retorna o valor tatico e estrategico de um tabuleiro, sendo valor positivo melhor quem esta na vez
 //cod: 1: acabou o tempo, 0: ou eh avaliacao normal?
 //niv: qual a distancia do tabuleiro real para a copia tabu avaliada?
-int
-estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
+int estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
 {
     int totb = 0, totp = 0;
     int i, j, k, cor, peca;
@@ -3511,8 +3518,7 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //levando em conta a situacao do tabuleiro
     switch (tabu.situa)
     {
-    case 3:
-        //Brancas tomaram mate
+    case 3: //Brancas tomaram mate
         if (tabu.vez == brancas)
             //vez das brancas, mas...
             return -XEQUEMATE + 20 * (niv + 1);
@@ -3520,18 +3526,15 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
         else
             return +XEQUEMATE - 20 * (niv + 1);
         //na vez das pretas, o mate nas brancas e positivo, e quanto mais distante, pior...
-    case 4:
-        //Pretas tomaram mate
+    case 4: //Pretas tomaram mate
         if (tabu.vez == pretas)
             return -XEQUEMATE + 20 * (niv + 1);
         else
             return +XEQUEMATE - 20 * (niv + 1);
-    case 1:
-        //Empatou
+    case 1: //Empatou
         return 0;
         //valor de uma posicao empatada.
-    case 2:
-        //A posicao eh de XEQUE!
+    case 2: //A posicao eh de XEQUE!
         //analisada abaixo. nao precisa mais desse.
         //        if (tabu.numero > 40)
         //xeque no meio-jogo e final vale mais que na abertura
@@ -3851,36 +3854,35 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
             continue;
         i = ordem[k][0];
         j = ordem[k][1];
-        if (ordem[k][2] == -PEAO)
+        if (ordem[k][2] == -PEAO) //Peao branco (white pawn)
         {
-            //Peao branco
+            //faltando 4 casas ou menos para promover ganha +1
             if (j > 2)
-                //faltando 4 casas ou menos para promover ganha +1
                 totb += 10;
+            //faltando 3 casas ou menos para promover ganha +1+1
             if (j > 3)
-                //faltando 3 casas ou menos para promover ganha +1+1
                 totb += 20;
+            //faltando 2 casas ou menos para promover ganha +1+1+3
             if (j > 4)
                 totb += 30;
-            //faltando 2 casas ou menos para promover ganha +1+1+3
+            //faltando 1 casas ou menos para promover ganha +1+1+3+3
             if (j > 5)
                 totb += 40;
-            //faltando 1 casas ou menos para promover ganha +1+1+3+3
         }
-        else
+        else //Peao preto (black pawn)
         {
+            //faltando 4 casas ou menos para promover ganha +1
             if (j < 5)
                 totp += 10;
-            //faltando 4 casas ou menos para promover ganha +1
+            //faltando 3 casas ou menos para promover ganha +1+1
             if (j < 4)
                 totp += 20;
-            //faltando 3 casas ou menos para promover ganha +1+1
+            //faltando 2 casas ou menos para promover ganha +1+1+3
             if (j < 3)
                 totp += 30;
-            //faltando 2 casas ou menos para promover ganha +1+1+3
+            //faltando 1 casas ou menos para promover ganha +1+1+3+3
             if (j < 2)
                 totp += 40;
-            //faltando 1 casas ou menos para promover ganha +1+1+3+3
         }
     }
     //peao dobrado e isolado.
@@ -3940,8 +3942,7 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
         }
         if (isob == 3)
         {
-            totb -= 40;
-            //penalidade para peao isolado
+            totb -= 40; //penalidade para peao isolado
             isob = 1;
         }
         switch (isop)
@@ -3968,16 +3969,13 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
         }
         if (isop == 3)
         {
-            totp -= 40;
-            //penalidade para peao isolado
+            totp -= 40; //penalidade para peao isolado
             isop = 1;
         }
     }
-    if (isob == 2)
-        //o PTR branco esta isolado
+    if (isob == 2) //o PTR branco esta isolado
         totb -= 40;
-    if (isop == 2)
-        //o PTR preto esta isolado
+    if (isop == 2) //o PTR preto esta isolado
         totp -= 40;
 
     //controle do centro
@@ -4000,6 +3998,7 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
                     }
                 }
     //bonificacao para quem nao mexeu a dama na abertura
+    //TODO usar flag para lembrar se ja mexeu, senao vai e volta
     if (tabu.numero < 32 && setboard != 1)
     {
         if (tabu.tab[3][0] == -DAMA)
@@ -4008,19 +4007,16 @@ estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
             totp += 50;
     }
     //bonificacao para quem fez roque na abertura
+    //TODO usar flag para saber se fez roque mesmo
     if (tabu.numero < 32 && setboard != 1)
     {
-        if (tabu.tab[6][0] == -REI && tabu.tab[5][0] == -TORRE)
-            //brancas com roque pequeno
+        if (tabu.tab[6][0] == -REI && tabu.tab[5][0] == -TORRE) //brancas com roque pequeno
             totb += 70;
-        if (tabu.tab[2][0] == -REI && tabu.tab[3][0] == -TORRE)
-            //brancas com roque grande
+        if (tabu.tab[2][0] == -REI && tabu.tab[3][0] == -TORRE) //brancas com roque grande
             totb += 50;
-        if (tabu.tab[6][7] == REI && tabu.tab[5][7] == TORRE)
-            //pretas com roque pequeno
+        if (tabu.tab[6][7] == REI && tabu.tab[5][7] == TORRE) //pretas com roque pequeno
             totp += 70;
-        if (tabu.tab[2][7] == REI && tabu.tab[3][7] == TORRE)
-            //pretas com roque grande
+        if (tabu.tab[2][7] == REI && tabu.tab[3][7] == TORRE) //pretas com roque grande
             totp += 50;
     }
     //bonificacao para rei protegido na abertura com os peoes do Escudo Real
@@ -4112,8 +4108,7 @@ insere_listab (tabuleiro tabu)
 {
     int i, j, flag = 0;
     listab *plaux;
-    if (plcabeca == NULL)
-        //lista vazia?
+    if (plcabeca == NULL) //lista vazia?
     {
         plcabeca = (listab *) malloc (sizeof (listab));
         if (plcabeca == NULL)
@@ -4125,24 +4120,18 @@ insere_listab (tabuleiro tabu)
             for (j = 0; j < 8; j++)
                 plfinal->tab[i][j] = tabu.tab[i][j];
         //posicao das pecas
-        plfinal->vez = tabu.vez;
-        //de quem e a vez
-        plfinal->rep = 1;
-        //primeira vez que aparece
-        plfinal->peao_pulou = tabu.peao_pulou;
-        //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+        plfinal->vez = tabu.vez; //de quem e a vez
+        plfinal->rep = 1; //primeira vez que aparece
+        plfinal->peao_pulou = tabu.peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
         plfinal->roqueb = tabu.roqueb;
         plfinal->roquep = tabu.roquep;
-        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-        plfinal->empate_50 = tabu.empate_50;
-        //contador:quando chega a 50, empate.
-        plfinal->situa = tabu.situa;
-        //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+        plfinal->empate_50 = tabu.empate_50; //contador:quando chega a 50, empate.
+        plfinal->situa = tabu.situa; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+        //lance executado originador deste tabuleiro.
         for (i = 0; i < 4; i++)
             plfinal->lancex[i] = tabu.lancex[i];
-        //lance executado originador deste tabuleiro.
-        plfinal->numero = tabu.numero;
-        //numero do lance
+        plfinal->numero = tabu.numero; //numero do lance (ply)
         plfinal->especial = tabu.especial;
     }
     else
@@ -4158,20 +4147,16 @@ insere_listab (tabuleiro tabu)
             for (j = 0; j < 8; j++)
                 plfinal->tab[i][j] = tabu.tab[i][j];
         plfinal->vez = tabu.vez;
-        plfinal->peao_pulou = tabu.peao_pulou;
-        //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+        plfinal->peao_pulou = tabu.peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
         plfinal->roqueb = tabu.roqueb;
         plfinal->roquep = tabu.roquep;
-        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-        plfinal->empate_50 = tabu.empate_50;
-        //contador:quando chega a 50, empate.
-        plfinal->situa = tabu.situa;
-        //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+        plfinal->empate_50 = tabu.empate_50; //contador:quando chega a 50, empate.
+        plfinal->situa = tabu.situa; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+        //lance executado originador deste tabuleiro.
         for (i = 0; i < 4; i++)
             plfinal->lancex[i] = tabu.lancex[i];
-        //lance executado originador deste tabuleiro.
-        plfinal->numero = tabu.numero;
-        //numero do lance
+        plfinal->numero = tabu.numero; //numero do lance
         plfinal->especial = tabu.especial;
         //compara o inserido agora com todos os anteriores...
         plaux = plfinal->ant;
@@ -4196,23 +4181,20 @@ insere_listab (tabuleiro tabu)
             if (plfinal->vez != plaux->vez)
                 flag = 1;
             //flag==1: vez diferente nao eh posicao repetida
-            if (!flag)
-                //flag == 0?
+            if (!flag) //flag == 0?
             {
                 plfinal->rep = plaux->rep + 1;
                 break;
             }
             plaux = plaux->ant;
         }
-        if (flag)
-            //flag == 1?
+        if (flag) //flag == 1?
             plfinal->rep = 1;
     }
 }
 
-//retira o plfinal: o ltimo tabuleiro da lista
-void
-retira_listab (void)
+//retira o plfinal: o ultimo tabuleiro da lista
+void retira_listab (void)
 {
     listab *plaux;
     if (plfinal == NULL)
@@ -4229,67 +4211,55 @@ retira_listab (void)
     plfinal->prox = NULL;
 }
 
-void
-volta_lance (tabuleiro * tabu)
 //para voltar um lance
+void volta_lance (tabuleiro * tabu)
 {
     int i, j;
-    if (plcabeca == NULL || plfinal == NULL)
-        //nao tem ninguem... erro.
+    if (plcabeca == NULL || plfinal == NULL) //nao tem ninguem... erro.
         return;
-    if (plcabeca == plfinal)
-        //ja esta na posicao inicial
+    if (plcabeca == plfinal) //ja esta na posicao inicial
         return;
     retira_listab ();
+    //posicao das peoes
     for (i = 0; i < 8; i++)
         for (j = 0; j < 8; j++)
             tabu->tab[i][j] = plfinal->tab[i][j];
-    //posicao das peoes
-    tabu->vez = plfinal->vez;
-    //de quem e a vez
-    tabu->peao_pulou = plfinal->peao_pulou;
-    //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+    tabu->vez = plfinal->vez; //de quem e a vez
+    tabu->peao_pulou = plfinal->peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
+    //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
     tabu->roqueb = plfinal->roqueb;
     tabu->roquep = plfinal->roquep;
-    //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-    tabu->empate_50 = plfinal->empate_50;
-    //contador:quando chega a 50, empate.
-    tabu->situa = plfinal->situa;
-    //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+    tabu->empate_50 = plfinal->empate_50; //contador:quando chega a 50, empate.
+    tabu->situa = plfinal->situa; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+    //lance executado originador deste tabuleiro.
     for (i = 0; i < 4; i++)
         tabu->lancex[i] = plfinal->lancex[i];
-    //lance executado originador deste tabuleiro.
-    tabu->numero = plfinal->numero;
-    //numero do lance
-    tabu->especial = plfinal->especial;
+    tabu->numero = plfinal->numero; //numero do lance
+    //tabu->especial
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    if (tabu->numero < 50 && setboard < 1)
-        //nao usar abertura em posicoes de setboard
-        USALIVRO = 1;
+    tabu->especial = plfinal->especial;
+    if (tabu->numero < 50 && setboard < 1) 
+        USALIVRO = 1; //nao usar abertura em posicoes de setboard
 }
 
-void
-retira_tudo_listab (void)
-//zera a lista de tabuleiros
+void retira_tudo_listab (void) //zera a lista de tabuleiros
 {
     while (plcabeca != NULL)
         retira_listab ();
 }
 
-int
-qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
+int qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
 {
     //retorna o numero de ataques que a "cor" faz na casa(col,lin)
     //cor==brancas   => brancas atacam casa(col,lin)
     //cor==pretas    => pretas  atacam casa(col,lin)
-    //menor == e a menor peca da "cor" que ataca a casa
+    //menor == e a menor peca da "cor" que ataca a casa (less valued piece attacking the square)
     int icol, ilin, casacol, casalin;
     int total = 0;
     *menor = REI;
     //torre ou dama atacam a casa...
-    for (icol = col - 1; icol >= 0; icol--)
-        //desce coluna
+    for (icol = col - 1; icol >= 0; icol--) //desce coluna
     {
         if (tabu.tab[icol][lin] == VAZIA)
             continue;
@@ -4303,8 +4273,7 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
             }
             else
                 break;
-        else
-            // pretas atacam a casa
+        else // pretas atacam a casa
             if (tabu.tab[icol][lin] == TORRE || tabu.tab[icol][lin] == DAMA)
             {
                 total++;
@@ -4315,8 +4284,7 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
             else
                 break;
     }
-    for (icol = col + 1; icol < 8; icol++)
-        //sobe coluna
+    for (icol = col + 1; icol < 8; icol++) //sobe coluna
     {
         if (tabu.tab[icol][lin] == VAZIA)
             continue;
@@ -4340,8 +4308,7 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
         else
             break;
     }
-    for (ilin = lin + 1; ilin < 8; ilin++)
-        // direita na linha
+    for (ilin = lin + 1; ilin < 8; ilin++) // direita na linha
     {
         if (tabu.tab[col][ilin] == VAZIA)
             continue;
@@ -4365,8 +4332,7 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
         else
             break;
     }
-    for (ilin = lin - 1; ilin >= 0; ilin--)
-        // esquerda na linha
+    for (ilin = lin - 1; ilin >= 0; ilin--) // esquerda na linha
     {
         if (tabu.tab[col][ilin] == VAZIA)
             continue;
@@ -4380,8 +4346,7 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
             }
             else
                 break;
-        else
-            //pecas pretas atacam
+        else //pecas pretas atacam
             if (tabu.tab[col][ilin] == TORRE || tabu.tab[col][ilin] == DAMA)
             {
                 total++;
@@ -4401,32 +4366,28 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
             if (col + icol < 0 || col + icol > 7 || lin + ilin < 0
                     || lin + ilin > 7)
                 continue;
-            if (cor == brancas)
-                //cavalo branco ataca?
+            if (cor == brancas) //cavalo branco ataca?
                 if (tabu.tab[col + icol][lin + ilin] == -CAVALO)
                 {
-                    total++;
-                    //sim,ataca!
+                    total++; //sim,ataca!
                     if (CAVALO < *menor)
                         *menor = CAVALO;
                 }
                 else
                     continue;
-            else
-                //cavalo preto ataca?
+            else //cavalo preto ataca?
                 if (tabu.tab[col + icol][lin + ilin] == CAVALO)
                 {
                     if (CAVALO < *menor)
                         *menor = CAVALO;
-                    total++;
-                    //sim,ataca!
+                    total++; //sim,ataca!
                 }
         }
     // bispo ou dama atacam casa...
     for (icol = -1; icol < 2; icol += 2)
         for (ilin = -1; ilin < 2; ilin += 2)
         {
-            casacol = col;            //para cada diagonal, comece na casa origem.
+            casacol = col; //para cada diagonal, comece na casa origem.
             casalin = lin;
             do
             {
@@ -4445,24 +4406,20 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
                         total++;
                         if (-tabu.tab[casacol][casalin] < *menor)
                             *menor = -tabu.tab[casacol][casalin];
-                        continue;                        //proxima diagonal
+                        continue; //proxima diagonal
                     }
                     else
-                        continue;
-                // achou peca, mas esta nao anda em diagonal ou e' peca propria
-                else
-                    //ataque de peca preta
-                    if (tabu.tab[casacol][casalin] == BISPO
-                            || tabu.tab[casacol][casalin] == DAMA)
+                        continue; // achou peca, mas esta nao anda em diagonal ou e' peca propria
+                else //ataque de peca preta
+                    if (tabu.tab[casacol][casalin] == BISPO || tabu.tab[casacol][casalin] == DAMA)
                     {
                         total++;
                         if (tabu.tab[casacol][casalin] < *menor)
                             *menor = tabu.tab[casacol][casalin];
-                        continue;                        //proxima diagonal
+                        continue; //proxima diagonal
                     }
             }
-        }
-    // proxima diagonal
+        } // proxima diagonal
     // ataque de rei...
     // nao preciso colocar como *menor, pois e a maior e ja comeca com ele
     for (icol = col - 1; icol <= col + 1; icol++)
@@ -4486,8 +4443,8 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
                 break;
             }
         }
+    // ataque de peao branco (white pawn attack)
     if (cor == brancas)
-        // ataque de peao branco
     {
         if (lin > 1)
         {
@@ -4508,8 +4465,7 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
                 }
         }
     }
-    else
-        //ataque de peao preto
+    else //ataque de peao preto (black pawn attack)
     {
         if (lin < 6)
         {
@@ -4530,10 +4486,9 @@ qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
                 }
         }
     }
-    if (total == 0)
-        //ninguem ataca
-        *menor = 0;
-    return (total);
+    if (total == 0) //ninguem ataca (no attacks)
+        *menor = 0; 
+    return total;
 }
 
 // ----------------------------------------------------------------------------
@@ -4823,7 +4778,7 @@ inicia (tabuleiro * tabu)
     nivel = 3; // sem uso depois de colocar busca em amplitude (uso no debug apenas)
     ABANDONA = -2430; // volta o abandona para jogar contra humanos...
     COMPUTER = 0; // jogando contra outra engine?
-    mostrapensando = 0; //post and nopost commands
+    //mostrapensando = 0; //post and nopost commands
     setboard = 0; //setboard command
     analise = 0; //analyze and exit commands
     tempomovclock = 3.0;	//em segundos
