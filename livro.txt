@@ -1,5 +1,7 @@
 # Livro do Xadreco
 #
+# TODO: incluir as 20 respostas pretas para cada uma das 20 saidas, com pelo menos uma resposta branca boa
+#
 #Abertura doida, para teste
 #a2a3 a7a6 a3a4 a6a5
 #a2a3 d7d5 b1c3 d5d4

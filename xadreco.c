@@ -750,9 +750,9 @@ void inicia_fics(void)
 {
     printf("tellicsnoalias tell mamer gettourney blitz\n");
     printf("tellicsnoalias resume\n");
-    printf("tellicsnoalias seek 2 0 f\n");
-    printf("tellicsnoalias seek 5 5 f\n");
-    printf("tellicsnoalias seek 10 10 f\n");
+    printf("tellicsnoalias seek 2 0 f m\n");
+    printf("tellicsnoalias seek 5 5 f m\n");
+    printf("tellicsnoalias seek 10 10 f m\n");
 }
 
 // mostra a lista de lances da tela, a melhor variante, e responde ao comando "hint"
