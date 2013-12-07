@@ -98,6 +98,8 @@
 #define QUANTO_EMPATE2 20
 //pede empate se lances > MOVE_EMPATE2 e tem menos que 0.2 PEAO
 //ask for draw if ply > MOVE_EMPATE2 and he has less then 0.2 PAWN
+#define AFOGOU -2
+//flagvf de geramov, so para retornar rapido com um lance valido ou NULL
 // dados ----------------------
 int debug = 1;
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:debug, 2:debug minimax
@@ -153,6 +155,7 @@ typedef struct smovimento
     //castle: 0:king moved. 1: can yet. 2:moved king's rook. 3:moved queen's rook.
     int flag_50;
     //Quando igual a:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
+    //TODO 4=roque eh irreversivel e deveria recontar o empate_50, 5=promocao (incluida em 1?)
     //when equal to: 0:nothing, 1:pawn moved, 2:capture, 3:pawn capture. Put zero to empate_50;
     int especial;
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
@@ -372,7 +375,12 @@ void testajogo (char *movinito, int numero);
 void limpa_pensa (void);
 //limpa algumas variaveis para iniciar a ponderacao
 //to clean some variables to start pondering
-void enche_pmovi (movimento * pmovi, int c0, int c1, int c2, int c3, int p, int r, int e, int f);
+void enche_pmovi (movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff, int *nmovi);
+// enche_pmovi (movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int peao_pulou, int roque, int especial, int flag50, nummovi)
+//pp peao_pulou: contem -1 ou coluna do peao que andou duas neste lance
+//rr roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+//ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+//ff flag_50: 0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
 //preenche a estrutura movimento
 //fullfil movimento structure
 void msgsai (char *msg, int error);
@@ -924,927 +932,601 @@ copitab (tabuleiro * dest, tabuleiro * font)
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
 }
 
-movimento *
-geramov (tabuleiro tabu, int *nmovi)
+// se nmovi==-1 retorna verdadeiro (ponteiro para o primeiro lance) / falso NULL
+movimento *geramov (tabuleiro tabu, int *nmovi)
 {
     tabuleiro tabaux;
     movimento *pmovi = NULL, *pmoviant = NULL, *cabeca = NULL;
     int i, j, k, l, m, flag;
     int col, lin;
     int peca;
-    //    (*nmovi)=0; se nmovi==-1, acha um lance e retorna;
-    if ((*nmovi) != -1)
-    {
-        cabeca = (movimento *) malloc (sizeof (movimento));
-        if (cabeca == NULL)
-            msgsai ("# Erro de alocacao de memoria em geramov 1", 1);
-        pmovi = cabeca;
-        pmoviant = pmovi;
-        pmovi->prox = NULL;
-    }
+    int flagvf = *nmovi; /* flagvf==AFOGOU, retorna unico lance (saber se esta afogado), 0, retorna todos */
+//     int pp; //peao pulou
+    int rr, ee, ff; //peao pulou, roque, especial e flag50;
+
     for (i = 0; i < 8; i++) //#coluna
         for (j = 0; j < 8; j++) //#linha
         {
-            if ((tabu.tab[i][j]) * (tabu.vez) <= 0)
-                //casa vazia, ou cor errada:
-                continue;
-            // (+)*(-)==(-) , (-)*(+)==(-)
+            if ((tabu.tab[i][j]) * (tabu.vez) <= 0) //casa vazia, ou cor errada:
+                continue; // (+)*(-)==(-) , (-)*(+)==(-)
             peca = abs (tabu.tab[i][j]);
             switch (peca)
             {
-            case REI:
-                for (col = i - 1; col <= i + 1; col++)
-                    //Rei anda normalmente
-                    for (lin = j - 1; lin <= j + 1; lin++)
-                    {
-                        if (lin < 0 || lin > 7 || col < 0 || col > 7)
-                            continue;
-                        //casa de indice invalido
-                        if (sinal (tabu.tab[col][lin]) == tabu.vez)
-                            continue;
-                        //casa possui peca da mesma cor ou o proprio rei
-                        if (ataca (adv (tabu.vez), col, lin, tabu))
-                            continue;
-                        //adversario esta protegendo a casa
-                        copitab (&tabaux, &tabu);
-                        tabaux.tab[i][j] = VAZIA;
-                        tabaux.tab[col][lin] = REI * tabu.vez;
-                        if (!xeque_rei_das (tabu.vez, tabaux))
+                case REI:
+                    for (col = i - 1; col <= i + 1; col++) //Rei anda normalmente
+                        for (lin = j - 1; lin <= j + 1; lin++)
                         {
-                            //nao pode mais fazer roque. Mexeu Rei
-                            //Rei capturou peca adversaria. flag=2
-                            //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                            if ((*nmovi) == -1)
-                                return (movimento *) TRUE;
-                            enche_pmovi (pmovi, i, j, col, lin, -1, 0, 0, 2);
-                            (*nmovi)++;
-                            //preenche a estrutura movimento
-                            if (tabu.tab[col][lin] == VAZIA)
-                                pmovi->flag_50 = 0;
-                            //Rei capturou peca adversaria.
-                            pmovi->prox = (movimento *) malloc (sizeof (movimento));
-                            if (pmovi->prox == NULL)
-                                msgsai ("# Erro de alocacao de memoria em geramov 2", 2);
-                            pmoviant = pmovi;
-                            pmovi = pmovi->prox;
-                            pmovi->prox = NULL;
-                        }
-                    }
-                //----------------------------- Roque de Brancas e Pretas
-                if (tabu.vez == brancas)
-                    if (tabu.roqueb == 0)
-                        //Se nao pode mais rocar: break!
-                        break;
-                    else
-                    {
-                        //roque de brancas
-                        if (tabu.roqueb != 2 && tabu.tab[7][0] == -TORRE)
-                        {
-                            //Nao mexeu TR (e ela esta la Adv poderia ter comido antes de mexer)
-                            // roque pequeno
-                            if (tabu.tab[5][0] == VAZIA && tabu.tab[6][0] == VAZIA)
-                                //f1,g1
+                            if (lin < 0 || lin > 7 || col < 0 || col > 7)
+                                continue; //casa de indice invalido
+                            if (sinal (tabu.tab[col][lin]) == tabu.vez)
+                                continue; //casa possui peca da mesma cor ou o proprio rei
+                            if (ataca (adv (tabu.vez), col, lin, tabu))
+                                continue; //adversario esta protegendo a casa
+                            copitab (&tabaux, &tabu);
+                            tabaux.tab[i][j] = VAZIA;
+                            tabaux.tab[col][lin] = REI * tabu.vez;
+                            if (!xeque_rei_das (tabu.vez, tabaux))
                             {
-                                flag = 0;
-                                for (k = 4; k < 7; k++)
-                                    //colunas e,f,g
-                                    if (ataca (pretas, k, 0, tabu))
-                                    {
-                                        flag = 1;
-                                        break;
-                                    }
-                                if (flag == 0)
-                                {
-                                    //nao pode mais fazer roque. Mexeu Rei
-                                    //Rei rocou pqn, espec=1. flag=0
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, 4, 0, 6, 0, -1, 0, 1, 0);
-                                    (*nmovi)++;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 3", 3);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                            }
-                            // roque grande
-                        }
-                        //mexeu TR
-                        if (tabu.roqueb != 3 && tabu.tab[0][0] == -TORRE)
-                            //Nao mexeu TD (e a torre existe!)
-                        {
-                            if (tabu.tab[1][0] == VAZIA && tabu.tab[2][0] == VAZIA
-                                    && tabu.tab[3][0] == VAZIA)
-                                //b1,c1,d1
-                            {
-                                flag = 0;
-                                for (k = 2; k < 5; k++)
-                                    //colunas c,d,e
-                                    if (ataca (pretas, k, 0, tabu))
-                                    {
-                                        flag = 1;
-                                        break;
-                                    }
-                                if (flag == 0)
-                                {
-                                    //nao pode mais fazer roque. Mexeu Rei
-                                    //Rei rocou grd, espec=2. flag=0
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, 4, 0, 2, 0, -1, 0, 2, 0);
-                                    (*nmovi)++;
-                                    //preenche a estrutura movimento
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 4", 4);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
+                                //nao pode mais fazer roque. Mexeu Rei
+                                if (tabu.tab[col][lin] == VAZIA)
+                                    ff = 0; //nao capturou
+                                else
+                                    ff = 2; //Rei capturou peca adversaria
+                                // enche_pmovi (movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int peao_pulou, int roque, int especial, int flag50, nummovi)
+                                //pp contem -1 ou coluna do peao que andou duas neste lance
+                                //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+                                //ee 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+                                //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
+                                enche_pmovi (&cabeca, &pmovi, i, j, col, lin, /*peao*/-1, /*roque*/0, /*especial*/0, /*flag50*/ff, nmovi);
+                                if(flagvf==AFOGOU) //pergunta a geramov se afogou e retorna rapido
+                                    return cabeca;        
+    //                          pmovi->prox = (movimento *) malloc (sizeof (movimento));
+    //                          if (pmovi->prox == NULL)
+    //                              msgsai ("# Erro de alocacao de memoria em geramov 2", 2);
+    //                          pmoviant = pmovi;
+    //                          pmovi = pmovi->prox;
+    //                          pmovi->prox = NULL;
                             }
                         }
-                        //mexeu TD
-                    }
-                else
-                    // vez das pretas jogarem
-                    if (tabu.roquep == 0)
-                        //Se nao pode rocar: break!
-                        break;
-                    else
-                        //roque de pretas
-                    {
-                        if (tabu.roquep != 2 && tabu.tab[7][7] == TORRE)
-                            //Nao mexeu TR (e a torre nao foi capturada)
-                        {
-                            // roque pequeno
-                            if (tabu.tab[5][7] == VAZIA && tabu.tab[6][7] == VAZIA)
-                                //f8,g8
-                            {
-                                flag = 0;
-                                for (k = 4; k < 7; k++)
-                                    //colunas e,f,g
-                                    if (ataca (brancas, k, 7, tabu))
-                                    {
-                                        flag = 1;
-                                        break;
-                                    }
-                                if (flag == 0)
-                                {
-                                    //nao pode mais fazer roque. Mexeu Rei
-                                    //Rei rocou pqn, espec=1. flag=0.
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, 4, 7, 6, 7, -1, 0, 1, 0);
-                                    (*nmovi)++;
-                                    //preenche a estrutura movimento
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 5", 5);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                            }
-                            // roque grande.
-                        }
-                        //mexeu TR
-                        if (tabu.roquep != 3 && tabu.tab[0][7] == TORRE)
-                            //Nao mexeu TD (e a torre esta la)
-                        {
-                            if (tabu.tab[1][7] == VAZIA && tabu.tab[2][7] == VAZIA &&
-                                    tabu.tab[3][7] == VAZIA)
-                                //b8,c8,d8
-                            {
-                                flag = 0;
-                                for (k = 2; k < 5; k++)
-                                    //colunas c,d,e
-                                    if (ataca (brancas, k, 7, tabu))
-                                    {
-                                        flag = 1;
-                                        break;
-                                    }
-                                if (flag == 0)
-                                {
-                                    //nao pode mais fazer roque. Mexeu Rei
-                                    //Rei rocou grd, espec=2. flag=0.
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, 4, 7, 2, 7, -1, 0, 2, 0);
-                                    (*nmovi)++;
-                                    //preenche a estrutura movimento
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 6", 6);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                            }
-                        }
-                        //mexeu TD
-                    }
-                break;
-            case PEAO:
-                //peao comeu en passant
-                if (tabu.peao_pulou != -1)
-                    //Existe peao do adv que pulou...
-                {
-                    if (i == tabu.peao_pulou - 1 || i == tabu.peao_pulou + 1)
-                        //este peao esta na coluna certa
-                    {
-                        copitab (&tabaux, &tabu);
-                        // tabaux = tabu
-                        if (tabu.vez == brancas)
-                        {
-                            if (j == 4)
-                                //E tambem esta na linha certa. Peao branco vai comer enpassant!
-                            {
-                                tabaux.tab[tabu.peao_pulou][5] = -PEAO;
-                                tabaux.tab[tabu.peao_pulou][4] = VAZIA;
-                                tabaux.tab[i][4] = VAZIA;
-                                if (!xeque_rei_das (brancas, tabaux))
-                                    //nao deixa rei branco em xeque
-                                {
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, i, j, tabu.peao_pulou, 5,
-                                                 -1, 1, 3, 3);
-                                    (*nmovi)++;
-                                    //preenche a estrutura movimento
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 7", 7);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                            }
-                        }
+                    //----------------------------- Roque de Brancas e Pretas
+                    if (tabu.vez == brancas)
+                        if (tabu.roqueb == 0) //Se nao pode mais rocar: break!
+                            break;
                         else
-                            // vez das pretas.
-                        {
-                            if (j == 3)
-                                // Esta na linha certa. Peao preto vai comer enpassant!
+                        { //roque de brancas
+                            if (tabu.roqueb != 2 && tabu.tab[7][0] == -TORRE)
+                            {   //Nao mexeu TR (e ela esta la Adv poderia ter comido antes de mexer)
+                                // roque pequeno
+                                if (tabu.tab[5][0] == VAZIA && tabu.tab[6][0] == VAZIA) //f1,g1
+                                {
+                                    flag = 0;
+                                    for (k = 4; k < 7; k++) //colunas e,f,g
+                                        if (ataca (pretas, k, 0, tabu))
+                                        {
+                                            flag = 1; //casas do roque atacadas
+                                            break;
+                                        }
+                                    if (flag == 0)
+                                    {   //nao pode mais fazer roque. Mexeu Rei
+                                        //Rei rocou pqn, espec=1. flag=0
+
+                                        // enche_pmovi (pmovi, 4, 0, 6, 0, -1, 0, 1, 0);
+                                        // enche_pmovi (movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int peao_pulou, int roque, int especial, int flag50, nummovi)
+                                        //pp contem -1 ou coluna do peao que andou duas
+                                        //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+                                        //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+                                        //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
+                                        enche_pmovi (&cabeca, &pmovi, 4, 0, 6, 0, /*pp*/-1, /*rr*/0, /*ee*/1, /*ff*/0, nmovi); //BUG flag50 zera no roque? consultar FIDE
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    
+                                    }
+                                } // roque grande
+                            } //mexeu TR
+                            if (tabu.roqueb != 3 && tabu.tab[0][0] == -TORRE) //Nao mexeu TD (e a torre existe!)
                             {
-                                tabaux.tab[tabu.peao_pulou][2] = PEAO;
-                                tabaux.tab[tabu.peao_pulou][3] = VAZIA;
-                                tabaux.tab[i][3] = VAZIA;
+                                if (tabu.tab[1][0] == VAZIA && tabu.tab[2][0] == VAZIA && tabu.tab[3][0] == VAZIA) //b1,c1,d1
+                                {
+                                    flag = 0;
+                                    for (k = 2; k < 5; k++) //colunas c,d,e
+                                        if (ataca (pretas, k, 0, tabu))
+                                        {
+                                            flag = 1; //casas do roque atacadas
+                                            break;
+                                        }
+                                    if (flag == 0)
+                                    {   //nao pode mais fazer roque. Mexeu Rei
+                                        //Rei rocou grd, espec=2. flag=0
+    //                                   enche_pmovi (pmovi, 4, 0, 2, 0, -1, 0, 2, 0);
+                                        enche_pmovi (&cabeca, &pmovi, 4, 0, 2, 0, /*peao*/-1, /*roque*/0, /*especial*/2, /*flag50*/0, nmovi);
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    }
+                                }
+                            } //mexeu TD
+                        }
+                    else // vez das pretas jogarem
+                        if (tabu.roquep == 0) //Se nao pode rocar: break!
+                            break;
+                        else //roque de pretas
+                        {
+                            if (tabu.roquep != 2 && tabu.tab[7][7] == TORRE) //Nao mexeu TR (e a torre nao foi capturada)
+                            { // roque pequeno
+                                if (tabu.tab[5][7] == VAZIA && tabu.tab[6][7] == VAZIA) //f8,g8
+                                {
+                                    flag = 0;
+                                    for (k = 4; k < 7; k++) //colunas e,f,g
+                                        if (ataca (brancas, k, 7, tabu))
+                                        {
+                                            flag = 1;
+                                            break;
+                                        }
+                                    if (flag == 0)
+                                    {   //nao pode mais fazer roque. Mexeu Rei
+                                        //Rei rocou pqn, espec=1. flag=0.
+    //                                  enche_pmovi (pmovi, 4, 7, 6, 7, -1, 0, 1, 0);
+                                        enche_pmovi (&cabeca, &pmovi, 4, 7, 6, 7, /*peao*/-1, /*roque*/0, /*especial*/1, /*flag50*/0, nmovi);
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    }
+                                } // roque grande.
+                            } //mexeu TR
+                            if (tabu.roquep != 3 && tabu.tab[0][7] == TORRE) //Nao mexeu TD (e a torre esta la)
+                            {
+                                if (tabu.tab[1][7] == VAZIA && tabu.tab[2][7] == VAZIA && tabu.tab[3][7] == VAZIA) //b8,c8,d8
+                                {
+                                    flag = 0;
+                                    for (k = 2; k < 5; k++) //colunas c,d,e
+                                        if (ataca (brancas, k, 7, tabu))
+                                        {
+                                            flag = 1;
+                                            break;
+                                        }
+                                    if (flag == 0)
+                                    {
+                                        //nao pode mais fazer roque. Mexeu Rei
+                                        //Rei rocou grd, espec=2. flag=0.
+                                        // enche_pmovi (pmovi, 4, 7, 2, 7, -1, 0, 2, 0);
+                                        enche_pmovi (&cabeca, &pmovi, 4, 7, 2, 7, /*peao*/-1, /*roque*/0, /*especial*/2, /*flag50*/0, nmovi);
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    }
+                                }
+                            } //mexeu TD
+                        }
+                    break;
+                case PEAO:
+                    //peao comeu en passant
+                    if (tabu.peao_pulou != -1) //Existe peao do adv que pulou...
+                    {
+                        if (i == tabu.peao_pulou - 1 || i == tabu.peao_pulou + 1) //este peao esta na coluna certa
+                        {
+                            copitab (&tabaux, &tabu); // tabaux = tabu
+                            if (tabu.vez == brancas)
+                            {
+                                if (j == 4) //E tambem esta na linha certa. Peao branco vai comer enpassant!
+                                {
+                                    tabaux.tab[tabu.peao_pulou][5] = -PEAO;
+                                    tabaux.tab[tabu.peao_pulou][4] = VAZIA;
+                                    tabaux.tab[i][4] = VAZIA;
+                                    if (!xeque_rei_das (brancas, tabaux)) //nao deixa rei branco em xeque
+                                    {
+    //                                  enche_pmovi (pmovi, i, j, tabu.peao_pulou, 5, -1, 1, 3, 3);
+                                        enche_pmovi (&cabeca, &pmovi, i, j, tabu.peao_pulou, 5, /*peao*/-1, /*roque*/1, /*especial*/3, /*flag50*/3, nmovi);
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    }
+                                }
+                            }
+                            else // vez das pretas.
+                            {
+                                if (j == 3) // Esta na linha certa. Peao preto vai comer enpassant!
+                                {
+                                    tabaux.tab[tabu.peao_pulou][2] = PEAO;
+                                    tabaux.tab[tabu.peao_pulou][3] = VAZIA;
+                                    tabaux.tab[i][3] = VAZIA;
+                                    if (!xeque_rei_das (pretas, tabaux))
+                                    {
+                                        //  enche_pmovi (pmovi, i, j, tabu.peao_pulou, 2, -1, 1, 3, 3);
+                                        enche_pmovi (&cabeca, &pmovi, i, j, tabu.peao_pulou, 2, /*peao*/-1, /*roque*/1, /*especial*/3, /*flag50*/3, nmovi);
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    } //deixa rei em xeque
+                                } //nao esta na fila correta
+                            } //fim do else da vez
+                        } //nao esta na coluna adjacente ao peao_pulou
+                    } //nao peao_pulou.
+                    //peao andando uma casa
+                    copitab (&tabaux, &tabu); //tabaux = tabu;
+                    if (tabu.vez == brancas)
+                    {
+                        if (j + 1 < 8)
+                        {
+                            if (tabu.tab[i][j + 1] == VAZIA)
+                            {
+                                tabaux.tab[i][j] = VAZIA;
+                                tabaux.tab[i][j + 1] = -PEAO;
+                                if (!xeque_rei_das (brancas, tabaux))
+                                {
+                                    // enche_pmovi (pmovi, i, j, i, j + 1, -1, 1, 0, 1);
+                                    if (j + 1 == 7) //se promoveu
+                                    { //TODO inverter laco e=4, e<8, ee++
+                                        for(ee=4; ee<8; ee++) //4:dama, 5:cavalo, 6:torre, 7:bispo
+                                            enche_pmovi (&cabeca, &pmovi, i, j, i, j+1, /*peao*/-1, /*roque*/1, /*especial*/ ee, /*flag50*/1, nmovi);
+                                    }
+                                    else //nao promoveu
+                                    {
+                                        enche_pmovi (&cabeca, &pmovi, i, j, i, j+1, /*peao*/-1, /*roque*/1, /*especial*/ 0, /*flag50*/1, nmovi);
+                                    }
+                                    if(flagvf==AFOGOU) //se nao afogou retorna
+                                        return cabeca;
+                                } //deixa rei em xeque
+                            } //casa ocupada
+                        } //passou da casa de promocao e caiu do tabuleiro!
+                    }
+                    else //vez das pretas andar com peao uma casa
+                    {
+                        if (j - 1 > -1)
+                        {
+                            if (tabu.tab[i][j - 1] == VAZIA)
+                            {
+                                tabaux.tab[i][j] = VAZIA;
+                                tabaux.tab[i][j - 1] = PEAO;
                                 if (!xeque_rei_das (pretas, tabaux))
                                 {
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, i, j, tabu.peao_pulou, 2,
-                                                 -1, 1, 3, 3);
-                                    (*nmovi)++;
-                                    //preenche a estrutura movimento
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 8", 8);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                                //deixa rei em xeque
-                            }
-                            //nao esta na fila correta
-                        }
-                        //fim do else da vez
+                                    // enche_pmovi (pmovi, i, j, i, j - 1, -1, 1, 0, 1);
+                                    if (j - 1 == 0) //se promoveu
+                                    {
+                                        for(ee=7; ee>=4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
+                                            enche_pmovi (&cabeca, &pmovi, i, j, i, j-1, /*peao*/-1, /*roque*/1, /*especial*/ ee, /*flag50*/1, nmovi);
+                                    }
+                                    else //nao promoveu
+                                    {
+                                        enche_pmovi (&cabeca, &pmovi, i, j, i, j-1, /*peao*/-1, /*roque*/1, /*especial*/ 0, /*flag50*/1, nmovi);
+                                    }
+                                    if(flagvf==AFOGOU) //se nao afogou retorna
+                                        return cabeca;
+                                } //deixa rei em xeque
+                            } //casa ocupada
+                        } //passou da casa de promocao e caiu do tabuleiro!
                     }
-                    //nao esta na coluna adjacente ao peao_pulou
-                }
-                //nao peao_pulou.
-                //peao andando uma casa
-                copitab (&tabaux, &tabu);
-                //tabaux = tabu;
-                if (tabu.vez == brancas)
-                {
-                    if (j + 1 < 8)
+                    //peao anda duas casas -----------
+                    copitab (&tabaux, &tabu);
+                    if (tabu.vez == brancas) //vez das brancas
                     {
-                        if (tabu.tab[i][j + 1] == VAZIA)
+                        if (j == 1) //esta na linha inicial
                         {
-                            tabaux.tab[i][j] = VAZIA;
-                            tabaux.tab[i][j + 1] = -PEAO;
-                            if (!xeque_rei_das (brancas, tabaux))
+                            if (tabu.tab[i][2] == VAZIA && tabu.tab[i][3] == VAZIA)
                             {
-                                k = 7;
-                                //4:dama, 5:cavalo, 6:torre, 7:bispo
-promoveb:
-                                //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                if ((*nmovi) == -1)
-                                    return (movimento *) TRUE;
-                                enche_pmovi (pmovi, i, j, i, j + 1, -1, 1, 0, 1);
-                                (*nmovi)++;
-                                //preenche a estrutura movimento
-                                if (j + 1 == 7)
-                                    //se promoveu
+                                tabaux.tab[i][1] = VAZIA;
+                                tabaux.tab[i][3] = -PEAO;
+                                if (!xeque_rei_das (brancas, tabaux))
                                 {
-                                    pmovi->especial = k;
-                                    k--;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 9", 9);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                    if (k > 3)
-                                        goto promoveb;
-                                }
-                                else
-                                    //nao promoveu
-                                {
-                                    pmovi->especial = 0;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 10", 10);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                            }
-                            //deixa rei em xeque
-                        }
-                        //casa ocupada
+                                    // enche_pmovi (pmovi, i, 1, i, 3, i, 1, 0, 1);
+                                    enche_pmovi (&cabeca, &pmovi, i, 1, i, 3, /*peao*/i, /*roque*/1, /*especial*/0, /*flag50*/1, nmovi);
+                                    if(flagvf==AFOGOU) //se nao afogou retorna
+                                        return cabeca;
+                                } //deixa rei em xeque
+                            } //alguma das casas esta ocupada
+                        } //este peao ja mexeu antes
                     }
-                    //passou da casa de promocao e caiu do tabuleiro!
-                }
-                else
-                    //vez das pretas andar com peao uma casa
-                {
-                    if (j - 1 > -1)
+                    else //vez das pretas andar com peao 2 casas
                     {
-                        if (tabu.tab[i][j - 1] == VAZIA)
+                        if (j == 6) //esta na linha inicial
                         {
-                            tabaux.tab[i][j] = VAZIA;
-                            tabaux.tab[i][j - 1] = PEAO;
-                            if (!xeque_rei_das (pretas, tabaux))
+                            if (tabu.tab[i][5] == VAZIA && tabu.tab[i][4] == VAZIA)
                             {
-                                k = 7;
-                                //4:dama, 5:cavalo, 6:torre, 7:bispo
-promovep:
-                                //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                //preenche a estrutura movimento
-                                if ((*nmovi) == -1)
-                                    return (movimento *) TRUE;
-                                enche_pmovi (pmovi, i, j, i, j - 1, -1, 1, 0, 1);
-                                (*nmovi)++;
-                                //movimento de peao
-                                if (j - 1 == 0)
-                                    //se promoveu
+                                tabaux.tab[i][6] = VAZIA;
+                                tabaux.tab[i][4] = PEAO;
+                                if (!xeque_rei_das (pretas, tabaux))
                                 {
-                                    pmovi->especial = k;
-                                    k--;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 11", 11);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                    if (k > 3)
-                                        goto promovep;
-                                }
-                                else
-                                    //nao promoveu
-                                {
-                                    pmovi->especial = 0;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 12", 12);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                            }
-                            //deixa rei em xeque
-                        }
-                        //casa ocupada
+    //                                 enche_pmovi (pmovi, i, 6, i, 4, i, 1, 0, 1);
+                                    enche_pmovi (&cabeca, &pmovi, i, 6, i, 4, /*peao*/i, /*roque*/1, /*especial*/0, /*flag50*/1, nmovi);
+                                    if(flagvf==AFOGOU) //se nao afogou retorna
+                                        return cabeca;
+                                } //deixa rei em xeque
+                            } //alguma das casas esta ocupada
+                        } //este peao ja mexeu antes
                     }
-                    //passou da casa de promocao e caiu do tabuleiro!
-                }
-                //peao anda duas casas
-                copitab (&tabaux, &tabu);
-                if (tabu.vez == brancas)
-                    //vez das brancas
-                {
-                    if (j == 1)
-                        //esta na linha inicial
+                    // peao comeu normalmente (i.e., nao eh en passant) -------------
+                    copitab (&tabaux, &tabu);
+                    if (tabu.vez == brancas) //vez das brancas
                     {
-                        if (tabu.tab[i][2] == VAZIA && tabu.tab[i][3] == VAZIA)
-                        {
-                            tabaux.tab[i][1] = VAZIA;
-                            tabaux.tab[i][3] = -PEAO;
-                            if (!xeque_rei_das (brancas, tabaux))
+                        k = i - 1;
+                        if (k < 0) //peao da torre so come para direita
+                            k = i + 1;
+                        do //diagonal esquerda e direita do peao.
+                        { //peca preta
+                            if (tabu.tab[k][j + 1] > 0)
                             {
-                                //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                //preenche a estrutura movimento
-                                if ((*nmovi) == -1)
-                                    return (movimento *) TRUE;
-                                enche_pmovi (pmovi, i, 1, i, 3, i, 1, 0, 1);
-                                (*nmovi)++;
-                                pmovi->prox =
-                                    (movimento *) malloc (sizeof (movimento));
-                                if (pmovi->prox == NULL)
-                                    msgsai ("# Erro de alocacao de memoria em geramov 13", 13);
-                                pmoviant = pmovi;
-                                pmovi = pmovi->prox;
-                                pmovi->prox = NULL;
-                            }
-                            //deixa rei em xeque
-                        }
-                        //alguma das casas esta ocupada
-                    }
-                    //este peao ja mexeu antes
-                }
-                else
-                    //vez das pretas andar com peao 2 casas
-                {
-                    if (j == 6)
-                        //esta na linha inicial
-                    {
-                        if (tabu.tab[i][5] == VAZIA && tabu.tab[i][4] == VAZIA)
-                        {
-                            tabaux.tab[i][6] = VAZIA;
-                            tabaux.tab[i][4] = PEAO;
-                            if (!xeque_rei_das (pretas, tabaux))
-                            {
-                                //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                //preenche a estrutura movimento
-                                if ((*nmovi) == -1)
-                                    return (movimento *) TRUE;
-                                enche_pmovi (pmovi, i, 6, i, 4, i, 1, 0, 1);
-                                (*nmovi)++;
-                                pmovi->prox =
-                                    (movimento *) malloc (sizeof (movimento));
-                                if (pmovi->prox == NULL)
-                                    msgsai ("# Erro de alocacao de memoria em geramov 14", 14);
-                                pmoviant = pmovi;
-                                pmovi = pmovi->prox;
-                                pmovi->prox = NULL;
-                            }
-                            //deixa rei em xeque
-                        }
-                        //alguma das casas esta ocupada
-                    }
-                    //este peao ja mexeu antes
-                }
-                // peao comeu normalmente (i.e., nao eh en passant)
-                copitab (&tabaux, &tabu);
-                if (tabu.vez == brancas)
-                    //vez das brancas
-                {
-                    k = i - 1;
-                    if (k < 0)
-                        k = i + 1;
-                    do
-                        //diagonal esquerda e direita do peao.
-                    {
-                        //peca preta
-                        if (tabu.tab[k][j + 1] > 0)
-                        {
-                            tabaux.tab[i][j] = VAZIA;
-                            tabaux.tab[k][j + 1] = -PEAO;
-                            if (!xeque_rei_das (brancas, tabaux))
-                            {
-                                l = 7;
-                                //4:dama, 5:cavalo, 6:torre, 7:bispo
-comoveb:
-                                //peao branco promove comendo;
-                                //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                //preenche a estrutura movimento
-                                if ((*nmovi) == -1)
-                                    return (movimento *) TRUE;
-                                enche_pmovi (pmovi, i, j, k, j + 1, -1, 1, 0, 3);
-                                (*nmovi)++;
-                                if (j + 1 == 7)
-                                    //se promoveu comendo
-                                {
-                                    pmovi->especial = l;
-                                    //4,5,6,7 == D,C,T,Bispo
-                                    l--;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 15", 15);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                    if (l > 3)
-                                        goto comoveb;
-                                }
-                                else
-                                    //comeu sem promover
-                                {
-                                    pmovi->especial = 0;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 16", 16);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                            }
-                            //deixa rei em xeque
-                        }
-                        //nao tem peca preta para comer
-                        k += 2;
-                        //proxima diagonal do peao
-                    }
-                    while (k <= i + 1 && k < 8);
-
-                }
-                // vez das pretas comer normalmente (i.e., nao eh en passant)
-                else
-                {
-                    k = i - 1;
-                    if (k < 0)
-                        k = i + 1;
-                    do
-                        //diagonal esquerda e direita do peao.
-                    {
-                        if (tabu.tab[k][j - 1] < 0)
-                            //peca branca
-                        {
-                            tabaux.tab[i][j] = VAZIA;
-                            tabaux.tab[k][j - 1] = PEAO;
-                            if (!xeque_rei_das (pretas, tabaux))
-                            {
-                                l = 7;
-                                //4:dama, 5:cavalo, 6:torre, 7:bispo
-comovep:
-                                //peao preto promove comendo
-                                //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                //preenche a estrutura movimento
-                                if ((*nmovi) == -1)
-                                    return (movimento *) TRUE;
-                                enche_pmovi (pmovi, i, j, k, j - 1, -1, 1, 0, 3);
-                                (*nmovi)++;
-                                if (j - 1 == 0)
-                                    //se promoveu comendo
-                                {
-                                    pmovi->especial = l;
-                                    //4,5,6,7 == D,C,T,Bispo
-                                    l--;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 17", 17);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                    if (l > 3)
-                                        goto comovep;
-                                }
-                                else
-                                    //comeu sem promover
-                                {
-                                    pmovi->especial = 0;
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 18", 18);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                            }
-                            //rei em xeque
-                        }
-                        //nao tem peao branco para comer
-                        k += 2;
-                    }
-                    while (k <= i + 1 && k < 8);
-
-                }
-                break;
-            case CAVALO:
-                for (col = -2; col < 3; col++)
-                    for (lin = -2; lin < 3; lin++)
-                    {
-                        if (abs (col) == abs (lin) || col == 0 || lin == 0)
-                            continue;
-                        if (i + col < 0 || i + col > 7 || j + lin < 0
-                                || j + lin > 7)
-                            continue;
-                        if (sinal (tabu.tab[i + col][j + lin]) == tabu.vez)
-                            continue;
-                        //casa possui peca da mesma cor.
-                        copitab (&tabaux, &tabu);
-                        tabaux.tab[i][j] = VAZIA;
-                        tabaux.tab[i + col][j + lin] = CAVALO * tabu.vez;
-                        if (!xeque_rei_das (tabu.vez, tabaux))
-                        {
-                            //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                            //preenche a estrutura movimento
-                            if ((*nmovi) == -1)
-                                return (movimento *) TRUE;
-                            enche_pmovi (pmovi, i, j, col + i, lin + j, -1, 1, 0,
-                                         2);
-                            (*nmovi)++;
-                            if (tabu.tab[col + i][lin + j] == VAZIA)
-                                //Cavalo nao capturou
-                                pmovi->flag_50 = 0;
-                            // Cavalo capturou peca adversaria.
-                            pmovi->prox = (movimento *) malloc (sizeof (movimento));
-                            if (pmovi->prox == NULL)
-                                msgsai ("# Erro de alocacao de memoria em geramov 19", 19);
-                            pmoviant = pmovi;
-                            pmovi = pmovi->prox;
-                            pmovi->prox = NULL;
-                        }
-                        //deixa rei em xeque
-                    }
-                break;
-            case DAMA:
-            case TORRE:
-            case BISPO:
-                //Anda reto - So nao o bispo
-                if (peca != BISPO)
-                {
-                    for (k = -1; k < 2; k += 2)
-                        //k= -1, 1
-                    {
-                        col = i + k;
-                        lin = j + k;
-                        //l=flag da horizontal para a primeira peca que trombar
-                        l = 0;
-                        m = 0;
-                        //m=idem para a vertical
-                        do
-                        {
-                            if (col >= 0 && col <= 7
-                                    && sinal (tabu.tab[col][j]) != tabu.vez && l == 0)
-                                //gira col, mantem lin
-                            {
-                                //inclui esta casa na lista
-                                copitab (&tabaux, &tabu);
                                 tabaux.tab[i][j] = VAZIA;
-                                tabaux.tab[col][j] = peca * tabu.vez;
-                                if (!xeque_rei_das (tabu.vez, tabaux))
+                                tabaux.tab[k][j + 1] = -PEAO;
+                                if (!xeque_rei_das (brancas, tabaux))
                                 {
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    //preenche a estrutura movimento
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, i, j, col, j, -1, 1, 0,
-                                                 0);
-                                    (*nmovi)++;
-                                    if (peca == TORRE)
-                                        //mas, se for torre ...
+                                    // enche_pmovi (pmovi, i, j, k, j + 1, -1, 1, 0, flag50=3);
+                                    if (j + 1 == 7) //se promoveu comendo
                                     {
-                                        if (tabu.vez == brancas && j == 0)
-                                            //se for vez das brancas e linha 1
-                                        {
-                                            if (i == 0)
-                                                //e coluna a
-                                                pmovi->roque = 3;
-                                            //mexeu TD
-                                            if (i == 7)
-                                                //ou coluna h
-                                                pmovi->roque = 2;
-                                            //mexeu TR
-                                        }
-                                        if (tabu.vez == pretas && j == 7)
-                                            //se for vez das pretas e linha 8
-                                        {
-                                            if (i == 0)
-                                                //e coluna a
-                                                pmovi->roque = 3;
-                                            //mexeu TD
-                                            if (i == 7)
-                                                //ou coluna h
-                                                pmovi->roque = 2;
-                                            //mexeu TR
-                                        }
+                                        for(ee=7; ee>=4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
+                                            enche_pmovi (&cabeca, &pmovi, i, j, k, j+1, /*peao*/-1, /*roque*/1, /*especial*/ ee, /*flag50*/3, nmovi);
                                     }
-                                    //pmovi->especial=0;
-                                    if (tabu.tab[col][j] != VAZIA)
-                                        //pmovi->flag_50=0;
-                                        //else
+                                    else //comeu sem promover
                                     {
-                                        pmovi->flag_50 = 2;
-                                        //Dama ou Torre capturou peca adversaria.
-                                        l = 1;
+                                        enche_pmovi (&cabeca, &pmovi, i, j, k, j+1, /*peao*/-1, /*roque*/1, /*especial*/0, /*flag50*/3, nmovi);
                                     }
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 20", 20);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                                else
-                                    //deixa rei em xeque
-                                    if (tabu.tab[col][j] != VAZIA)
-                                        //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
-                                        l = 1;
-                            }
-                            else
-                                //nao inclui mais nenhuma casa desta linha; A casa esta fora do tabuleiro, ou tem peca de mesma cor ou capturou
-                                l = 1;
-                            if (lin >= 0 && lin <= 7
-                                    && sinal (tabu.tab[i][lin]) != tabu.vez && m == 0)
-                                //gira lin, mantem col
-                            {
-                                //inclui esta casa na lista
-                                copitab (&tabaux, &tabu);
-                                tabaux.tab[i][j] = VAZIA;
-                                tabaux.tab[i][lin] = peca * tabu.vez;
-                                if (!xeque_rei_das (tabu.vez, tabaux))
-                                {
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    //preenche a estrutura movimento
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, i, j, i, lin, -1, 1, 0,
-                                                 0);
-                                    (*nmovi)++;
-                                    if (peca == TORRE)
-                                        //mas, se for torre ...
-                                    {
-                                        if (tabu.vez == brancas && j == 0)
-                                            //se for vez das brancas e linha 1
-                                        {
-                                            if (i == 0)
-                                                //e coluna a
-                                                pmovi->roque = 3;
-                                            //mexeu TD
-                                            if (i == 7)
-                                                //ou coluna h
-                                                pmovi->roque = 2;
-                                            //mexeu TR
-                                        }
-                                        if (tabu.vez == pretas && j == 7)
-                                            //se for vez das pretas e linha 8
-                                        {
-                                            if (i == 0)
-                                                //e coluna a
-                                                pmovi->roque = 3;
-                                            //mexeu TD
-                                            if (i == 7)
-                                                //ou coluna h
-                                                pmovi->roque = 2;
-                                            //mexeu TR
-                                        }
-                                    }
-                                    if (tabu.tab[i][lin] != VAZIA)
-                                    {
-                                        pmovi->flag_50 = 2;
-                                        //Dama ou Torre capturou peca adversaria.
-                                        m = 1;
-                                    }
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 21", 21);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
-                                }
-                                else
-                                    //deixa rei em xeque
-                                    if (tabu.tab[i][lin] != VAZIA)
-                                        //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
-                                        m = 1;
-                            }
-                            else
-                                //nao inclui mais nenhuma casa desta coluna; A casa esta fora do tabuleiro, ou tem peca de mesma cor ou capturou
-                                m = 1;
-                            col += k;
-                            lin += k;
-                        }
-                        while (((col >= 0 && col <= 7) || (lin >= 0 && lin <= 7))
-                                && (m == 0 || l == 0));
-
-                    }
-                    //roda o incremento
-                }
-                //a peca era bispo
-                if (peca != TORRE)
-                    //anda na diagonal
-                {
-                    col = i;
-                    lin = j;
-                    flag = 0;
-                    for (k = -1; k < 2; k += 2)
-                        for (l = -1; l < 2; l += 2)
+                                    if(flagvf==AFOGOU) //se nao afogou retorna
+                                        return cabeca;
+                                } //deixa rei em xeque
+                            } //nao tem peca preta para comer
+                            k += 2; //proxima diagonal do peao
+                        } while (k <= i + 1 && k < 8);
+                    } // vez das pretas comer normalmente (i.e., nao eh en passant)
+                    else
+                    {
+                        k = i - 1;
+                        if (k < 0)
+                            k = i + 1;
+                        do //diagonal esquerda e direita do peao.
                         {
-                            col += k;
-                            lin += l;
-                            while (col >= 0 && col <= 7 && lin >= 0 && lin <= 7
-                                    && sinal (tabu.tab[col][lin]) != tabu.vez
-                                    && flag == 0)
+                            if (tabu.tab[k][j - 1] < 0) //peca branca
                             {
-                                //inclui esta casa na lista
-                                copitab (&tabaux, &tabu);
                                 tabaux.tab[i][j] = VAZIA;
-                                tabaux.tab[col][lin] = peca * tabu.vez;
-                                if (!xeque_rei_das (tabu.vez, tabaux))
+                                tabaux.tab[k][j - 1] = PEAO;
+                                if (!xeque_rei_das (pretas, tabaux))
                                 {
-                                    //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
-                                    //preenche a estrutura movimento
-                                    if ((*nmovi) == -1)
-                                        return (movimento *) TRUE;
-                                    enche_pmovi (pmovi, i, j, col, lin, -1, 1, 0,
-                                                 0);
-                                    (*nmovi)++;
-                                    if (tabu.tab[col][lin] != VAZIA)
+                                    //4:dama, 5:cavalo, 6:torre, 7:bispo
+                                    //peao preto promove comendo
+    //                                 enche_pmovi (pmovi, i, j, k, j - 1, -1, 1, 0, 3);
+    //                                 (*nmovi)++;
+                                    if (j - 1 == 0) //se promoveu comendo
                                     {
-                                        pmovi->flag_50 = 2;
-                                        //Dama ou Bispo capturou peca adversaria.
-                                        flag = 1;
+                                        for(ee=7; ee>=4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
+                                            enche_pmovi (&cabeca, &pmovi, i, j, k, j-1, /*peao*/-1, /*roque*/1, /*especial*/ ee, /*flag50*/3, nmovi);
                                     }
-                                    pmovi->prox =
-                                        (movimento *) malloc (sizeof (movimento));
-                                    if (pmovi->prox == NULL)
-                                        msgsai ("# Erro de alocacao de memoria em geramov 22", 22);
-                                    pmoviant = pmovi;
-                                    pmovi = pmovi->prox;
-                                    pmovi->prox = NULL;
+                                    else //comeu sem promover
+                                    {
+                                        enche_pmovi (&cabeca, &pmovi, i, j, k, j-1, /*peao*/-1, /*roque*/1, /*especial*/ 0, /*flag50*/3, nmovi);
+                                    }
+                                    if(flagvf==AFOGOU) //se nao afogou retorna
+                                        return cabeca;
+                                } //rei em xeque
+                            } //nao tem peao branco para comer
+                            k += 2;
+                        } while (k <= i + 1 && k < 8);
+                    }
+                    break;
+                case CAVALO:
+                    for (col = -2; col < 3; col++)
+                        for (lin = -2; lin < 3; lin++)
+                        {
+                            if (abs (col) == abs (lin) || col == 0 || lin == 0)
+                                continue;
+                            if (i + col < 0 || i + col > 7 || j + lin < 0 || j + lin > 7)
+                                continue;
+                            if (sinal (tabu.tab[i + col][j + lin]) == tabu.vez)
+                                continue; //casa possui peca da mesma cor.
+                            copitab (&tabaux, &tabu);
+                            tabaux.tab[i][j] = VAZIA;
+                            tabaux.tab[i + col][j + lin] = CAVALO * tabu.vez;
+                            if (!xeque_rei_das (tabu.vez, tabaux))
+                            {
+    //                             enche_pmovi (pmovi, i, j, col + i, lin + j, -1, 1, 0, 2);
+                                if (tabu.tab[col + i][lin + j] == VAZIA)
+                                    ff = 0; //Cavalo nao capturou
+                                else
+                                    ff = 2; // Cavalo capturou peca adversaria.
+                                enche_pmovi (&cabeca, &pmovi, i, j, col + i, lin + j, /*peao*/-1, /*roque*/1, /*especial*/ 0, /*flag50*/ff, nmovi);
+                                if(flagvf==AFOGOU) //se nao afogou retorna
+                                    return cabeca;
+                            }
+                            //deixa rei em xeque
+                        }
+                    break;
+                case DAMA:
+                case TORRE:
+                case BISPO:
+                    //Anda reto - So nao o bispo
+                    if (peca != BISPO)
+                    {
+                        for (k = -1; k < 2; k += 2) //k= -1, 1
+                        {
+                            col = i + k;
+                            lin = j + k;
+                            l = 0; //l=flag da horizontal para a primeira peca que trombar
+                            m = 0; //m=idem para a vertical
+                            do
+                            {
+                                if (col >= 0 && col <= 7 && sinal (tabu.tab[col][j]) != tabu.vez && l == 0) //gira col, mantem lin
+                                {
+                                    //inclui esta casa na lista
+                                    copitab (&tabaux, &tabu);
+                                    tabaux.tab[i][j] = VAZIA;
+                                    tabaux.tab[col][j] = peca * tabu.vez;
+                                    if (!xeque_rei_das (tabu.vez, tabaux))
+                                    {
+                                        rr = 1; //ainda pode fazer roque
+                                        if (peca == TORRE) //mas, se for torre ...
+                                        {
+                                            if (tabu.vez == brancas && j == 0) //se for vez das brancas e linha 1
+                                            {
+                                                if (i == 0) //e coluna a
+                                                    rr = 3; //mexeu TD
+                                                if (i == 7) //ou coluna h
+                                                    rr = 2; //mexeu TR
+                                            }
+                                            if (tabu.vez == pretas && j == 7) //se for vez das pretas e linha 8
+                                            {
+                                                if (i == 0) //e coluna a
+                                                    rr = 3; //mexeu TD
+                                                if (i == 7) //ou coluna h
+                                                    rr = 2; //mexeu TR
+                                            }
+                                        }
+                                        ff = 0; // nao muda flag50 (nao capturou) pmovi->flag_50=0;
+                                        if (tabu.tab[col][j] != VAZIA)
+                                        {
+                                            ff = 2; //Dama ou Torre capturou peca adversaria.
+                                            l = 1;
+                                        }
+                                        // enche_pmovi (pmovi, i, j, col, j, -1, 1, 0, 0);
+                                        //pp contem -1 ou coluna do peao que andou duas neste lance
+                                        //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+                                        //ee 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+                                        //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
+                                        enche_pmovi (&cabeca, &pmovi, i, j, col, j, /*peao*/-1, /*roque*/rr, /*especial*/ 0, /*flag50*/ff, nmovi);
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    }
+                                    else //deixa rei em xeque
+                                        if (tabu.tab[col][j] != VAZIA)
+                                            //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
+                                            l = 1;
                                 }
                                 else
-                                    //deixa rei em xeque
-                                    if (tabu.tab[col][lin] != VAZIA)
-                                        //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
-                                        flag = 1;
+                                    //nao inclui mais nenhuma casa desta linha; A casa esta fora do tabuleiro, ou tem peca de mesma cor ou capturou
+                                    l = 1;
+                                if (lin >= 0 && lin <= 7 && sinal (tabu.tab[i][lin]) != tabu.vez && m == 0) //gira lin, mantem col
+                                {
+                                    //inclui esta casa na lista
+                                    copitab (&tabaux, &tabu);
+                                    tabaux.tab[i][j] = VAZIA;
+                                    tabaux.tab[i][lin] = peca * tabu.vez;
+                                    if (!xeque_rei_das (tabu.vez, tabaux))
+                                    {
+                                        rr = 1; //ainda pode fazer roque
+                                        if (peca == TORRE) //mas, se for torre ...
+                                        {
+                                            if (tabu.vez == brancas && j == 0) //se for vez das brancas e linha 1
+                                            {
+                                                if (i == 0) //e coluna a
+                                                    rr = 3; //mexeu TD
+                                                if (i == 7) //ou coluna h
+                                                    rr = 2; //mexeu TR
+                                            }
+                                            if (tabu.vez == pretas && j == 7) //se for vez das pretas e linha 8
+                                            {
+                                                if (i == 0) //e coluna a
+                                                    rr = 3; //mexeu TD
+                                                if (i == 7) //ou coluna h
+                                                    rr = 2; //mexeu TR
+                                            }
+                                        }
+                                        ff=0;
+                                        if (tabu.tab[i][lin] != VAZIA)
+                                        {
+                                            ff = 2; //Dama ou Torre capturou peca adversaria.
+                                            m = 1;
+                                        }
+    //                                     enche_pmovi (pmovi, i, j, i, lin, -1, 1, 0, 0);
+                                        //pp contem -1 ou coluna do peao que andou duas neste lance
+                                        //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+                                        //ee 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+                                        //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
+                                        enche_pmovi (&cabeca, &pmovi, i, j, i, lin, /*peao*/-1, /*roque*/rr, /*especial*/ 0, /*flag50*/ff, nmovi);
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    }
+                                    else //deixa rei em xeque
+                                        if (tabu.tab[i][lin] != VAZIA)
+                                            //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
+                                            m = 1;
+                                }
+                                else //nao inclui mais nenhuma casa desta coluna; A casa esta fora do tabuleiro, ou tem peca de mesma cor ou capturou
+                                    m = 1;
+                                col += k;
+                                lin += k;
+                            } while (((col >= 0 && col <= 7) || (lin >= 0 && lin <= 7)) && (m == 0 || l == 0));
+                        } //roda o incremento
+                    } //a peca era bispo
+                    if (peca != TORRE) //anda na diagonal
+                    {
+                        col = i;
+                        lin = j;
+                        flag = 0; // pode seguir na direcao
+                        for (k = -1; k < 2; k += 2)
+                            for (l = -1; l < 2; l += 2)
+                            {
                                 col += k;
                                 lin += l;
-                            }
-                            //rodou toda a diagonal, ate tab acabar ou achar peca da mesma cor ou capturar
-                            col = i;
-                            lin = j;
-                            flag = 0;
-                        }
-                    //for
-                }
-                //peca era torre
-            case VAZIA:
-                break;
-            case NULA:
-            default:
-                msgsai ("# Achei uma peca esquisita! Geramov, default.", 23);
-            }
-            // switch(peca)
-        }
-    //loop das pecas todas do tabuleiro
-    if (cabeca == pmovi)
-        //se a lista esta vazia
+                                while (col >= 0 && col <= 7 && lin >= 0 && lin <= 7 && sinal (tabu.tab[col][lin]) != tabu.vez && flag == 0)
+                                {
+                                    //inclui esta casa na lista
+                                    copitab (&tabaux, &tabu);
+                                    tabaux.tab[i][j] = VAZIA;
+                                    tabaux.tab[col][lin] = peca * tabu.vez;
+                                    if (!xeque_rei_das (tabu.vez, tabaux))
+                                    {
+                                        //enche_pmovi(pmovi, c0, c1, c2, c3, peao, roque, espec, flag);
+                                        //preenche a estrutura movimento
+    //                                     if ((*nmovi) == -1)
+    //                                         return (movimento *) TRUE;
+                                        ff=0; //flag50 nao altera
+                                        if (tabu.tab[col][lin] != VAZIA)
+                                        {
+                                            ff = 2; //Dama ou Bispo capturou peca adversaria.
+                                            flag = 1;
+                                        }
+                                        // enche_pmovi (pmovi, i, j, col, lin, -1, 1, 0, 0);
+                                        //pp contem -1 ou coluna do peao que andou duas neste lance
+                                        //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+                                        //ee 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+                                        //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
+                                        enche_pmovi (&cabeca, &pmovi, i, j, col, lin, /*peao*/-1, /*roque*/1, /*especial*/ 0, /*flag50*/ff, nmovi);
+                                        if(flagvf==AFOGOU) //se nao afogou retorna
+                                            return cabeca;
+                                    }
+                                    else //deixa rei em xeque
+                                        if (tabu.tab[col][lin] != VAZIA) //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
+                                            flag = 1;
+                                    col += k;
+                                    lin += l;
+                                } //rodou toda a diagonal, ate tab acabar ou achar peca da mesma cor ou capturar
+                                col = i;
+                                lin = j;
+                                flag = 0;
+                            } //for dos incrementos l, k
+                    } //peca era torre
+                case VAZIA:
+                    break;
+                case NULA:
+                default:
+                    msgsai ("# Erro: Achei uma peca esquisita! geramov, default.", 1);
+            } // switch(peca)
+        } //loop das pecas todas do tabuleiro
+//     if (cabeca == pmovi) //se a lista esta vazia
+
+    if(flagvf==AFOGOU) //pergunta a geramov se afogou e retorna rapido
+        return cabeca; //nao retornou ate aqui, cabeca==NULL
+    if (cabeca == NULL) //se a lista esta vazia
+        //free (cabeca); /* core dump BUG */
+        return NULL;
+    //ordena e retorna! flag_50: 0-nada, 1-peao andou, 2-captura, 3-peao capturou
+    // especial: 0-nada, roque 1-pqn, 2-grd, 3-enpassant
+    // 4,5,6,7 promocao de Dama, Cavalo, Torre, Bispo
+//         free (pmovi);
+//         pmoviant->prox = NULL; //aloca e desaloca o ultimo. desperdicio de tempo.
+    pmoviant = cabeca;
+    pmovi = cabeca->prox;
+    while (pmovi != NULL) //percorre, passa para cabeca tudo de interessante.
     {
-        free (cabeca); /* core dump BUG */
-        return (NULL);
-    }
-    else
-        //ordena e retorna! flag_50: 0-nada, 1-peao andou, 2-captura, 3-peao capturou
-    {
-        //                                               especial: 0-nada, roque 1-pqn, 2-grd, 3-enpassant
-        //                                               4,5,6,7 promocao de Dama, Cavalo, Torre, Bispo
-        free (pmovi);
-        pmoviant->prox = NULL;
-        pmoviant = cabeca;
-        pmovi = cabeca->prox;
-        while (pmovi != NULL)
-            //percorre, passa para cabeca tudo de interessante.
+        //especial 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
+        //especial promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+        //flag_50 :0=nada, 1=Moveu peao, 2=Comeu, 3=Peao Comeu
+        if (pmovi->flag_50 > 1 || pmovi->especial) //achou captura ou especial
         {
-            if (pmovi->flag_50 > 1 || pmovi->especial)
-                //achou captura ou especial
-            {
-                //move para a cabeca da lista!
-                pmoviant->prox = pmovi->prox;
-                //o anterior aponta para o prox.
-                pmovi->prox = cabeca;
-                //o do meio aponta para o primeiro.
-                cabeca = pmovi;
-                //o cabeca agora eh pmovi!
-                pmovi = pmoviant->prox;
-            }
-            else
-            {
-                pmoviant = pmovi;
-                pmovi = pmovi->prox;
-            }
+            //move para a cabeca da lista!
+            pmoviant->prox = pmovi->prox; //o anterior aponta para o prox.
+            pmovi->prox = cabeca; //o prox do especial aponta para o primeiro
+            cabeca = pmovi; //o cabeca agora eh pmovi!
+            pmovi = pmoviant->prox;
         }
-        //fim do while, e consequentemente da lista
-        return (cabeca);
-    }
-    //fim do else da lista vazia.
+        else
+        {
+            // faz nada... anda ponteiros para os proximos
+            pmoviant = pmovi;
+            pmovi = pmovi->prox;
+        }
+    } //fim do while, e consequentemente da lista
+    return cabeca;
 }
 //fim de   ----------- movimento *geramov(tabuleiro tabu)
 
@@ -2624,8 +2306,9 @@ humajoga (tabuleiro * tabu)
 movimento *
 valido (tabuleiro tabu, int *lanc)
 {
-    int nmov = 0;
+    int nmov;
     movimento *pmovi, *loop, *auxloop;
+    nmov=0; //gerar todos
     pmovi = geramov (tabu, &nmov);
     loop = pmovi;
     auxloop = NULL;
@@ -2688,7 +2371,7 @@ situacao (tabuleiro tabu)
     //      5,6                             T,t:            o tempo acabou (das Brancas e das Pretas respec.)
     //      7                               *:              {Game was unfinished}
     movimento *cabeca;
-    int insuf_branca = 0, insuf_preta = 0, nmov = -1;
+    int insuf_branca = 0, insuf_preta = 0, nmov;
     int i, j;
     listab *plaux;
     if (tabu.empate_50 >= 50.0) //empate apos 50 lances sem captura ou movimento de peao
@@ -2733,7 +2416,8 @@ situacao (tabuleiro tabu)
             return ('r');
         plaux = plaux->ant;
     }
-    cabeca = geramov (tabu, &nmov); //criar funcao gera1mov() retorna verdadeiro ou falso: quando nmov == -1, geramov retorna no primeiro valido
+    nmov=AFOGOU; //somente achar UM LANCE e retornar rapido
+    cabeca = geramov (tabu, &nmov); //TODO criar funcao gera1mov() retorna verdadeiro ou falso: quando nmov == -1, geramov retorna no primeiro valido
     if (cabeca == NULL) //Sem lances: Mate ou Afogamento.
         if (!xeque_rei_das (tabu.vez, tabu))
             return ('a'); //empate por afogamento.
@@ -2741,23 +2425,21 @@ situacao (tabuleiro tabu)
             return ('M'); //as brancas estao em xeque-mate
         else
             return ('m'); //as pretas estao em xeque-mate
-    else //Tem lances... mudou a geramov: tem mais nao carrega: nmovi==-1
+    else //Tem lances... mudou a geramov: tem mais nao carrega: nmovi==AFOGOU
     {
         //        libera_lances(cabeca);
         if (xeque_rei_das (tabu.vez, tabu))
             return ('x');
     }
-    return ('-');
-    //nada
+    return ('-'); //nada
 }
 
 // ------------------------------- jogo do computador -----------------------
-char
-compjoga (tabuleiro * tabu)
+char compjoga (tabuleiro * tabu)
 {
     char res;
     int i;
-    int nv = 1, nmov = 0;
+    int nv = 1, nmov;
     int melhorvalor1;
     // lances calc. em maior nivel tem mais importancia?
     movimento *melhorcaminho1;
@@ -2766,11 +2448,6 @@ compjoga (tabuleiro * tabu)
     limpa_pensa (); //limpa algumas variaveis para iniciar a ponderacao
     melhorvalor1 = -LIMITE;
     melhorcaminho1 = NULL;
-    //o rostinho nao eh compativel com linux. nao imprima nunca.
-    //    if (!xboard && 1 == 0)
-    //    {
-    //        printf(":)");
-    //    }
     if (debug == 2) //nivel extra de debug
     {
         fmini = fopen ("minimax.log", "w");
@@ -2785,16 +2462,12 @@ compjoga (tabuleiro * tabu)
         libera_lances (melhorcaminho1);
         melhorcaminho1 = copilistmov (result.plance);
         melhorvalor1 = result.valor;
-//        tclock2 = time(NULL);
-//        clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
-//		diftclock = difftime(tclock2 , tclock1);
-//        difclock = clock2 - clock1;
     }
     if (result.plance == NULL)
     {
         //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
         nv = 1;
-        nmov = 0;
+        nmov = 0; // zero= retorna todos validos
         libera_lances (succ_geral);
         succ_geral = geramov (*tabu, &nmov); //gera os sucessores
         totalnodo = 0;
@@ -2942,6 +2615,30 @@ compjoga (tabuleiro * tabu)
     }
     res = joga_em (tabu, *result.plance, 1); // computador joga
     //vez da outra cor jogar. retorna a situacao(*tabu)
+
+    //o rostinho nao eh compativel com linux. nao imprima nunca.
+    //    if (!xboard && 1 == 0)
+    //    {
+    //        printf(":)");
+    //    }
+//     if(ics) //conectado ou stand alone
+    {
+        if(result.valor>200)
+            printf("tellicsnoalias kibitz :)\n");
+        else
+            if(result.valor<-200)
+                printf("tellicsnoalias kibitz :(\n");
+            else
+                if(result.valor>100)
+                    printf("tellicsnoalias kibitz :/\n");
+                else
+                    if(result.valor<-100)
+                        printf("tellicsnoalias kibitz :\\\n");
+                    else
+                        printf("tellicsnoalias kibitz :|\n");
+            
+    }
+    
     return (res);
 } //fim da compjoga
 
@@ -2949,7 +2646,7 @@ char
 analisa (tabuleiro * tabu)
 {
     tabuleiro tanalise;
-    int nv = 0, nmov = 0;
+    int nv = 0, nmov;
     // lances calc. em maior nivel tem mais importancia?
     //mudou para logo abaixo do scanf de humajoga
     copitab (&tanalise, tabu);
@@ -2980,7 +2677,7 @@ analisa (tabuleiro * tabu)
     else
     {
         nv = 1;
-        nmov = 0;
+        nmov = 0; //nmove==0, retorna todos validos.
         libera_lances (succ_geral);
         succ_geral = geramov (*tabu, &nmov);
         //gera os sucessores
@@ -3051,7 +2748,7 @@ void
 minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
 {
     movimento *succ, *melhor_caminho, *cabeca_succ;
-    int novo_valor, nmov = 0, contamov = 0;
+    int novo_valor, nmov, contamov = 0;
     tabuleiro tab;
     char m[8];
     succ = NULL;
@@ -3076,7 +2773,10 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         succ = succ_geral;
     //copilistmov(succ_geral);
     else
-        succ = geramov (atual, &nmov);
+    {
+        nmov=0;//gerar todos
+        succ = geramov (atual, &nmov); //nmov==0, retorna todos validos
+    }
     //succ==NULL se alguem ganhou ou empatou
     //if (debug == 2) {
     //fprintf(fmini, "\nsucc=geramov(): ");
@@ -3303,57 +3003,46 @@ joga_em (tabuleiro * tabu, movimento movi, int cod)
     else
         tabu->empate_50 += .5;
     if (tabu->vez == brancas)
-        switch (movi.roque)
-            //avalia o que este lance causa para futuros roques
+        switch (movi.roque) //avalia o que este lance causa para futuros roques
         {
-        case 0:
-            tabu->roqueb = 0;
-            break;
-            //mexeu o rei
-        case 1:
-            break;
-            //nao fez lance que interfere o roque
-        case 2:
-            if (tabu->roqueb == 1 || tabu->roqueb == 2)
-                //mexeu torre do rei
-                tabu->roqueb = 2;
-            else
+            case 0: //mexeu o rei
                 tabu->roqueb = 0;
-            break;
-        case 3:
-            if (tabu->roqueb == 1 || tabu->roqueb == 3)
-                //mexeu torre da dama
-                tabu->roqueb = 3;
-            else
-                tabu->roqueb = 0;
-            break;
+                break;
+            case 1: //nao fez lance que interfere o roque
+                break;            
+            case 2: //mexeu torre do rei
+                if (tabu->roqueb == 1 || tabu->roqueb == 2)                    
+                    tabu->roqueb = 2;
+                else
+                    tabu->roqueb = 0;
+                break;
+            case 3: //mexeu torre da dama
+                if (tabu->roqueb == 1 || tabu->roqueb == 3)
+                    tabu->roqueb = 3;
+                else
+                    tabu->roqueb = 0;
+                break;
         }
-    else
-        //vez das pretas
-        switch (movi.roque)
-            //avalia o que este lance causa para futuros roques
+    else //vez das pretas
+        switch (movi.roque) //avalia o que este lance causa para futuros roques
         {
-        case 0:
-            tabu->roquep = 0;
-            break;
-            //mexeu o rei
-        case 1:
-            break;
-            //nao fez lance que interfere o roque
-        case 2:
-            if (tabu->roquep == 1 || tabu->roquep == 2)
-                //mexeu torre do rei
-                tabu->roquep = 2;
-            else
+            case 0: //mexeu o rei
                 tabu->roquep = 0;
-            break;
-        case 3:
-            if (tabu->roquep == 1 || tabu->roquep == 3)
-                //mexeu torre da dama
-                tabu->roquep = 3;
-            else
-                tabu->roquep = 0;
-            break;
+                break;
+            case 1: //nao fez lance que interfere o roque
+                break;
+            case 2: //mexeu torre do rei
+                if (tabu->roquep == 1 || tabu->roquep == 2)
+                    tabu->roquep = 2;
+                else
+                    tabu->roquep = 0;
+                break;
+            case 3: //mexeu torre da dama
+                if (tabu->roquep == 1 || tabu->roquep == 3)
+                    tabu->roquep = 3;
+                else
+                    tabu->roquep = 0;
+                break;
         }
     tabu->peao_pulou = movi.peao_pulou;
     tabu->tab[movi.lance[2]][movi.lance[3]] =
@@ -4103,8 +3792,7 @@ int estatico (tabuleiro tabu, int cod, int niv, int alfa, int beta)
 }
 
 //insere o tabuleiro tabu na lista de tabuleiros
-void
-insere_listab (tabuleiro tabu)
+void insere_listab (tabuleiro tabu)
 {
     int i, j, flag = 0;
     listab *plaux;
@@ -4825,32 +4513,32 @@ limpa_pensa (void)
     //  teminterroga = 0;
 }
 
-void
-enche_pmovi (movimento * pmovi, int c0, int c1, int c2, int c3, int p, int r,
-             int e, int f)
 //preenche a estrutura movimento
+void enche_pmovi (movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int p, int r, int e, int f, int *nmovi)
 {
-    if (!pmovi)
-        msgsai ("# enche_pmovi precisa de um ponteiro valido", 34);
-    pmovi->lance[0] = c0;
-    //lance em notacao inteira
-    pmovi->lance[1] = c1;
-    //move in integer notation
-    pmovi->lance[2] = c2;
-    pmovi->lance[3] = c3;
-    pmovi->peao_pulou = p;
-    //contem coluna do peao que andou duas neste lance
-    pmovi->roque = r;
-    //0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-    pmovi->especial = e;
-    //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
-    //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    pmovi->flag_50 = f;
-    //Quando igual a:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
-    pmovi->ordena = 0;
-    //utilizado como flag para ordenar a lista de movimentos segundo o valor_estatico
-    pmovi->valor_estatico = 0;
-    //valor deste lance, dado um tabuleiro para ele.
+    movimento *paux = (movimento *) malloc (sizeof (movimento));
+    if (paux == NULL)
+        msgsai ("# Erro de alocacao de memoria em enche_pmovi 1", 1);
+    
+    if((*cabeca)==NULL)
+        (*cabeca) = (*pmovi) = paux;
+    else
+    {
+        (*pmovi)->prox = paux;
+        (*pmovi) = (*pmovi)->prox;
+    }
+    (*pmovi)->prox = NULL;
+    (*pmovi)->lance[0] = c0; //lance em notacao inteira
+    (*pmovi)->lance[1] = c1; //move in integer notation
+    (*pmovi)->lance[2] = c2;
+    (*pmovi)->lance[3] = c3;
+    (*pmovi)->peao_pulou = p; //contem coluna do peao que andou duas neste lance
+    (*pmovi)->roque = r;   //0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+    (*pmovi)->especial = e; //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+    (*pmovi)->flag_50 = f; //:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
+    (*pmovi)->ordena = 0; //flag para ordenar a lista de movimentos segundo o valor_estatico
+    (*pmovi)->valor_estatico = 0; //valor deste lance, dado um tabuleiro para ele.
+    (*nmovi)++;
 }
 
 void
@@ -5183,11 +4871,12 @@ double difclocks(void)
 
 char randommove(tabuleiro * tabu)
 {
-    int nmov = 0;
+    int nmov;
     int moveto, i;
     movimento *succ=NULL, *melhor_caminho=NULL;
 
     limpa_pensa (); //limpa algumas variaveis para iniciar a ponderacao
+    nmov = 0; //gerar todos
     succ = geramov (*tabu, &nmov); //gera os sucessores
 
     moveto = (int) (rand() % nmov); //sorteia um lance possivel da lista de lances
