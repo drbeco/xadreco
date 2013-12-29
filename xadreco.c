@@ -43,12 +43,20 @@
 #ifndef _WIN32
 #include <sys/select.h>
 #include <sys/time.h>
+#include <unistd.h>
+
+#define waits(s) sleep(s)
+
 #else
+
 #include <conio.h>
 #include <windows.h>
 #include <winbase.h>
 #include <wincon.h>
 #include <io.h>
+
+#define waits(s) Sleep(s*1000)
+
 #endif
 
 
@@ -61,7 +69,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BUILD 20131202.142401
+#define BUILD 20131217.165600
 #define TRUE 1
 #define FALSE 0
 
@@ -104,7 +112,7 @@
 int debug = 1;
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:debug, 2:debug minimax
 //0:do not save file xadreco.log, 1:save file, 2:minimax debug
-const float version = 5.8;
+const float version = 5.82;
 //Versao do programa
 //program version
 
@@ -328,6 +336,7 @@ int COMPUTER = 0;
 //int teminterroga = 0;
 //flag que diz que o comando "?" foi executado
 //flag to mark that command "?" run
+int KIBITZ = 0; /* 0:nada, 1:v>200 :), 2: v>100 :/, 3: -100<v<100 :|, 4: v<-100 :\, 5: v<-200 :( */
 
 // prototipos gerais ---------------------------------------------------------
 void imptab (tabuleiro tabu);
@@ -756,6 +765,7 @@ main (int argc, char *argv[])
 
 void inicia_fics(void)
 {
+    waits(10); /* bug: trocar por espera que nao prende a engine */
     printf("tellicsnoalias tell mamer gettourney blitz\n");
     printf("tellicsnoalias resume\n");
     printf("tellicsnoalias seek 2 1 f m\n");
@@ -783,21 +793,19 @@ mostra_lances (tabuleiro tabu)
 }
 
 //fim do mostra_lances
-void
-libera_lances (movimento * cabeca)
+void libera_lances (movimento *cabeca)
 {
     movimento *loop, *aux;
     if (cabeca == NULL)
         return;
     loop = cabeca;
-    aux = cabeca;
     while (loop != NULL)
     {
-        aux = aux->prox;
+        aux = loop->prox;
         free (loop);
         loop = aux;
     }
-    cabeca = NULL;
+//     cabeca = NULL;
 }
 
 // imprime o movimento
@@ -1526,12 +1534,11 @@ movimento *geramov (tabuleiro tabu, int *nmovi)
             pmovi = pmovi->prox;
         }
     } //fim do while, e consequentemente da lista
-    return cabeca;
+    return cabeca; //lista criada: quem chamou que a libere
 }
 //fim de   ----------- movimento *geramov(tabuleiro tabu)
 
-int
-ataca (int cor, int col, int lin, tabuleiro tabu)
+int ataca (int cor, int col, int lin, tabuleiro tabu)
 {
     //retorna verdadeiro (1) ou falso (0)
     //cor==brancas   => brancas atacam casa(col,lin)
@@ -2303,39 +2310,34 @@ humajoga (tabuleiro * tabu)
     //vez da outra cor jogar. retorna a situacao.
 } //fim do huma_joga---------------
 
-movimento *
-valido (tabuleiro tabu, int *lanc)
+movimento *valido (tabuleiro tabu, int *lanc)
 {
     int nmov;
     movimento *pmovi, *loop, *auxloop;
     nmov=0; //gerar todos
-    pmovi = geramov (tabu, &nmov);
-    loop = pmovi;
+    pmovi = geramov (tabu, &nmov); // gerou e sobrou um
     auxloop = NULL;
-    while (pmovi != NULL)
-        //vai comparando e...
+
+    loop = pmovi;
+    while (pmovi != NULL) //vai comparando e...
     {
-        if (igual (pmovi->lance, lanc))
-            break;
-        //o lance valido eh o cabeca da lista que restou
+        if (igual (pmovi->lance, lanc)) //o lance valido eh o cabeca da lista que restou
+            break; 
         pmovi = pmovi->prox;
-        free (loop);
-        //...liberando os diferentes
+        free (loop); //...liberando os diferentes
         loop = pmovi;
     }
     //apagar a lista que restou da memoria
-    if (pmovi != NULL)
-        //o lance esta na lista, logo eh valido,
+    if (pmovi != NULL) //o lance esta na lista, logo eh valido,
     {
-        loop = pmovi->prox;
-        //apaga o restante da lista.
-        pmovi->prox = NULL;
+        loop = pmovi->prox; //apaga o restante da lista.
+        pmovi->prox = NULL; // pmovi vira lista de um so lance
     }
 
-    while (loop != NULL)
-        //ou loop==pmovi==NULL e o lance nao vale
+    //ou loop==pmovi==NULL e o lance nao vale
+    //ou loop==pmovi->prox e apaga o restante
+    while (loop != NULL) 
     {
-        //ou loop==pmovi->prox e apaga o restante
         auxloop = loop->prox;
         free (loop);
         loop = auxloop;
@@ -2355,8 +2357,7 @@ igual (int *l1, int *l2)
     return (1);
 }
 
-char
-situacao (tabuleiro tabu)
+char situacao (tabuleiro tabu)
 {
     // pega o tabuleiro e retorna: M,m,a,p,i,5,r,T,t,x
     // tabu.situa:      retorno da situacao:
@@ -2419,15 +2420,17 @@ situacao (tabuleiro tabu)
     nmov=AFOGOU; //somente achar UM LANCE e retornar rapido
     cabeca = geramov (tabu, &nmov); //TODO criar funcao gera1mov() retorna verdadeiro ou falso: quando nmov == -1, geramov retorna no primeiro valido
     if (cabeca == NULL) //Sem lances: Mate ou Afogamento.
+    {
         if (!xeque_rei_das (tabu.vez, tabu))
             return ('a'); //empate por afogamento.
         else if (tabu.vez == brancas)
             return ('M'); //as brancas estao em xeque-mate
         else
             return ('m'); //as pretas estao em xeque-mate
-    else //Tem lances... mudou a geramov: tem mais nao carrega: nmovi==AFOGOU
+    }
+    else //Tem lances... mudou a geramov: tem um lance so: nmovi==AFOGOU
     {
-        //        libera_lances(cabeca);
+        libera_lances(cabeca); //libera o lance
         if (xeque_rei_das (tabu.vez, tabu))
             return ('x');
     }
@@ -2523,12 +2526,7 @@ char compjoga (tabuleiro * tabu)
                     melhorvalor1 = result.valor;
                 }
                 totalnodo += totalnodonivel;
-                //tclock2 = time(NULL);
-//                clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
-                //			diftclock = difftime(tclock2 , tclock1);
-//                difclock = clock2 - clock1;
-                ordena_succ (nmov);
-                //ordena succ_geral
+                ordena_succ (nmov); //ordena succ_geral
                 if (debug == 2)
                 {
                     fprintf (fmini, "#\n# result.valor: %+.2f totalnodo: %d\n# result.plance: ", result.valor / 100.0, totalnodo);
@@ -2616,34 +2614,59 @@ char compjoga (tabuleiro * tabu)
     res = joga_em (tabu, *result.plance, 1); // computador joga
     //vez da outra cor jogar. retorna a situacao(*tabu)
 
-    //o rostinho nao eh compativel com linux. nao imprima nunca.
-    //    if (!xboard && 1 == 0)
-    //    {
-    //        printf(":)");
-    //    }
 //     if(ics) //conectado ou stand alone
     {
-        if(result.valor>200)
-            printf("tellicsnoalias kibitz :)\n");
-        else
-            if(result.valor<-200)
-                printf("tellicsnoalias kibitz :(\n");
+        if(tabu->numero>4) /* nao mostra nos primeiros lances */
+        {
+        /*KIBITZ = 0:nada, 1:v>200 :), 2: v>100 :/, 3: -100<v<100 :|, 4: v<-100 :\, 5: v<-200 :( */
+            if(result.valor>200)
+            {
+                if(KIBITZ!=1)
+                {
+                    printf("tellicsnoalias kibitz :)\n");
+                    KIBITZ=1;
+                }
+            }
             else
-                if(result.valor>100)
-                    printf("tellicsnoalias kibitz :/\n");
+                if(result.valor<-200)
+                {
+                    if(KIBITZ!=5)
+                    {
+                        printf("tellicsnoalias kibitz :(\n");
+                        KIBITZ=5;
+                    }
+                }
                 else
-                    if(result.valor<-100)
-                        printf("tellicsnoalias kibitz :\\\n");
+                    if(result.valor>100)
+                    {
+                        if(KIBITZ!=2)
+                        {
+                            printf("tellicsnoalias kibitz :/\n");
+                            KIBITZ=2;
+                        }
+                    }
                     else
-                        printf("tellicsnoalias kibitz :|\n");
-            
+                        if(result.valor<-100)
+                        {
+                            if(KIBITZ!=4)
+                            {
+                                printf("tellicsnoalias kibitz :\\\n");
+                                KIBITZ=4;
+                            }
+                        }
+                        else
+                            if(KIBITZ!=3)
+                            {
+                                printf("tellicsnoalias kibitz :|\n");
+                                KIBITZ=3;
+                            }
+        }
     }
     
     return (res);
 } //fim da compjoga
 
-char
-analisa (tabuleiro * tabu)
+char analisa (tabuleiro * tabu)
 {
     tabuleiro tanalise;
     int nv = 0, nmov;
@@ -2679,8 +2702,7 @@ analisa (tabuleiro * tabu)
         nv = 1;
         nmov = 0; //nmove==0, retorna todos validos.
         libera_lances (succ_geral);
-        succ_geral = geramov (*tabu, &nmov);
-        //gera os sucessores
+        succ_geral = geramov (*tabu, &nmov); //gera os sucessores
         totalnodo = 0;
         while (result.valor < XEQUEMATE)
             //for(nv=1; nv<=7; nv++)
@@ -2744,8 +2766,7 @@ analisa (tabuleiro * tabu)
 //If there had been no fish in the bag, determining that the six-pack of pop
 //bag was better than the sandwich bag would have been like exceeding alpha (one ply back).
 //source: http://www.seanet.com/~brucemo/topics/alphabeta.htm
-void
-minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
+void minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
 {
     movimento *succ, *melhor_caminho, *cabeca_succ;
     int novo_valor, nmov, contamov = 0;
@@ -2754,8 +2775,7 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
     succ = NULL;
     melhor_caminho = NULL;
     cabeca_succ = NULL;
-    if (profsuf (atual, prof, alfa, beta, niv))
-        // profundidade suficiente ==1 ou ==-1:tempo estourou
+    if (profsuf (atual, prof, alfa, beta, niv)) // profundidade suficiente ==1 ou ==-1:tempo estourou
     {
         //coloque um nulo no ponteiro plance
         //nao eh necessario libera_lance, pois plance eh temporario apesar de global.
@@ -2770,12 +2790,11 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         //fprintf(fmini, "\nalfa= %d     beta= %d", alfa, beta);
     }
     if (prof == 0)
-        succ = succ_geral;
-    //copilistmov(succ_geral);
+        cabeca_succ = succ_geral; //copilistmov(succ_geral);
     else
     {
         nmov=0;//gerar todos
-        succ = geramov (atual, &nmov); //nmov==0, retorna todos validos
+        cabeca_succ = geramov (atual, &nmov); //nmov==0, retorna todos validos
     }
     //succ==NULL se alguem ganhou ou empatou
     //if (debug == 2) {
@@ -2783,7 +2802,7 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
     //imprime_linha(succ, 1, 2);
     //1=numero do lance, 2=vez: pular impressao na tela
     //}
-    if (succ == NULL)
+    if (cabeca_succ == NULL)
     {
         //entao o estatico refletira isso: afogamento
         //libera_lances(result.plance); //bugbug
@@ -2796,7 +2815,7 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
             fprintf (fmini, "#NULL ");	//result.valor=%+.2f", result.valor);
         return;
     }
-    cabeca_succ = succ; //laco para analisar todos sucessores (ou corta no porcento)
+    succ = cabeca_succ; //laco para analisar todos sucessores (ou corta no porcento)
     while (succ != NULL)
     {
         copitab (&tab, &atual);
@@ -2809,25 +2828,22 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         //tab.situa:0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: sem resultado
         switch (tab.situa)
         {
-        case 0:
-            break; //0:nada... Quem decide eh flag_50;
-        case 2:
-            profflag = 4;
-            break; //2:Xeque!  Liberou
-        default:
-            profflag = 0; //tab.situa: 1=Empate, 3,4=Mate ou 5,6=Tempo. 7=sem resultado. Nao pode passar o nivel
+            case 0:  //0:nada... Quem decide eh flag_50;
+                break;
+            case 2:  //2:Xeque!  Liberou
+                profflag = 4;
+                break;
+            default: //situa: 1=Empate, 3,4=Mate, 5,6=Tempo. 7=sem resultado. Nao passar o nivel
+                profflag = 0; 
         }
         if (debug == 2)
         {
             lance2movi (m, succ->lance, succ->especial);
-            fprintf (fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof,
-                     totalnodonivel, m, succ->lance[0], succ->lance[1],
-                     succ->lance[2], succ->lance[3]);
+            fprintf (fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
         }
         minimax (tab, prof + 1, -beta, -alfa, niv); //analisa o novo tabuleiro
-        retira_listab ();
-        novo_valor = -result.valor;
-        //implementar o "random"
+        retira_listab (); //retira o ultimo tabuleiro da lista
+        novo_valor = -result.valor; //implementar o "random"
         if (novo_valor > alfa) // || (novo_valor==alfa && rand()%10>7))
         {
             alfa = novo_valor;
@@ -2847,18 +2863,15 @@ minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         }
         //implementar o NULL-MOVE
         if (novo_valor >= beta)
-            //corte alfa-beta! Isso esta certo? Nao e alfa<=beta? Conferir. (alfa==passo, beta==uso, para brancas)
+        //corte alfa-beta! Isso esta certo? Nao e alfa<=beta? Conferir. (alfa==passo, beta==uso, para brancas)
         {
-            alfa = beta;		//Aha! Retorna beta como o melhor possivel desta arvore
+            alfa = beta; //Aha! Retorna beta como o melhor possivel desta arvore
             if (debug == 2)
             {
                 lance2movi (m, succ->lance, succ->especial);
-                fprintf (fmini, "#\n# succ: novo_valor>=beta (%+.2f>=%+.2f) %s (%d%d%d%d) Corte Alfa/Beta!",
-                         novo_valor / 100.0, beta / 100.0, m, succ->lance[0],
-                         succ->lance[1], succ->lance[2], succ->lance[3]);
+                fprintf (fmini, "#\n# succ: novo_valor>=beta (%+.2f>=%+.2f) %s (%d%d%d%d) Corte Alfa/Beta!", novo_valor / 100.0, beta / 100.0, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
             }
-            break;
-            //faz o corte!
+            break; //faz o corte!
         }
         if (prof == 0)
             succ->valor_estatico = novo_valor;
@@ -3091,8 +3104,7 @@ joga_em (tabuleiro * tabu, movimento movi, int cod)
 } //fim da joga_em
 
 //copia ummovi no comeco da lista *plan, e retorna a cabeca desta NOVA lista (mel)
-movimento *
-copimel (movimento ummovi, movimento * plan)
+movimento * copimel (movimento ummovi, movimento * plan)
 {
     movimento *mel;
     mel = (movimento *) malloc (sizeof (movimento));
@@ -3172,7 +3184,7 @@ movimento * copilistmov (movimento * font)
         }
     }
     pmovi->prox = NULL;
-    return (cabeca);
+    return cabeca;
 }
 
 //retorna o valor tatico e estrategico de um tabuleiro, sendo valor positivo melhor quem esta na vez
@@ -4181,9 +4193,8 @@ int qataca (int cor, int col, int lin, tabuleiro tabu, int *menor)
 
 // ----------------------------------------------------------------------------
 // Livro de aberturas
-void
-listab2string (char *strlance)
 //pega a lista de tabuleiros e cria uma string de movimentos
+void listab2string (char *strlance)
 {
     listab *plaux;
     char m[8];
@@ -4216,8 +4227,7 @@ listab2string (char *strlance)
 
 //retorna uma linha de jogo como se fosse a resposta do minimax
 //com inicio no lance da vez.
-movimento *
-string2pmovi (int numero, char *linha)
+movimento * string2pmovi (int numero, char *linha)
 {
     char m[8];
     int n = 0, lanc[4], i, conta = 0;
@@ -4282,9 +4292,8 @@ string2pmovi (int numero, char *linha)
     return cabeca;
 }
 
-int
-igual_strlances_strlinha (char *strlances, char *strlinha)
 //retorna verdadeiro se o jogo atual casa com a linha do livro atual
+int igual_strlances_strlinha (char *strlances, char *strlinha)
 {
     int i = 0;
     if (strlances[0] == '\0')
@@ -4298,9 +4307,8 @@ igual_strlances_strlinha (char *strlances, char *strlinha)
     return 1;
 }
 
-void
-usalivro (tabuleiro tabu)
 //retorna em result.plance uma variante do livro
+void usalivro (tabuleiro tabu)
 {
     movimento *cabeca;
     char linha[256], strlance[256];
@@ -4380,9 +4388,8 @@ usalivro (tabuleiro tabu)
     return;
 }
 
-char
-pega (char *no, char *msg)
 //pegar caracter (linux e windows)
+char pega (char *no, char *msg)
 {
     int p;
     printf ("%s", msg);
@@ -4395,9 +4402,8 @@ pega (char *no, char *msg)
     return (char) p;
 }
 
-float
-rand_minmax (float min, float max)
 //retorna um valor entre [min,max], inclusive
+float rand_minmax (float min, float max)
 {
     float sorteio;
     //    cloock_t s;
@@ -4419,8 +4425,8 @@ rand_minmax (float min, float max)
     return sorteio;
 }
 
-void
-sai (int error) //termina o programa
+//termina o programa
+void sai (int error) 
 {
     printf ("# xadreco : sai ( %d )\n", error);
     libera_lances (result.plance);
@@ -4431,9 +4437,8 @@ sai (int error) //termina o programa
     exit (error);
 }
 
-void
-inicia (tabuleiro * tabu)
 //inicializa variaveis do programa. (new game)
+void inicia (tabuleiro * tabu)
 {
     int i, j;
     pausa = 'n';
@@ -4474,11 +4479,11 @@ inicia (tabuleiro * tabu)
     tbrancasac=0.0; //tempo acumulado
     tpretasac=0.0;  //acumulated time
     tultimoinput = time(NULL); //pausa para nao fazer muito poll seguido
+    KIBITZ=0; /* carinha feliz */
 }
 
-void
-coloca_pecas (tabuleiro * tabu)
 //coloca as peoes na posicao inicial
+void  coloca_pecas (tabuleiro * tabu)
 {
     int i;
     for (i = 0; i < 8; i++) //i = column
@@ -4498,9 +4503,8 @@ coloca_pecas (tabuleiro * tabu)
     tabu->tab[4][7] = REI;
 }
 
-void
-limpa_pensa (void)
 //limpa algumas variaveis para iniciar ponderacao
+void limpa_pensa (void)
 {
     libera_lances (result.plance);
     result.plance = NULL;
@@ -4541,8 +4545,7 @@ void enche_pmovi (movimento **cabeca, movimento **pmovi, int c0, int c1, int c2,
     (*nmovi)++;
 }
 
-void
-msgsai (char *msg, int error) //aborta programa por falta de memoria
+void msgsai (char *msg, int error) //aborta programa por falta de memoria
 {
     printf ("# xadreco : %s\n", msg);
     if (debug)
@@ -4552,9 +4555,8 @@ msgsai (char *msg, int error) //aborta programa por falta de memoria
 
 //cuidado para nao estourar o limite da cadeia, teclando muito <t>
 //be carefull to do not overflow the string limit, pressing to much <t>
-void
-testajogo (char *movinito, int numero)
 //retorna um lance do jogo de teste
+void testajogo (char *movinito, int numero)
 {
     //      char *jogo1="e2e4 e7e5 g1f3 b8c6 b1c3 g8f6 f1b5 a7a6 b5c6 d7c6 d2d4 e5d4 f3d4 f8c5 c1e3 d8e7 e1g1 f6e4 d1f3 c5d4 e3d4 e4d2 f3g3 d2f1 g3g7 h8f8 a1f1 c8f5 d4f6 e7c5 f6d4 c5d6 d4e5 d6b4 a2a3 b4b6 f1c1 f7f6 g7c7 b6c5 e5d6 f8f7 c1e1 c5e5 e1e5 f6e5 c7b6 f5c2 d6c7 a8c8 c7e5 f7e7 b6d4 c8d8";
     //      char *jogo1="e2e4 e7e5 f1c4 b8c6 d1h5 g8f6 h5f7";
@@ -4680,22 +4682,18 @@ void imprime_linha (movimento * loop, int numero, int tabuvez)
 
 //void ordena_succ(void){}
 //para testar sem a funcao ordena_succ. (notei que ha ganho no corte de nodos)
-void
-ordena_succ (int nmov)
-//ordena succ_geral
+void ordena_succ (int nmov) //ordena succ_geral
 {
     movimento *loop, *pior, *insere, *aux;
     int peguei, pior_valor;
     insere = NULL;
     pior = NULL;
     loop = succ_geral;
-    if (loop == NULL)
-        //se a lista esta vazia
+    if (loop == NULL) //se a lista esta vazia
         return;
     while (loop != NULL)
     {
-        if (loop->flag_50 > 1 || loop->especial)
-            //para manter os especiais em primeiro
+        if (loop->flag_50 > 1 || loop->especial) //para manter os especiais em primeiro
             loop->ordena = 1;
         else
             loop->ordena = 0;
@@ -4716,8 +4714,7 @@ ordena_succ (int nmov)
                 peguei = 1;
             }
             loop = loop->prox;
-        }
-        //fim do while loop, e consequentemente da lista
+        } //fim do while loop, e consequentemente da lista
         if (peguei)
         {
             aux = copimel (*pior, insere);
@@ -4726,15 +4723,14 @@ ordena_succ (int nmov)
             insere = aux;
             pior->ordena = 1;
         }
-    }
-    //fim do while trocou
-    //os primeiros ficam intactos  //conta com a funcao geramov, que coloca os especiais na cabeca
+    } //fim do while trocou
+    //os primeiros ficam intactos
+    //conta com a funcao geramov, que coloca os especiais na cabeca
     loop = succ_geral;
     while (loop != NULL)
         if (loop->flag_50 > 1 || loop->especial)
         {
-            aux = copimel (*loop, insere);
-            //movimento *copimel(movimento ummovi, movimento *plan)
+            aux = copimel (*loop, insere); //movimento *copimel(movimento ummovi, movimento *plan)
             libera_lances (insere);
             insere = aux;
             loop = loop->prox;
@@ -4745,9 +4741,8 @@ ordena_succ (int nmov)
     succ_geral = insere;
 }
 
-int
-estatico_pmovi (tabuleiro tabu, movimento * cabeca)
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
+int estatico_pmovi (tabuleiro tabu, movimento * cabeca)
 {
     //cod: 1: acabou o tempo, 0: ou eh avaliacao normal?
     //niv: qual a distancia do tabuleiro real para a copia tabu avaliada?
@@ -4873,12 +4868,12 @@ char randommove(tabuleiro * tabu)
 {
     int nmov;
     int moveto, i;
-    movimento *succ=NULL, *melhor_caminho=NULL;
+    movimento *cabeca_succ=NULL, *succ=NULL, *melhor_caminho=NULL;
 
-    limpa_pensa (); //limpa algumas variaveis para iniciar a ponderacao
+    limpa_pensa (); //limpa plance para iniciar a ponderacao
     nmov = 0; //gerar todos
-    succ = geramov (*tabu, &nmov); //gera os sucessores
-
+    cabeca_succ = geramov (*tabu, &nmov); //gera os sucessores
+    succ = cabeca_succ;
     moveto = (int) (rand() % nmov); //sorteia um lance possivel da lista de lances
     for(i=0; i<moveto; ++i)
         if(succ !=NULL)
@@ -4886,14 +4881,15 @@ char randommove(tabuleiro * tabu)
 
     if (succ != NULL)
     {
-        melhor_caminho = copimel (*succ, NULL);
         succ->valor_estatico = 0;
+        melhor_caminho = copimel (*succ, NULL);
         result.valor = 0;
         result.plance = copilistmov (melhor_caminho);
         libera_lances (melhor_caminho);
-        libera_lances (succ_geral);
+        libera_lances (cabeca_succ); //BUG era succ_geral, virou succ, agora eh cabeca_succ
         return '-'; //ok
     } //else succ!=NULL
+        printf("# empty from randommove\n");
         return 'e'; // really empty!
 
 }
