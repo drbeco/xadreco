@@ -3,7 +3,7 @@
 #*   xadreco.sh                    Build 20160606.173220, see VERSION file *
 #*                                                                         *
 #*   Xadreco chess engine                                                  *
-#*   Copyright (C) 1999-2016 by Ruben Carlo Benante <rcb@beco.cc>          *
+#*   Copyright (C) 1994-2016 by Ruben Carlo Benante <rcb@beco.cc>          *
 #***************************************************************************
 #*   This program is free software; you can redistribute it and/or modify  *
 #*   it under the terms of the GNU General Public License as published by  *
