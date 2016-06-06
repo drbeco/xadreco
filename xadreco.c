@@ -69,7 +69,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BUILD 20131217.165600
+#ifndef BUILD
+#define BUILD "19940819.190934"
+#endif
 #define TRUE 1
 #define FALSE 0
 
@@ -112,7 +114,7 @@
 int debug = 1;
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:debug, 2:debug minimax
 //0:do not save file xadreco.log, 1:save file, 2:minimax debug
-const float version = 5.82;
+const float version = 5.83; /* BUG : substituir por VERSION */
 //Versao do programa
 //program version
 
@@ -401,7 +403,7 @@ void imprime_linha (movimento * loop, int numero, int vez);
 int pollinput (void);
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 // return true if there are some character in the buffer to be read
-double build(void);
+char *build(void);
 // compiled time - build version
 // hora da compilacao - versao de construcao
 // difclocks = valores em segundos
@@ -526,7 +528,7 @@ main (int argc, char *argv[])
     setbuf (stdin, NULL);
     sprintf (feature, "%s%.2f%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 myname=\"Xadreco ",
              version, "\" variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0");
-    printf ("# Xadreco version %.2f build %f, (C) 1998-2014, by Dr. Beco\n"
+    printf ("# Xadreco version %.2f build %s, (C) 1998-2014, by Dr. Beco\n"
             "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
             "# This is free software, and you are welcome to redistribute it "
             "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
@@ -1879,7 +1881,7 @@ humajoga (tabuleiro * tabu)
         if (!strcmp (movinito, "version"))
         {
 //            if (debug) printf ("# tellopponent Xadreco v.%.2f Compilacao %f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n", version, build());
-            printf ("tellopponent Xadreco v.%.2f build %f for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 2004-2014.\n", version, build());
+            printf ("tellopponent Xadreco v.%.2f build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 2004-2014.\n", version, build());
             tente = 1;
             continue;
         }
@@ -4820,13 +4822,13 @@ pollinput (void)
 
 // data e hora da compilacao
 // date and time of compilation
-double build(void)
+char *build(void)
 {
   const char *data=__DATE__;
   const char *tempo=__TIME__;
   const char smes[12][3]={"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
   int ano, mes, dia, hora, min, seg;
-  double fv1, fv2;
+  /* double fv1, fv2; */
   char sversion[]="20130910.001339";
 
   if(strlen(data)!=11||strlen(tempo)!=8)
@@ -4845,6 +4847,7 @@ double build(void)
   min=atoi(&tempo[3]);
   seg=atoi(&tempo[6]);
   sprintf(sversion,"%04d%02d%02d.%02d%02d%02d", ano, mes+1, dia, hora, min, seg);
+  /*
   fv1=atof(sversion);
   sprintf(sversion,"%04d%02d%02d,%02d%02d%02d", ano, mes+1, dia, hora, min, seg);
   fv2=atof(sversion);
@@ -4852,6 +4855,8 @@ double build(void)
 	return fv1;
   else
 	return fv2;
+  */
+  return sversion;
 }
 
 //    clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
