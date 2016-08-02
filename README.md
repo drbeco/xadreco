@@ -1,11 +1,14 @@
-Xadreco v.5.7
-Copyright (C) 2007 by Ruben Carlo Benante                             *
-dr.beco@gmail.com                                                     *
+Xadreco v.0.0 -- last version (v10.0)
+Copyright (C) 1994-2016 by Ruben Carlo Benante
+rcb@beco.cc 
 date: 17/07/2007
-http://www.geocities.com/pag_sax/xadreco/
-http://codigolivre.org.br/projects/xadreco/
+modified: 02/08/2016
+https://github.com/drbeco/xadreco
+http://www.geocities.com/pag_sax/xadreco/ (old, unavailable)
+http://codigolivre.org.br/projects/xadreco/ (old, unavailable)
 
 ----
+
 Table of contents:
 
 1- Copyright notice (Nota de direitos)
@@ -19,16 +22,19 @@ Table of contents:
 9- To do (afazeres)
 
 ----
-1- Copyright notice
-This file is part of GPL program Xadreco v.5.7
 
-    GNU program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2, or (at your option) any later version.
+1- Copyright notice
+
+This file is part of GPL program Xadreco (v5.7 and all other versions)
+
+    GNU program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; version 2.
 
     GNU program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License along with program; see the file COPYING. If not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
 
 ----
+
 2- Description of each file inside the package
 Files included in GPL (Arquivos incluídos na GPL):
 Files inside xadrecov57.tar.gz (arquivos dentro do xadrecov57.tar.gz)
@@ -47,7 +53,9 @@ xadreco-icon.png - Xadreco's icon (ícone do xadreco)
 Another third part files:
 wb2uci.eng - UCI configuration file for Wb2Uci.exe translation app. (Arquivo de configuração UCI para a aplicação tradutora WB2Uci.exe)
 Wb2Uci.exe - Translation application for Winboard to UCI, by Odd Gunnar Malin (see bellow). Aplicação tradutora do Winboard para UCi, por Odd Gunnar Malin (Veja abaixo).
+
 ----
+
 3- Credits
 
 People who helped in someway, and I should thank you:
@@ -93,16 +101,21 @@ http://home.online.no/~malin/sjakk/Wb2Uci/
 Protocol translation from Winboard to UCI
 
 ----
+
 4- Install process for xboard
 
 4.1 - Make a bash script:
-4.1.1- Unpack the tarball (xadrecov57.tar.gz) to the folder of your preference (lik /home/user/programs/xadrecov57)
+4.1.1- Unpack the tarball (xadrecov57.tar.gz) to the folder of your preference (like /home/user/programs/xadrecov57)
 
 4.1.2 Create a bash script with the 2 command lines and save it with the name xxadreco.sh:
+
 ---
+
 #!/bin/bash
 xboard -tc 5 -inc 0 -mps 40 -size Petite -coords -highlight -fcp "/home/user/programs/xadrecov57/xadreco" -fd "/home/user/programs/xadrecov57/" -scp "/home/user/programs/xadrecov57/xadreco" -sd "/home/user/programs/xadrecov57/"
+
 ---
+
 4.1.3 Now just start xxadreco. Make sure you give execution rights to xxadreco file.
 ./xxadreco
 
@@ -119,6 +132,7 @@ Work directory: /home/user/programs/xadrecov57/
 4.2.5 - Click Ok. Now you just double click the icon to play.
 
 ----
+
 5- Install process for winboard
 
 5.1- Download and install winboard on your system. You will probably install it at folder:
@@ -169,6 +183,7 @@ no grupo /secondChessProgramNames=
 Repare que a partir desta versão não é mais necessário o parâmetro "xboard" para o seu funcionamento.
 
 ----
+
 6- Install process for UCI GUI (fritz)
 (Instalar no Fritz 7 ou superior)
 
@@ -203,6 +218,7 @@ Wb2Uci.exe
 (Pronto, a engine está disponível).
 
 --
+
 To play your first game do this
 (Para jogar uma primeira partida, faça assim):
 
@@ -217,11 +233,13 @@ To play your first game do this
 * Do you move as white. (Faça seu lance de brancas).
 
 --
+
 More info about WINBOARD to UCI at Odd Gunnar Malin page.
 (Maiores informações sobre WINBOARD para UCI), veja
 a página de Odd Gunnar Malin.
 
 ----
+
 7- Change log of this version (Mudanças desta versão).
 
 * Função estática simplificada
@@ -229,11 +247,13 @@ a página de Odd Gunnar Malin.
 * Não há mais necessidade do parâmetro "xboard" na inicialização.
 
 ----
+
 8- Know bugs (Bugs conhecidos)
 * Parece haver algum erro de sinal que o faz jogar alguns lances suicidas
 * Memory leak - Memória não está sendo devolvida corretamente
 
 ----
+
 9- To do (afazeres)
 * Simplificar o processo de representação do tabuleiro
 * Simplificar a função minimax para usar sinal (+) para brancas e (-) para pretas sempre.
@@ -243,3 +263,4 @@ a página de Odd Gunnar Malin.
 Have Fun!
 Bom divertimento!
 Beco.
+
