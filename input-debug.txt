@@ -1,0 +1,10 @@
+xboard
+done
+done
+e2e4
+b1c3
+g2g3
+f1g2
+draw
+quit
+
