@@ -28,7 +28,7 @@ Tenha certeza de que sua conta está devidamente configurada. Cheque os seguinte
 * xadreco.h: biblioteca
 * zippy-frases.txt
 * AUTHORS: lista os autores do programa (em grupo ou individual)
-* LICENSE: TODO a licença do programa (prefira GNU GPL v2, MIT ou BSD-3)
+* LICENSE: a licença do programa (prefira GNU GPL v2, MIT ou BSD-3)
 * VERSION: contém o número da versão atual (modificado automaticamente pelo _make_)
 * makefile: o _script_ rodado pelo comando _make_
 * readme.txt
