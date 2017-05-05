@@ -18,7 +18,7 @@ Os mantenedores também estão sujeitos à política de anti-assédio.
 
 Se qualquer pessoa se enveredar em comportamento de assédio, incluindo mantenedores, tomaremos medidas apropriadas, desde um aviso ao ofensor, apagamento de comentários, remoção do mesmo do projeto e do sistema de comunicação, até escalar ao suporte do Github.
 
-Se você está sendo assediado(a), ou notar que alguém está sendo assediado, ou tem alguma outra preocupação, por favor contacte um membro do time ou o proprietario do repositório imediatamente.
+Se você está sendo assediado(a), ou notar que alguém está sendo assediado, ou tem alguma outra preocupação, por favor contacte um membro do time ou o proprietário do repositório imediatamente.
 
 Nós esperamos que todos sigam estas regras em quaisquer projetos no Github do BecoSystem, nos relatórios de bugs, salas de bate-papo, listas de discussões e outros meios de comunicação. 
 
@@ -62,7 +62,7 @@ If anyone engages in harassing behavior, including maintainers, we may take appr
 
 If you are being harassed, notice that someone else is being harassed, or have any other concerns, please contact a member of the core team or the owner of the repository immediately.
 
-We expect everyone to follow these rules anywhere in thoughtbot's project codebases, issue trackers, chatrooms, and mailing lists.
+We expect everyone to follow these rules anywhere in BecoSystems' project codebases, issue trackers, chatrooms, and mailing lists.
 
 Finally, don't forget that it is human to make mistakes! We all do. Let's work together to help each other, resolve issues, and learn from the mistakes that we will all inevitably make from time to time.
 
@@ -72,7 +72,7 @@ Thanks to the _ThoughBot Code of Conduct_, _CocoaPods Code of Conduct_, _Bundler
 
 ## License
 
-To the extent possible under law, the BecoSystems team has waived all copyright and related or neighboring rights to BecoSystems Code of Conduct. This work is published from the Brazil. 
+To the extent possible under law, the BecoSystems team has waived all copyright and related or neighboring rights to BecoSystems Code of Conduct. This work is published from Brazil. 
 
 * [Text Published as Public Domain License CC0 1.0 Universal](http://creativecommons.org/publicdomain/zero/1.0/)
 * [Original text reference](https://thoughtbot.com/open-source-code-of-conduct)
