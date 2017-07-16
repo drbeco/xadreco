@@ -258,6 +258,17 @@ a página de Odd Gunnar Malin.
 * Simplificar o processo de representação do tabuleiro
 * Simplificar a função minimax para usar sinal (+) para brancas e (-) para pretas sempre.
 
+----
+
+10- Compile (compilar)
+* Para compilar para linux:
+    - make xadreco
+* Para compilar para windows (em ambiente com gcc/linux instalado -- crosscompile)
+    - make xadreco.exe
+* Para compilar manualmente, com gcc:
+    - `gcc -Wall -Wextra -g -Og -c -std=gnu99 -DVERSION="\"5.83.170716.044243\"" -DBUILD="\"170716.044243\"" xadreco.c -o xadreco.o`
+    - `gcc -Wl,--defsym,BUILD_170716_044244=0 -lm -DVERSION="\"5.83.170716.044244\"" -DBUILD="\"170716.044244\"" xadreco.o -o xadreco`
+
 ------------------------
 
 Have Fun!
