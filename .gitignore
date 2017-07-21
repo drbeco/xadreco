@@ -1,0 +1,36 @@
+## C Executaveis
+*.out
+*.x
+*.bin
+*.xpt
+
+## C Objetos, bibliotecas, apoio
+*.o
+*.obj
+*.lib
+*.a
+*.dll
+*.so
+*.dump
+*.err
+*.swp
+*.debug
+
+## Latex e Doxygen
+*.aux
+*.log
+*.lof
+*.lot
+*.lol
+*.out
+*.toc
+*.dvi
+*.ps
+*.eps
+#*.pdf
+*.bbl
+*.blg
+
+## Linux / Debian / KDE / Dolphin
+.directory
+
