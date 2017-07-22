@@ -511,8 +511,7 @@ char compjoga (tabuleiro * tabu);
 //computer play. Call the opening book or the minimax functions.
 
 // funcoes -------------------------------------------------------------------------
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
     tabuleiro tabu;
     char feature[256];
@@ -776,8 +775,7 @@ void inicia_fics(void)
 }
 
 // mostra a lista de lances da tela, a melhor variante, e responde ao comando "hint"
-void
-mostra_lances (tabuleiro tabu)
+void mostra_lances (tabuleiro tabu)
 {
 //     struct movimento *pmovi, *loop;
 //     char m[80];
@@ -812,8 +810,7 @@ void libera_lances (movimento *cabeca)
 
 // imprime o movimento
 // funcao intermediaria chamada no intervalo humajoga / 'ga
-void
-imptab (tabuleiro tabu)
+void imptab (tabuleiro tabu)
 {
 //     int col, lin, casacor;
     //nao precisa se tem textbackground
@@ -852,8 +849,7 @@ imptab (tabuleiro tabu)
 
 }
 
-void
-lance2movi (char *m, int *l, int espec)
+void lance2movi (char *m, int *l, int espec)
 //int para char
 {
     int i;
@@ -887,8 +883,7 @@ lance2movi (char *m, int *l, int espec)
     }
 }
 
-int
-movi2lance (int *l, char *m)
+int movi2lance (int *l, char *m)
 //transforma char de entrada em int
 {
     int i;
@@ -908,22 +903,19 @@ movi2lance (int *l, char *m)
     return (1);
 }
 
-inline int
-adv (int vez)
+inline int adv (int vez)
 {
     return ((-1) * vez);
 }
 
-inline int
-sinal (int x)
+inline int sinal (int x)
 {
     if (!x)
         return (0);
     return (abs (x) / x);
 }
 
-void
-copitab (tabuleiro * dest, tabuleiro * font)
+void copitab (tabuleiro * dest, tabuleiro * font)
 {
     int i, j;
     for (i = 0; i < 8; i++)
@@ -1706,8 +1698,7 @@ int ataca (int cor, int col, int lin, tabuleiro tabu)
 }
 
 //fim de int ataca(int cor, int col, int lin, tabuleiro tabu)
-int
-xeque_rei_das (int cor, tabuleiro tabu)
+int xeque_rei_das (int cor, tabuleiro tabu)
 {
     int ilin, icol;
     for (ilin = 0; ilin < 8; ilin++) //roda linha
@@ -1726,8 +1717,7 @@ xeque_rei_das (int cor, tabuleiro tabu)
 
 // fim de int xeque_rei_das(int cor, tabuleiro tabu)
 
-char
-humajoga (tabuleiro * tabu)
+char humajoga (tabuleiro * tabu)
 //----------------------------------------------
 {
     char movinito[80];
@@ -2348,8 +2338,7 @@ movimento *valido (tabuleiro tabu, int *lanc)
 }
 
 //fim da valido
-int
-igual (int *l1, int *l2)
+int igual (int *l1, int *l2)
 //dois lances[4] sao iguais
 {
     int j;
@@ -2893,8 +2882,7 @@ void minimax (tabuleiro atual, int prof, int alfa, int beta, int niv)
         fprintf (fmini, "#\n#------------------------------------------END Minimax prof: %d", prof);
 }
 
-int
-profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
+int profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
 {
     char input;
 
@@ -2987,8 +2975,7 @@ profsuf (tabuleiro atual, int prof, int alfa, int beta, int niv)
     return 0;
 }
 
-char
-joga_em (tabuleiro * tabu, movimento movi, int cod)
+char joga_em (tabuleiro * tabu, movimento movi, int cod)
 {
     int i;
     char res;
@@ -4588,8 +4575,7 @@ void testajogo (char *movinito, int numero)
     printf ("%d:%s\n", (numero + 2) / 2, move);
 }
 
-void
-testapos (char *pieces, char *color, char *castle, char *enpassant,
+void testapos (char *pieces, char *color, char *castle, char *enpassant,
           char *halfmove, char *fullmove)
 //testa posicao
 {
@@ -4764,8 +4750,7 @@ int estatico_pmovi (tabuleiro tabu, movimento * cabeca)
 
 // pollinput() Emprestado do jogo de xadrez pepito: dica de Fabio Maia
 // pollinput() Borrowed from pepito: tip from Fabio Maia
-int
-pollinput (void)
+int pollinput (void)
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 // return true if there are some character in the buffer to be read
 {
@@ -4829,7 +4814,7 @@ char *build(void)
   const char smes[12][3]={"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
   int ano, mes, dia, hora, min, seg;
   /* double fv1, fv2; */
-  char sversion[]="20130910.001339";
+  static char sversion[]="20130910.001339";
 
   if(strlen(data)!=11||strlen(tempo)!=8)
 	return BUILD;
@@ -4840,8 +4825,8 @@ char *build(void)
   for(mes=0; mes<12; mes++)
 	if(!strncmp(smes[mes], data, 3))
 	  break;
-	if(mes==12)
-	  return BUILD;
+  if(mes==12)
+    return BUILD;
 
   hora=atoi(tempo);
   min=atoi(&tempo[3]);
