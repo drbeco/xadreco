@@ -338,7 +338,7 @@ int COMPUTER = 0;
 //int teminterroga = 0;
 //flag que diz que o comando "?" foi executado
 //flag to mark that command "?" run
-int KIBITZ = 0; /* 0:nada, 1:v>200 :), 2: v>100 :/, 3: -100<v<100 :|, 4: v<-100 :\, 5: v<-200 :( */
+int WHISPER = 0; /*0:nada, 1:v>200 :)), 2: v>100 :), 3: -100<v<100 :|, 4: v<-100 :(, 5: v<-200 :(( */
 
 // prototipos gerais ---------------------------------------------------------
 void imptab(tabuleiro tabu);
@@ -2620,47 +2620,47 @@ char compjoga(tabuleiro *tabu)
     {
         if(tabu->numero > 4) /* nao mostra nos primeiros lances */
         {
-            /*KIBITZ = 0:nada, 1:v>200 :), 2: v>100 :/, 3: -100<v<100 :|, 4: v<-100 :\, 5: v<-200 :( */
+            /*WHISPER = 0:nada, 1:v>200 :)), 2: v>100 :), 3: -100<v<100 :|, 4: v<-100 :(, 5: v<-200 :(( */
             if(result.valor > 200)
             {
-                if(KIBITZ != 1)
+                if(WHISPER != 1)
                 {
-                    printf("tellicsnoalias kibitz :)\n");
-                    KIBITZ = 1;
+                    printf("tellicsnoalias whisper :))\n");
+                    WHISPER = 1;
                 }
             }
             else
                 if(result.valor < -200)
                 {
-                    if(KIBITZ != 5)
+                    if(WHISPER != 5)
                     {
-                        printf("tellicsnoalias kibitz :(\n");
-                        KIBITZ = 5;
+                        printf("tellicsnoalias whisper :((\n");
+                        WHISPER = 5;
                     }
                 }
                 else
                     if(result.valor > 100)
                     {
-                        if(KIBITZ != 2)
+                        if(WHISPER != 2)
                         {
-                            printf("tellicsnoalias kibitz :/\n");
-                            KIBITZ = 2;
+                            printf("tellicsnoalias whisper :)\n");
+                            WHISPER = 2;
                         }
                     }
                     else
                         if(result.valor < -100)
                         {
-                            if(KIBITZ != 4)
+                            if(WHISPER != 4)
                             {
-                                printf("tellicsnoalias kibitz :\\\n");
-                                KIBITZ = 4;
+                                printf("tellicsnoalias whisper :(\n");
+                                WHISPER = 4;
                             }
                         }
                         else
-                            if(KIBITZ != 3)
+                            if(WHISPER != 3)
                             {
-                                printf("tellicsnoalias kibitz :|\n");
-                                KIBITZ = 3;
+                                printf("tellicsnoalias whisper :|\n");
+                                WHISPER = 3;
                             }
         }
     }
@@ -4480,7 +4480,7 @@ void inicia(tabuleiro *tabu)
     tbrancasac = 0.0; //tempo acumulado
     tpretasac = 0.0; //acumulated time
     tultimoinput = time(NULL); //pausa para nao fazer muito poll seguido
-    KIBITZ = 0; /* carinha feliz */
+    WHISPER = 0; /* carinha feliz */
 }
 
 //coloca as peoes na posicao inicial
