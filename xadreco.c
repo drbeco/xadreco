@@ -4824,7 +4824,7 @@ char *build(void)
     const char smes[12][3] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
     int ano, mes, dia, hora, min, seg;
     /* double fv1, fv2; */
-    static char sversion[] = "20130910.001339";
+    static char sversion[] = "19940819.001339";
 
     if(strlen(data) != 11 || strlen(tempo) != 8)
         return BUILD;
