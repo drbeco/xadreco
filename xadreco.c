@@ -526,11 +526,11 @@ int main(int argc, char *argv[])
     setbuf(stdout, NULL);
     setbuf(stdin, NULL);
     sprintf(feature, "%s%s%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 myname=\"Xadreco ", VERSION, "\" variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0");
-    printf("# Xadreco version %s, (C) 1994-2018, by Dr. Beco\n"
+    printf("# Xadreco version %s build %s (C) 1994-2018, by Dr. Beco\n"
            "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
            "# This is free software, and you are welcome to redistribute it "
            "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
-           "# for details.\n\n", VERSION);
+           "# for details.\n\n", VERSION, BUILD);
 
 
     scanf("%s", movinito);
@@ -1879,7 +1879,7 @@ char humajoga(tabuleiro *tabu)
         if(!strcmp(movinito, "version"))
         {
 //            if (debug) printf ("# tellopponent Xadreco v.%.2f Compilacao %f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n", version, build());
-            printf("tellopponent Xadreco v%s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION);
+            printf("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
             tente = 1;
             continue;
         }
@@ -4811,46 +4811,6 @@ int pollinput(void)
 //return true if there is a "?" command to move now
 //int moveagora(void)
 
-
-//VERSION.BUILD
-// data e hora da compilacao
-// date and time of compilation
-char *build(void)
-{
-    const char *data = __DATE__;
-    const char *tempo = __TIME__;
-    const char smes[12][3] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    int ano, mes, dia, hora, min, seg;
-    /* double fv1, fv2; */
-    static char sbuild[] = "19940819.001339";
-
-    if(strlen(data) != 11 || strlen(tempo) != 8)
-        return BUILD;
-
-    ano = atoi(&data[7]);
-    dia = atoi(&data[4]);
-
-    for(mes = 0; mes < 12; mes++)
-        if(!strncmp(smes[mes], data, 3))
-            break;
-    if(mes == 12)
-        return BUILD;
-
-    hora = atoi(tempo);
-    min = atoi(&tempo[3]);
-    seg = atoi(&tempo[6]);
-    sprintf(sbuild, "%04d%02d%02d.%02d%02d%02d", ano, mes + 1, dia, hora, min, seg);
-    /*
-    fv1=atof(sversion);
-    sprintf(sversion,"%04d%02d%02d,%02d%02d%02d", ano, mes+1, dia, hora, min, seg);
-    fv2=atof(sversion);
-    if(fv1>fv2)
-    return fv1;
-    else
-    return fv2;
-    */
-    return sbuild;
-}
 
 //    clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
 //    difclock = clock2 - clock1;

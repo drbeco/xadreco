@@ -7,16 +7,16 @@
 SHELL=/bin/bash -o pipefail
 
 MAJOR = 5
-MINOR = 83
+MINOR = 84
 BUILD = $(shell date +"%g%m%d.%H%M%S")
 DEFSYM = $(subst .,_,$(BUILD))
-VERSION = "\"$(MAJOR).$(MINOR).$(BUILD)\""
+VERSION = $(MAJOR).$(MINOR)
 CC = gcc
 CCW = i686-w64-mingw32-gcc 
 CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99 
 # -Wno-unused-variable -Wno-unused-function
 #CFLAGS = -Ofast -ansi -pedantic-errors
-CPPFLAGS = -DVERSION=$(VERSION) -DBUILD="\"$(BUILD)\""
+CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\""
 LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm
 #LDLIBS += -lgmp
 #OBJ = libeco-ux64.o
@@ -34,7 +34,7 @@ o = xadreco
 #binary ELF (Linux)
 $(o) : % : %.o $(OBJ)
 	$(CC) $(LDLIBS) $^ -o $@ |& tee errors.err
-	echo $(o) version $(VERSION) > VERSION
+	echo $(o) version \"$(VERSION).$(BUILD)\" > VERSION
 
 #binary EXE (Windows)
 %.exe : %.obj
