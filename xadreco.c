@@ -40,25 +40,17 @@
  * http://xadreco.beco.cc/                                                 *
  ***************************************************************************/
 
-#ifndef _WIN32
-#include <sys/select.h>
-#include <sys/time.h>
-#include <unistd.h>
-
-#define waits(s) sleep(s)
-
+#ifdef __linux
+    #include <sys/select.h>
+    #include <sys/time.h>
+    #include <unistd.h>
 #else
-
-#include <conio.h>
-#include <windows.h>
-#include <winbase.h>
-#include <wincon.h>
-#include <io.h>
-
-#define waits(s) Sleep(s*1000)
-
+    #include <conio.h>
+    #include <windows.h>
+    #include <winbase.h>
+    #include <wincon.h>
+    #include <io.h>
 #endif
-
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -68,12 +60,45 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <getopt.h> /* get options from system argc/argv */
+
+/* ---------------------------------------------------------------------- */
+/* definitions */
+
+#ifdef __linux
+    #define waits(s) sleep(s)
+#else
+    #define waits(s) Sleep(s*1000)
+#endif
+
+#ifdef __arm__
+    #warning raspberry pi detected
+#else
+    #warning not a raspberry pi, are you?
+#endif
+
+#ifndef VERSION /* gcc -DVERSION="0.1" */
+#define VERSION "5.84" /**< Version Number (string) */
+#endif
 
 #ifndef BUILD
 #define BUILD "19940819.190934"
 #endif
 #define TRUE 1
 #define FALSE 0
+
+/* Debug */
+#ifndef DEBUG /* gcc -DDEBUG=1 */
+#define DEBUG 0 /**< Activate/deactivate debug mode */
+#endif
+
+#if DEBUG==0
+#define NDEBUG
+#endif
+#include <assert.h> /* Verify assumptions with assert. Turn off with #define NDEBUG */ 
+
+/** @brief Debug message if DEBUG on */
+#define IFDEBUG(M) if(DEBUG) fprintf(stderr, "[DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
 
 #define TOTAL_MOVIMENTOS 60
 //estimativa da duracao do jogo
@@ -111,7 +136,7 @@
 #define AFOGOU -2
 //flagvf de geramov, so para retornar rapido com um lance valido ou NULL
 // dados ----------------------
-int debug = 1;
+int debug = 1; /* BUG: trocar por DEBUG */
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:debug, 2:debug minimax
 //0:do not save file xadreco.log, 1:save file, 2:minimax debug
 /* const float version = 5.84;  BUG FIX : substituido por VERSION  */
@@ -339,7 +364,12 @@ int COMPUTER = 0;
 //flag que diz que o comando "?" foi executado
 //flag to mark that command "?" run
 int WHISPER = 0; /*0:nada, 1:v>200 :)), 2: v>100 :), 3: -100<v<100 :|, 4: v<-100 :(, 5: v<-200 :(( */
+enum e_server {none, fics, lichess} server; /* Am I connected to someone, or stand alone? */
+int verb = 0; /* verbose variable */
+char bookfname[80]="livro.txt"; /* book file name */
 
+/* ---------------------------------------------------------------------- */
+/* general prototypes --------------------------------------------------------- */
 // prototipos gerais ---------------------------------------------------------
 void imptab(tabuleiro tabu);
 //imprime o tabuleiro
@@ -415,6 +445,12 @@ void inicia_fics(void);
 //get tourney, resume, seek games...
 char randommove(tabuleiro *tabu);
 // joga aleatorio!
+void help(void); 
+/* imprime o help e termina */
+/* print some help */
+void copyr(void); 
+/* imprime mensagem de copyright */
+/* print version and copyright information */
 
 // apoio xadrez -----------------------------------------------------
 int ataca(int cor, int col, int lin, tabuleiro tabu);
@@ -513,15 +549,69 @@ char compjoga(tabuleiro *tabu);
 // funcoes -------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
+    int opt; /* return from getopt() */
     tabuleiro tabu;
     char feature[256];
     char res;
-    char movinito[80] = ""; /* scanf : entrada de comandos ou lances */
-    int d2 = 0;
+    char movinito[80] = "waitxboard"; /* scanf : entrada de comandos ou lances */
+    int d2 = 0; /* wait for 2 dones */
 //    int joga; /* flag enquanto joga */
     struct tm *tmatual;
     char hora[] = "2013-12-03 00:28:21";
+    server = none;
 
+    IFDEBUG("Starting optarg loop...");
+
+    /* getopt() configured options:
+     *        -h  help
+     *        -V  version
+     *        -v  verbose
+     */
+    /* Usage: xadreco [-h|-v] [-c{none,fics,lichess}] [-r] [-x] [-b path/bookfile.txt] */
+    /* -r,  --random                  Xadreco plays random moves. */
+    /* -c,  --connection              none: no connection; fics: freeches.org; lichess: lichess.org*/
+    /* -x,  --xboard                  Gives 'xboard' keyword immediattely (protocol is xboard with or withour -x) */
+    /* -b path/bookfile.txt, --book   Sets the path for book file (not implemented) */
+    opterr = 0;
+    while((opt = getopt(argc, argv, "vhVrc:xb:")) != EOF)
+        switch(opt)
+        {
+            case 'h':
+                help();
+                break;
+            case 'V':
+                copyr();
+                break;
+            case 'v':
+                verb++;
+                break;
+            case 'r':
+                randomchess = 1;
+                break;
+            case 'c': /* kind of connection: none, fics, lichess */
+                if(!strcmp("fics", optarg))
+                    server = fics;
+                else if(!strcmp("lichess", optarg))
+                    server = lichess;
+                else
+                    server = none;
+                break;
+            case 'x': /* no wait for first xboard keyword */
+                strcpy(movinito, "xboard");
+                d2 = 2; /* don't wait for done */
+                break;
+            case 'b': /* book file name */
+                strcpy(bookfname, optarg);
+                break;
+            case '?':
+            default:
+                printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
+                return EXIT_FAILURE;
+        }
+
+    if(verb)
+        printf("#Verbose level set at: %d\n", verb);
+    
     //turn off buffers. Immediate input/output.
     setbuf(stdout, NULL);
     setbuf(stdin, NULL);
@@ -532,13 +622,16 @@ int main(int argc, char *argv[])
            "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
            "# for details.\n\n", VERSION, BUILD);
 
+    /* 'xboard': scanf if not there yet */
+    if(strcmp("xboard", movinito))
+        scanf("%s", movinito);
 
-    scanf("%s", movinito);
     if(strcmp(movinito, "xboard"))   // primeiro comando: xboard
     {
         printf("# xboard: %s\n", movinito);
         msgsai("# xadreco : xboard command missing.\n", 36);
     }
+    printf("\n"); /* output a newline when xboard comes in */
 
     printf("feature done=0\n");
     printf("%s\n", feature);
@@ -568,10 +661,6 @@ int main(int argc, char *argv[])
                 printf("# xboard: ignoring %s\n", movinito);
     }
     while(d2 < 2);
-
-    if(argc > 1)
-        if(!strcmp(argv[1], "-r"))
-            randomchess = 1;
 
     /* joga==0, fim. joga==1, novo lance. (joga==2, nova partida) */
     //------------------------------------------------------------------------------
@@ -4315,7 +4404,7 @@ void usalivro(tabuleiro tabu)
     int i = 0, sorteio;
     int novovalor;
     cabeca = NULL;
-    flivro = fopen("livro.txt", "r");
+    flivro = fopen(bookfname, "r");
     if(!flivro)
         USALIVRO = 0;
     else
@@ -4851,4 +4940,60 @@ char randommove(tabuleiro *tabu)
     return 'e'; // really empty!
 
 }
+
+
+/* ---------------------------------------------------------------------- */
+/**
+ * @ingroup GroupUnique
+ * @brief Prints help information and exit
+ * @details Prints help information (usually called by opt -h)
+ * @return Void
+ * @author Ruben Carlo Benante
+ * @version 20180622.184843
+ * @date 2018-06-22
+ *
+ */
+void help(void)
+{
+    IFDEBUG("help()");
+    printf("%s - %s\n", "Xadreco", "5.84, by Dr. Beco");
+    printf("\nUsage: xadreco [-h|-v] [-c{none,fics,lichess}] [-r] [-x] [-b path/bookfile.txt]\n");
+    printf("\nOptions:\n");
+    printf("\t-h,  --help\n\t\tShow this help.\n");
+    printf("\t-V,  --version\n\t\tShow version and copyright information.\n");
+    printf("\t-v,  --verbose\n\t\tSet verbose level (cumulative).\n");
+    /* add more options here */
+    printf("\t-r,  --random\n\t\tXadreco plays random moves.\n");
+    printf("\t-c,  --connection\n\t\tnone: no connection; fics: freeches.org; lichess: lichess.org\n");
+    printf("\t-x,  --xboard\n\t\tGives 'xboard' keyword immediattely (protocol is xboard with or withour -x)\n");
+    printf("\t-b path/bookfile.txt,  --book\n\t\tSets the path for book file (not implemented)\n");
+    printf("\nExit status:\n\t0 if ok.\n\t1 some error occurred.\n");
+    printf("\nTodo:\n\tLong options not implemented yet.\n");
+    printf("\nAuthor:\n\tWritten by %s <%s>\n\n", "Ruben Carlo Benante", "rcb@beco.cc");
+    exit(EXIT_FAILURE);
+}
+
+/* ---------------------------------------------------------------------- */
+/**
+ * @ingroup GroupUnique
+ * @brief Prints version and copyright information and exit
+ * @details Prints version and copyright information (usually called by opt -V)
+ * @return Void
+ * @author Ruben Carlo Benante
+ * @version 20180622.184843
+ * @date 2018-06-22
+ *
+ */
+void copyr(void)
+{
+    IFDEBUG("copyr()");
+    printf("%s - Version %s, build %s\n", "test", VERSION, BUILD);
+    printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2018, "Ruben Carlo Benante", "rcb@beco.cc");
+    if(verb > 3) printf("copyr(): Verbose: %d\n", verb); /* -vvvv */
+    exit(EXIT_FAILURE);
+}
+
+/* ---------------------------------------------------------------------------- */
+/* vi: set ai cin et ts=4 sw=4 tw=0 wm=0 fo=croqltn : C config for Vim modeline */
+/* Template by Dr. Beco <rcb at beco dot cc>  Version 20160714.153029           */
 
