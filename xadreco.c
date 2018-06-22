@@ -41,10 +41,12 @@
  ***************************************************************************/
 
 #ifdef __linux
+    #warning Linux detected
     #include <sys/select.h>
     #include <sys/time.h>
     #include <unistd.h>
 #else
+    #warning Not Linux detected (assuming Win32)
     #include <conio.h>
     #include <windows.h>
     #include <winbase.h>
