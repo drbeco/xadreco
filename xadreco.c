@@ -850,8 +850,8 @@ void imptab(tabuleiro tabu)
 
 }
 
-void lance2movi(char *m, int *l, int espec)
 //int para char
+void lance2movi(char *m, int *l, int espec)
 {
     int i;
     for(i = 0; i < 2; i++)
@@ -884,8 +884,8 @@ void lance2movi(char *m, int *l, int espec)
     }
 }
 
-int movi2lance(int *l, char *m)
 //transforma char de entrada em int
+int movi2lance(int *l, char *m)
 {
     int i;
     for(i = 0; i < 2; i++)
@@ -1726,8 +1726,8 @@ int xeque_rei_das(int cor, tabuleiro tabu)
 
 // fim de int xeque_rei_das(int cor, tabuleiro tabu)
 
-char humajoga(tabuleiro *tabu)
 //----------------------------------------------
+char humajoga(tabuleiro *tabu)
 {
     char movinito[80];
     //movimento ou comando entrado pelo usuario ou XBoard/WinBoard
@@ -2345,11 +2345,10 @@ movimento *valido(tabuleiro tabu, int *lanc)
         loop = auxloop;
     }
     return (pmovi);
-}
+} //fim da valido
 
-//fim da valido
-int igual(int *l1, int *l2)
 //dois lances[4] sao iguais
+int igual(int *l1, int *l2)
 {
     int j;
     for(j = 0; j < 4; j++)
@@ -4585,9 +4584,8 @@ void testajogo(char *movinito, int numero)
     printf("%d:%s\n", (numero + 2) / 2, move);
 }
 
-void testapos(char *pieces, char *color, char *castle, char *enpassant,
-              char *halfmove, char *fullmove)
 //testa posicao
+void testapos(char *pieces, char *color, char *castle, char *enpassant, char *halfmove, char *fullmove)
 {
     //      char *p1="
     //      char *p1="r3k2r/ppp3pp/4p3/2Bq4/3P2n1/6Q1/bK2PPPP/3R1B1R b kq - 0 18";
@@ -4760,9 +4758,9 @@ int estatico_pmovi(tabuleiro tabu, movimento *cabeca)
 
 // pollinput() Emprestado do jogo de xadrez pepito: dica de Fabio Maia
 // pollinput() Borrowed from pepito: tip from Fabio Maia
-int pollinput(void)
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 // return true if there are some character in the buffer to be read
+int pollinput(void)
 {
 #ifndef _WIN32
     static fd_set readfds;
@@ -4893,3 +4891,4 @@ char randommove(tabuleiro *tabu)
     return 'e'; // really empty!
 
 }
+
