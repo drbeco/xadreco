@@ -23,7 +23,9 @@ RANDOM ?= -1
 CONNECT ?= 3
 #NOWAIT=1: no wait for xboard command. NOWAIT=0: command line decides
 NOWAIT ?= 0
-CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG) -DRANDOM=$(RANDOM) -DCONNECT=$(CONNECT) -DNOWAIT=$(NOWAIT)
+#XDEBUG==0: command line. XDEBUG>0, fixed value
+XDEBUG ?= 0
+CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG) -DRANDOM=$(RANDOM) -DCONNECT=$(CONNECT) -DNOWAIT=$(NOWAIT) -DXDEBUG=$(XDEBUG)
 LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm
 #LDLIBS += -lgmp
 #OBJ = libeco-ux64.o

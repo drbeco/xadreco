@@ -115,6 +115,12 @@
 #ifndef NOWAIT
     #define NOWAIT 0
 #endif
+#ifndef XDEBUG
+    #define XDEBUG 0
+#endif
+#ifndef XDEBUGFOUT
+    #define XDEBUGFOUT stderr
+#endif
 
 #define TOTAL_MOVIMENTOS 60
 //estimativa da duracao do jogo
@@ -380,6 +386,7 @@ char bookfname[80]="livro.txt"; /* book file name */
 int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
 //0:do not save file xadreco.log, 1:save file, 2:minimax debug
+int pong; /* what to ping back */
 
 /* ---------------------------------------------------------------------- */
 /* general prototypes --------------------------------------------------------- */
@@ -468,6 +475,10 @@ void printfics(char *fmt, ...);
 /* print fics commands */
 void printdbg(int dbg, ...);
 /* print debug information  */
+void printf2(char *fmt, ...);
+/* print debug information  */
+void scanf2(char *movinito);
+/* le entrada padrao */
 
 // apoio xadrez -----------------------------------------------------
 int ataca(int cor, int col, int lin, tabuleiro tabu);
@@ -657,6 +668,11 @@ int main(int argc, char *argv[])
     d2 = 2; /* don't wait for done */
 #endif
 
+/* if XDEBUG<=0, command line -vvv..., otherwise debug=XDEBUG */
+#if XDEBUG > 0
+    debug = XDEBUG;
+#endif
+
     printdbg(debug, "# DEBUG MACRO compiled value: %d\n", DEBUG);
     printdbg(debug, "# Debug verbose level set at: %d\n", debug);
     printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess?"yes":"no", seed);
@@ -667,8 +683,6 @@ int main(int argc, char *argv[])
     //turn off buffers. Immediate input/output.
     setbuf(stdout, NULL);
     setbuf(stdin, NULL);
-    /* Xadreco 5.8 accepts Xboard Protocol V2 */
-    sprintf(feature, "%s%s%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 myname=\"Xadreco ", VERSION, "\" variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
     printdbg(debug, "# Xadreco version %s build %s (C) 1994-2018, by Dr. Beco\n"
            "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
            "# This is free software, and you are welcome to redistribute it\n"
@@ -677,25 +691,34 @@ int main(int argc, char *argv[])
 
     /* 'xboard': scanf if not there yet */
     if(strcmp("xboard", movinito))
-        scanf("%s", movinito);
+    /* { */
+        scanf2(movinito);
+        /* printdbg(debug, "# xboard: %s\n", movinito); */
+    /* } */
 
     if(strcmp(movinito, "xboard"))   // primeiro comando: xboard
     {
-        printdbg(debug, "# xboard: %s\n", movinito);
+        /* printdbg(debug, "# xboard: %s\n", movinito); */
         msgsai("# xadreco : xboard command missing.\n", 36);
     }
-    printf("\n"); /* output a newline when xboard comes in */
+    printf2("\n"); /* output a newline when xboard comes in */
+    waits(1);
 
-    printf("feature done=0\n");
-    printf("%s\n", feature);
-    printf("feature done=1\n");
+    /* Xadreco 5.8 accepts Xboard Protocol V2 */
+    sprintf(feature, "%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
+
+    printf2("feature done=0\n");
+    printf2("feature myname=\"Xadreco %s\"\n", VERSION);
+    printf2("%s\n", feature);
+    printf2("feature done=1\n");
 
     /* comandos que aparecem no inicio, terminando com done
      * ignorar todos exceto: quit e post, ate contar dois 'done'
      */
     while(d2 < 2)
     {
-        scanf("%s", movinito);
+        scanf2(movinito);
+        /* printdbg(debug, "# xboard: %s\n", movinito); */
 
         if(!strcmp(movinito, "quit"))
             msgsai("# Thanks for playing Xadreco.", 0);
@@ -703,17 +726,34 @@ int main(int argc, char *argv[])
         //new = novo jogo, brancas iniciam
         //hard, easy = liga/desliga pondering (pensar no tempo do oponente). Ainda nao implementado.
 
-        if(!strcmp(movinito, "post"))   //showthinking ou mostrapensando
+        if(!strcmp(movinito, "easy"))   //showthinking ou mostrapensando
         {
             analise = 0;
-            mostrapensando = 1;
-            printdbg(debug, "# xboard: post. Xadreco will show what its thinking. (1)\n");
+            mostrapensando = 0;
+            printdbg(debug, "# xboard: easy. Xadreco stop thinking. (1)\n");
         }
         else
-            if(!strcmp(movinito, "done"))
-                d2++;
+            if(!strcmp(movinito, "post"))   //showthinking ou mostrapensando
+            {
+                analise = 0;
+                mostrapensando = 1;
+                printdbg(debug, "# xboard: post. Xadreco will show what its thinking. (1)\n");
+            }
             else
-                printdbg(debug, "# xboard: ignoring %s\n", movinito);
+                if(!strcmp(movinito, "done"))
+                    d2++;
+                else
+                    if(!strcmp(movinito, "ping"))
+                    {
+                        scanf2(movinito);
+                        pong = atoi(movinito);
+                        printf2("pong %d\n", pong);
+                    }
+                    else
+                        if(!strcmp(movinito, "force")) /* lichess don't accept, goes by force */
+                            break;
+                        else
+                            printdbg(debug, "# xboard: ignoring %s\n", movinito);
     }
 
     /* joga==0, fim. joga==1, novo lance. (joga==2, nova partida) */
@@ -974,7 +1014,7 @@ void imptab(tabuleiro tabu)
             /* BUG:  tatual = time(NULL); //atualiza, pois a funcao difclocks() a atualiza tambem e pode ficar errada a conta */
 //            printf ("# xadreco : move %s (%ds)\n", movinito, (int)difclocks());
         }
-        printf("move %s\n", movinito);
+        printf2("move %s\n", movinito);
     }
     // estimar tempo de movimento em segundos:
     if(tpretasac > 5.0 && tbrancasac > 5.0)
@@ -1882,7 +1922,7 @@ char humajoga(tabuleiro *tabu)
     //     char peca;
     int tente;
     int lanc[4], moves, minutes;
-    double secs, incre;
+    double secs, osecs, incre=0.0;
     int i, j, k;
     //     int casacor;
     //nao precisa se tem textbackground
@@ -1890,11 +1930,12 @@ char humajoga(tabuleiro *tabu)
     char pieces[80], color[80], castle[80], enpassant[80], halfmove[80], fullmove[80]; //para testar uma posicao
     int testasim = 0, estat;
     movinito[79] = movinito[0] = '\0';
+    char *tc=NULL; /* time control has ":" */
 
     do
     {
         tente = 0;
-        scanf("%s", movinito);	//---------------- (*quase) Toda entrada do xboard
+        scanf2(movinito);	//---------------- (*quase) Toda entrada do xboard
 //        printdbg(debug, "# xboard: %s\n", movinito);
 
         if(!strcmp(movinito, "hint"))   // Dica
@@ -2023,7 +2064,7 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "version"))
         {
-//            printdbg(debug, "# tellopponent Xadreco v.%.2f Compilacao %f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n", version, build());
+            printdbg(debug, "tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
             printfics("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
             tente = 1;
             continue;
@@ -2096,9 +2137,9 @@ char humajoga(tabuleiro *tabu)
         //bug: pegou o rating, e agora faz o que com isso?
         if(!strcmp(movinito, "rating"))
         {
-            scanf("%s", movinito);
+            scanf2(movinito);
             myrating = atoi(movinito);
-            scanf("%s", movinito);
+            scanf2(movinito);
             opprating = atoi(movinito);
             printdbg(debug, "# xboard: myrating: %d opprating: %d\n", myrating, opprating);
             tente = 1;
@@ -2124,20 +2165,37 @@ char humajoga(tabuleiro *tabu)
         //5 min
         //0 inc
         //= 3000 milisec per mov
+        //or.... level 0 5:10 0
+        //0 moves, 5min and 10 seconds, 0=conventional (ignore)
         if(!strcmp(movinito, "level"))
         {
-            scanf("%s", movinito);
+            scanf2(movinito);
             moves = atoi(movinito);
-            scanf("%s", movinito);
-            minutes = atoi(movinito);
-            scanf("%s", movinito);
+
+            scanf2(movinito);
+            if((tc=strchr(movinito, ':'))!=NULL) /* tem : */
+            {
+                *tc = '\0';
+                minutes = atoi(movinito);
+                tc++;
+                secs = atof(tc);
+                secs += minutes*60.0;
+            }
+            else
+            {
+                minutes = atoi(movinito);
+                secs = minutes*60.0;
+            }
+
+            /* ultimo numero: incremento */
+            scanf2(movinito);
             incre = atof(movinito);
             if(moves <= 0)
                 moves = TOTAL_MOVIMENTOS;
-            if(minutes <= 0)
-                minutes = 0;
-            if(incre <= 0)
-                incre = 0;
+            if(secs <= 0.0) /* sem tempo inicial, considere 10s */
+                secs = 10.0;
+            if(incre <= 0.0)
+                incre = 0.0;
             //quantos minutos tenho para 40 lances?
             //tempomovclock = (40.0 * minutes) / (float)moves;
             //mais o incremento estimado para 40 lances.
@@ -2148,19 +2206,38 @@ char humajoga(tabuleiro *tabu)
             // ?? usar metade do tempo disponivel.
 //            tempomovtclock /= 2.0;
             //bug apesar de correto, esta gastando o dobro do tempo. Problema com as rotinas de apoio? Problema com o minimax que nao sabe retornar?
-            if(minutes == 0)
-            {
-                if(incre != 0.0)
-                    secs = 10.0; /* no start time, use 10s */
-                else //minutes == 0 && incre == 0; untimed
-                    secs = 30.0 * 60.0; /* no time, use 30 min */
-            }
+            if(minutes == 0 && secs <10.0 && incre <= 0.0)
+                secs = 30.0 * 60.0; /* no time, use 30 min */
             else //minutes !=0
-                secs = minutes * 60.0;
-            tempomovclockmax = secs / (float)moves + incre; //em segundos
+                secs += incre * TOTAL_MOVIMENTOS; /* incremento baseado em 40 lances */
+            tempomovclockmax = secs / (float)moves; //em segundos
             tempomovclock = tempomovclockmax; //+90)/2;
 
-            printdbg(debug, "# xadreco : %.1fs+%.1fs por %d lances: ajustado para st %f s por lance\n", secs, incre, moves, tempomovclock);
+            printdbg(debug, "# xadreco level: %.1fs+%.1fs por %d lances: ajustado para st %f s por lance\n", secs, incre, moves, tempomovclock);
+            tente = 1;
+            continue;
+        }
+
+        if(!strcmp(movinito, "time"))
+        {
+            scanf2(movinito);
+            secs = atof(movinito) / 100.0; /* seconds I have left */
+            scanf2(movinito); /* otim */
+            scanf2(movinito);
+            osecs = atof(movinito) / 100.0; /* opponent time left */
+
+            moves = TOTAL_MOVIMENTOS - tabu->numero; 
+            if(moves <= 0)
+                moves = 5;
+            if(incre>=0.0)
+            {
+                secs += incre * moves;
+                osecs += incre * moves;
+            }
+
+            tempomovclockmax = (secs / (float)moves) * (secs/osecs); //em segundos
+            tempomovclock = tempomovclockmax; //+90)/2;
+            printdbg(debug, "# xadreco time: meu: %.1fs opo:%.1fs, para %d lances: ajustado para st %f s por lance\n", secs, osecs, moves, tempomovclock);
             tente = 1;
             continue;
         }
@@ -2177,7 +2254,7 @@ char humajoga(tabuleiro *tabu)
             setboard = 1;
             //o jogo e editado
             //Posicao FEN
-            scanf("%s", movinito);  //trava se colocar uma posicao FEN invalida!
+            scanf2(movinito);  //trava se colocar uma posicao FEN invalida!
             if(!strcmp(movinito, "testpos"))   //xadreco command
             {
                 testasim = 1; //a posicao vem da funcao testapos, e nao de scanf()
@@ -2258,7 +2335,7 @@ char humajoga(tabuleiro *tabu)
             //Veja o que o sono faz no codigo da gente: (apertando ctrl-s para salvar... ainda bem que nao foi ctrl-z)
             //sssssssssss
             else
-                scanf("%s", movinito);
+                scanf2(movinito);
             printdbg(debug, "# xboard: %s\n", movinito);
             if(movinito[0] == 'w')
                 tabu->vez = brancas;
@@ -2268,7 +2345,7 @@ char humajoga(tabuleiro *tabu)
             if(testasim)
                 strcpy(movinito, castle);
             else
-                scanf("%s", movinito);  //Roque
+                scanf2(movinito);  //Roque
             printdbg(debug, "# xboard: %s\n", movinito);
             tabu->roqueb = 0; //nao pode mais
             tabu->roquep = 0; //nao pode mais
@@ -2296,7 +2373,7 @@ char humajoga(tabuleiro *tabu)
             if(testasim)
                 strcpy(movinito, enpassant);
             else
-                scanf("%s", movinito);  //En passant
+                scanf2(movinito);  //En passant
             printdbg(debug, "# xboard: %s\n", movinito);
             tabu->peao_pulou = -1; //nao pode
             if(!strchr(movinito, '-'))   //alguem pode
@@ -2304,17 +2381,23 @@ char humajoga(tabuleiro *tabu)
             if(testasim)
                 strcpy(movinito, halfmove);
             else
-                scanf("%s", movinito);  //Num. de movimentos (ply)
+                scanf2(movinito);  //Num. de movimentos (ply)
             printdbg(debug, "# xboard: %s\n", movinito);
             tabu->empate_50 = atoi(movinito);  //contador:quando chega a 50, empate.
             if(testasim)
                 strcpy(movinito, fullmove);
             else
-                scanf("%s", movinito);  //Num. de lances
+                scanf2(movinito);  //Num. de lances
             printdbg(debug, "# xboard: %s\n", movinito);
-            tabu->numero = 0; //mudou para ply.
-            //(atoi(movinito)-1)+0.3;
+            /* tabu->numero = 0; //mudou para ply. */
+            /* tabu->numero = (atoi(movinito)-1)+0.3; */
+
+            /* tabu->numero => 0, 1, 2, 3, 4, 5
+             * FEN          => 1, 1, 2, 2, 3, 3 */
+            tabu->numero = (atoi(movinito)-1)*2 + (tabu->vez == pretas?1:0);
             //inicia no 0.3 para indicar 0
+            /* ultimo resultado: - tudo certo, y troca vez */
+            /* ultimo_resultado[0] = 'y'; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) */
             ultimo_resultado[0] = '\0'; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
             res = situacao(*tabu);
             switch(res)
@@ -2348,8 +2431,10 @@ char humajoga(tabuleiro *tabu)
                     tabu->situa = 0;
             }
             USALIVRO = 0; // Baseado somente nos movimentos, nao na posicao.
-            imptab(*tabu);
+            primeiro = 'h';
+            segundo = 'h';
             insere_listab(*tabu);
+            imptab(*tabu);
             tente = 1;
             continue;
         }
@@ -2367,7 +2452,7 @@ char humajoga(tabuleiro *tabu)
             strcpy(completo, movinito);
             while(!strchr(movinito, '}'))
             {
-                scanf("%s", movinito);
+                scanf2(movinito);
                 strcat(completo, " ");
                 strcat(completo, movinito);
             }
@@ -2376,8 +2461,16 @@ char humajoga(tabuleiro *tabu)
             continue;
         }
 
-        if(!strcmp(movinito, "ping") || !strcmp(movinito, "san")
-                || !strcmp(movinito, "usermove") || !strcmp(movinito, "time")
+        if(!strcmp(movinito, "ping"))
+        {
+            scanf2(movinito);
+            pong = atoi(movinito);
+            printdbg(debug, "# xboard ping %d : xadreco pong %d\n", pong, pong);
+            tente = 1;
+            continue;
+        }
+
+        if(!strcmp(movinito, "san") || !strcmp(movinito, "usermove")
                 || !strcmp(movinito, "sigint") || !strcmp(movinito, "sigterm")
                 || !strcmp(movinito, "reuse") || !strcmp(movinito, "myname")
                 || !strcmp(movinito, "variants") || !strcmp(movinito, "colors")
@@ -5057,6 +5150,25 @@ void printfics(char *fmt, ...)
 }
 
 /* print debug information  */
+void printf2(char *fmt, ...)
+{
+    va_list args;
+    char sdbg[256];
+
+    if(DEBUG)
+    {
+        va_start(args, fmt);
+        sprintf(sdbg, "# %s", fmt);
+        vfprintf(XDEBUGFOUT, sdbg, args);
+        va_end(args);
+    }
+
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+}
+
+/* print debug information  */
 void printdbg(int dbg, ...)
 {
     va_list args;
@@ -5066,8 +5178,15 @@ void printdbg(int dbg, ...)
     fmt=va_arg(args, char *);
     /* if(dbg>DEBUG) */
     if(dbg)
-        vprintf(fmt, args);
+        vfprintf(XDEBUGFOUT, fmt, args);
     va_end(args);
+}
+
+/* le entrada padrao */
+void scanf2(char *movinito)
+{
+    scanf("%s", movinito);
+    printdbg(debug, "# scanf: %s\n", movinito);
 }
 
 /* ---------------------------------------------------------------------------- */
