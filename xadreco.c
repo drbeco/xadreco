@@ -694,7 +694,7 @@ int main(int argc, char *argv[])
     while(TRUE)
     {
         tatual = time(NULL);
-        // if(debug) printf ("# xadreco : Tempo atual %s", ctime(&tatual)); //ctime returns "\n"
+        // printdbg(debug, "# xadreco : Tempo atual %s", ctime(&tatual)); //ctime returns "\n"
         tmatual = localtime(&tatual); // convert time_t to struct tm
         strftime(hora, sizeof(hora), "%F %T", tmatual);
         if(tabu.numero == 2) //pretas jogou o primeiro. Relogios iniciam
@@ -830,11 +830,11 @@ int main(int argc, char *argv[])
                 else
                 {
 //                    printdbg(debug, "# case 'e' 732: Computador sem lances validos 1. Erro: 35\n");
-                    printf("# xadreco : Error. I don't know what to play... (main)\n");
+                    printdbg("# xadreco : Error. I don't know what to play... (main)\n");
                     res = randommove(&tabu);
                     if(res == 'e') //vazio mesmo! Nem aleatorio foi!
                     {
-                        printf("# xadreco : I really don't know what to play... resigning!\n");
+                        printdbg("# xadreco : I really don't know what to play... resigning!\n");
                         primeiro = segundo = 'h';
                         printf("resign");
                         if(primeiro == 'c')
@@ -853,7 +853,7 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        printf("# xadreco : Playing a random move (main)!\n");
+                        printdbg("# xadreco : Playing a random move (main)!\n");
                         res = joga_em(&tabu, *result.plance, 1);
                     }
                 }
@@ -933,8 +933,9 @@ void imptab(tabuleiro tabu)
     {
         if(debug)
         {
+            ;
 //            difclock = clock2 - clock1;
-            tatual = time(NULL); //atualiza, pois a funcao difclocks() a atualiza tambem e pode ficar errada a conta
+            /* BUG:  tatual = time(NULL); //atualiza, pois a funcao difclocks() a atualiza tambem e pode ficar errada a conta */
 //            printf ("# xadreco : move %s (%ds)\n", movinito, (int)difclocks());
         }
         printf("move %s\n", movinito);
@@ -1858,7 +1859,7 @@ char humajoga(tabuleiro *tabu)
     {
         tente = 0;
         scanf("%s", movinito);	//---------------- (*quase) Toda entrada do xboard
-//        if (debug) printf ("# xboard: %s\n", movinito);
+//        printdbg(debug, "# xboard: %s\n", movinito);
 
         if(!strcmp(movinito, "hint"))   // Dica
         {
@@ -1871,7 +1872,7 @@ char humajoga(tabuleiro *tabu)
             primeiro = 'h';
             segundo = 'h';
             tente = 1;
-            printf("# xboard: force. Xadreco is in force mode.\n");
+            printdbg("# xboard: force. Xadreco is in force mode.\n");
             continue;
         }
         if(!strcmp(movinito, "undo"))   // volta um movimento (ply)
@@ -1880,7 +1881,7 @@ char humajoga(tabuleiro *tabu)
             segundo = 'h';
             volta_lance(tabu);
             tente = 1;
-            printf("# xboard: undo. Back one ply. Xadreco is in force mode.\n");
+            printdbg("# xboard: undo. Back one ply. Xadreco is in force mode.\n");
             continue;
         }
         if(!strcmp(movinito, "remove"))   // volta dois movimentos == 1 lance
@@ -1888,7 +1889,7 @@ char humajoga(tabuleiro *tabu)
             volta_lance(tabu);
             volta_lance(tabu);
             tente = 1;
-            printf("# xboard: remove. Back one move.\n");
+            printdbg("# xboard: remove. Back one move.\n");
             continue;
         }
         if(!strcmp(movinito, "post"))   //showthinking ou mostrapensando
@@ -1896,14 +1897,14 @@ char humajoga(tabuleiro *tabu)
             analise = 0;
             mostrapensando = 1;
             tente = 1;
-            printf("# xboard: post. Xadreco will show what its thinking. (2)\n");
+            printdbg("# xboard: post. Xadreco will show what its thinking. (2)\n");
             continue;
         }
         if(!strcmp(movinito, "nopost"))   //no show thinking ou desliga o mostrapensando
         {
             mostrapensando = 0;
             tente = 1;
-            printf("# xboard: nopost. Xadreco will not show what its thinking.\n");
+            printdbg("# xboard: nopost. Xadreco will not show what its thinking.\n");
             continue;
         }
 //        if (!strcmp (movinito, "randomchess")) //randomchess: pensa ou joga ao acaso
@@ -1933,7 +1934,7 @@ char humajoga(tabuleiro *tabu)
 //                tente = 1;
 //                continue;
 //            }
-            printf("# xboard: analyze. Xadreco starts analyzing in force mode.\n");
+            printdbg("# xboard: analyze. Xadreco starts analyzing in force mode.\n");
             analise = 1;
             mostrapensando = 0;
             primeiro = 'h';
@@ -1946,7 +1947,7 @@ char humajoga(tabuleiro *tabu)
         {
             analise = 0;
             tente = 1;
-            printf("# xboard: exit. Xadreco stops analyzing.\n");
+            printdbg("# xboard: exit. Xadreco stops analyzing.\n");
             continue;
         }
         if(!strcmp(movinito, "draw"))   //aceitar empate? (o outro esta oferecendo)
@@ -1972,14 +1973,13 @@ char humajoga(tabuleiro *tabu)
                     //bugbug deve aceitar de outro computer se esta perdendo!
                     //so se perdendo 2 peoes (e nao esta jogando contra outra engine)
                 {
-                    if(debug)  //bug: eu era branca, e ele tinha dama aceitou empate.
-                        printf("# xadreco : draw accepted (HumaJ-1) %d  turn: %d\n", estat, tabu->vez);
+                    //bug: eu era branca, e ele tinha dama aceitou empate.
+                    printdbg(debug, "# xadreco : draw accepted (HumaJ-1) %d  turn: %d\n", estat, tabu->vez);
                     return ('c');
                 }
                 else
                 {
-                    if(debug)
-                        printf("# xadreco : draw rejected (HumaJ-2) %d  turn: %d\n", estat, tabu->vez);
+                    printdbg(debug, "# xadreco : draw rejected (HumaJ-2) %d  turn: %d\n", estat, tabu->vez);
                     tente = 1;
                     continue;
                 }
@@ -1987,7 +1987,7 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "version"))
         {
-//            if (debug) printf ("# tellopponent Xadreco v.%.2f Compilacao %f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n", version, build());
+//            printdbg(debug, "# tellopponent Xadreco v.%.2f Compilacao %f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n", version, build());
             printfics("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
             tente = 1;
             continue;
@@ -2223,8 +2223,7 @@ char humajoga(tabuleiro *tabu)
             //sssssssssss
             else
                 scanf("%s", movinito);
-            if(debug)
-                printf("# xboard: %s\n", movinito);
+            printdbg(debug, "# xboard: %s\n", movinito);
             if(movinito[0] == 'w')
                 tabu->vez = brancas;
             else
@@ -2234,8 +2233,7 @@ char humajoga(tabuleiro *tabu)
                 strcpy(movinito, castle);
             else
                 scanf("%s", movinito);  //Roque
-            if(debug)
-                printf("# xboard: %s\n", movinito);
+            printdbg(debug, "# xboard: %s\n", movinito);
             tabu->roqueb = 0; //nao pode mais
             tabu->roquep = 0; //nao pode mais
             if(!strchr(movinito, '-'))   //alguem pode
@@ -2263,8 +2261,7 @@ char humajoga(tabuleiro *tabu)
                 strcpy(movinito, enpassant);
             else
                 scanf("%s", movinito);  //En passant
-            if(debug)
-                printf("# xboard: %s\n", movinito);
+            printdbg(debug, "# xboard: %s\n", movinito);
             tabu->peao_pulou = -1; //nao pode
             if(!strchr(movinito, '-'))   //alguem pode
                 tabu->peao_pulou = movinito[0] - 'a'; //pulou 2 na coluna dada
@@ -2324,8 +2321,7 @@ char humajoga(tabuleiro *tabu)
         		{
                     scanf ("%s", movinito);
                     printf("pong %s",movinito);
-                    if (debug)
-        	            printf ("# pong %s\n", movinito);
+                    printdbg(debug, "# pong %s\n", movinito);
                     tente = 1;
                     continue;
         		}*/
@@ -2339,8 +2335,7 @@ char humajoga(tabuleiro *tabu)
                 strcat(completo, " ");
                 strcat(completo, movinito);
             }
-            if(debug)
-                printf("# xboard: %s\n", completo);
+            printdbg(debug, "# xboard: %s\n", completo);
             tente = 1;
             continue;
         }
@@ -2372,7 +2367,7 @@ char humajoga(tabuleiro *tabu)
         //e vai la embaixo jogar ele
         if(!movi2lance(lanc, movinito))   //se nao existe este lance
         {
-//            if (debug) printf ("# xadreco : Error (unknown command): %s\n", movinito);
+//            printdbg(debug, "# xadreco : Error (unknown command): %s\n", movinito);
             printf("Error (unknown command): %s\n", movinito);
             tente = 1;
             continue;
@@ -2380,7 +2375,7 @@ char humajoga(tabuleiro *tabu)
         pval = valido(*tabu, lanc);  //lanc eh int lanc[4]; cria pval com tudo preenchido
         if(pval == NULL)
         {
-//            if (debug) printf ("# xadreco : Illegal move: %s\n", movinito);
+//            printdbg(debug, "# xadreco : Illegal move: %s\n", movinito);
             printf("Illegal move: %s\n", movinito);
             tente = 1;
             continue;
@@ -2651,7 +2646,7 @@ char compjoga(tabuleiro *tabu)
 //                    printf ("# xadreco : ply score time nodes pv\n");
                     printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
                     imprime_linha(result.plance, tabu->numero + 1, -tabu->vez);
-//                    if (debug) printf ("# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
+//                    printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
                 }
                 // termino do laco infinito baseado no tempo
                 if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))   // termino do laco infinito baseado no tempo
@@ -2672,7 +2667,8 @@ char compjoga(tabuleiro *tabu)
     result.plance = copilistmov(melhorcaminho1);
     result.valor = melhorvalor1;
     //nivel extra de debug
-    if(debug == 2)(void) fclose(fmini);
+    if(debug == 2)
+        fclose(fmini);
     //Utilizado: ABANDONA==-2730, alterado quando contra outra engine
     if(result.valor < ABANDONA && ofereci <= 0)
     {
@@ -2803,8 +2799,8 @@ char analisa(tabuleiro *tabu)
 //        printf ("# xadreco : ply score time nodes pv\n");
         printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
         imprime_linha(result.plance, tabu->numero + 1, -tabu->vez);
-//        if (debug) printf ("# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d\n", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
-//        if (debug) printf ("# \n");
+//        printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d\n", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
+//        printdbg(debug, "# \n");
     }
     else
     {
@@ -2832,10 +2828,10 @@ char analisa(tabuleiro *tabu)
             {
 //                printf ("# xadreco : ply score time nodes pv\n");
                 printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
-//                if (debug) printf ("# xadreco : nv=%d value=%+.2f time=%ds nodos=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
+//                printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds nodos=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
                 imprime_linha(result.plance, tabu->numero + 1, -tabu->vez);
                 //1=numero do lance, 2=vez: pular impressao na tela
-//                if (debug)
+//                if(debug)
 //                {
 //                    if (result.plance == NULL)
 //                        printf ("# no moves\n");
@@ -2858,7 +2854,7 @@ char analisa(tabuleiro *tabu)
         }
     }
     if(debug == 2)          //nivel extra de debug
-        (void) fclose(fmini);
+        fclose(fmini);
     if(result.plance == NULL)
         //...apos o termino da partida, so pode-se usar edicao, undo, etc.
         //              msgsai("# Computador sem lances validos 3", 35);
@@ -2906,7 +2902,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         cabeca_succ = geramov(atual, &nmov);  //nmov==0, retorna todos validos
     }
     //succ==NULL se alguem ganhou ou empatou
-    //if (debug == 2) {
+    //if(debug == 2) {
     //fprintf(fmini, "\nsucc=geramov(): ");
     //imprime_linha(succ, 1, 2);
     //1=numero do lance, 2=vez: pular impressao na tela
@@ -3551,7 +3547,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //se estou melhor que a opcao do oponente, retorna a opcao do oponente
     /*    if (material - MARGEM_PREGUICA >= -beta)
         {
-            //      if (debug == 2)
+            //      if(debug == 2)
             //      fprintf (fmini, "material>=beta (%+.2f >= %+.2f)\n", material / 100.0,
             //               beta / 100.0);
             return (material - MARGEM_PREGUICA);
@@ -3559,7 +3555,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         //se o que ganhei e menor que minha outra opcao, retorna minha outra opcao
         if (material + MARGEM_PREGUICA <= -alfa)
         {
-            //      if (debug == 2)
+            //      if(debug == 2)
             //      fprintf (fmini, "material<=alfa (%+.2f >= %+.2f)\n", material / 100.0,
             //               alfa / 100.0);
             return (material + MARGEM_PREGUICA);
@@ -4743,9 +4739,9 @@ void imprime_linha(movimento *loop, int numero, int tabuvez)
     num = (int)((numero + 1.0) / 2.0);
     vez = tabuvez;
 //    fimprime = NULL;
-//    if (debug == 2)
+//    if(debug == 2)
 //        fimprime = fmini;
-//    if (debug == 1)
+//    if(debug == 1)
 //        fimprime = fsaida;
     printf("# ");
     while(loop != NULL)
