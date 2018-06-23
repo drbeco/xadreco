@@ -1997,7 +1997,7 @@ char humajoga(tabuleiro *tabu)
             nivel = (int)(movinito[3] - '0');
             nivel = (nivel > 6 || nivel < 0) ? 2 : nivel;
             tente = 1;
-            printf("# xboard: sd. Xadreco is set deep %d\n", nivel);
+            printdbg(debug, "# xboard: sd. Xadreco is set deep %d\n", nivel);
             continue;
         }
         if(!strcmp(movinito, "go"))   //troca de lado e joga. (o mesmo que "adv")
@@ -2006,13 +2006,13 @@ char humajoga(tabuleiro *tabu)
             {
                 primeiro = 'c';
                 segundo = 'h';
-                printf("# xboard: go. Xadreco is now white.\n");
+                printdbg(debug, "# xboard: go. Xadreco is now white.\n");
             }
             else
             {
                 primeiro = 'h';
                 segundo = 'c';
-                printf("# xboard: go. Xadreco is now black.\n");
+                printdbg(debug, "# xboard: go. Xadreco is now black.\n");
             }
             return ('y'); //retorna para jogar ou humano ou computador.
         }
@@ -2022,13 +2022,13 @@ char humajoga(tabuleiro *tabu)
             {
                 primeiro = 'h';
                 segundo = 'c';
-                printf("# xboard: playother. Xadreco is now black.\n");
+                printdbg(debug, "# xboard: playother. Xadreco is now black.\n");
             }
             else
             {
                 primeiro = 'c';
                 segundo = 'h';
-                printf("# xboard: playother. Xadreco is now white.\n");
+                printdbg(debug, "# xboard: playother. Xadreco is now white.\n");
             }
             tente = 1;
             continue;
@@ -2039,12 +2039,12 @@ char humajoga(tabuleiro *tabu)
             ABANDONA = -LIMITE; //nao abandona nunca
             COMPUTER = 1;
             tente = 1;
-            printf("# xboard: computer. Xadreco now knows its playing against another engine.\n");
+            printdbg(debug, "# xboard: computer. Xadreco now knows its playing against another engine.\n");
             continue;
         }
         if(!strcmp(movinito, "new"))   //novo jogo
         {
-            printf("# xboard: new. Xadreco sets the board in initial position.\n");
+            printdbg(debug, "# xboard: new. Xadreco sets the board in initial position.\n");
             return ('w');
         }
         if(!strcmp(movinito, "resign"))
@@ -2064,7 +2064,7 @@ char humajoga(tabuleiro *tabu)
             myrating = atoi(movinito);
             scanf("%s", movinito);
             opprating = atoi(movinito);
-            printf("# xboard: myrating: %d opprating: %d\n", myrating, opprating);
+            printdbg(debug, "# xboard: myrating: %d opprating: %d\n", myrating, opprating);
             tente = 1;
             continue;
         }
@@ -2130,7 +2130,7 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "setboard"))   //funciona no prompt tambem
         {
-            printf("# xboard: setboard. Xadreco will set a board position.\n");
+            printdbg(debug, "# xboard: setboard. Xadreco will set a board position.\n");
 //            if (setboard == -1)
 //            {
 //                setboard = 0;
@@ -2358,7 +2358,7 @@ char humajoga(tabuleiro *tabu)
                 || !strcmp(movinito, "?"))
         {
             tente = 1;
-            printf("# xboard: ignoring a valid command %s\n", movinito);
+            printdbg(debug, "# xboard: ignoring a valid command %s\n", movinito);
             continue;
         }
         if(!strcmp(movinito, "t"))
@@ -2653,7 +2653,7 @@ char compjoga(tabuleiro *tabu)
                 {
                     if(result.plance == NULL)
                     {
-                        printf("# compjoga 2898: Sem lances; difclocks()>tempomovclock; result.plance==NULL; (!break);\n");
+                        printdbg(debug, "# compjoga 2898: Sem lances; difclocks()>tempomovclock; result.plance==NULL; (!break);\n");
                         // nv--; /* testar se pode rodar de novo o mesmo nivel e ter lance */
                         // antigo: if(dif) break! retirar o else.
                     }
@@ -2714,7 +2714,7 @@ char compjoga(tabuleiro *tabu)
         res = randommove(tabu);
         if(res == 'e')
             return res; //vazio mesmo! Nem aleatorio foi!
-        printf("# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
+        printdbg(debug, "# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
     }
     res = joga_em(tabu, *result.plance, 1);  // computador joga
     //vez da outra cor jogar. retorna a situacao(*tabu)
@@ -4743,7 +4743,7 @@ void imprime_linha(movimento *loop, int numero, int tabuvez)
 //        fimprime = fmini;
 //    if(debug == 1)
 //        fimprime = fsaida;
-    printf("# ");
+    printdbg(debug, "# ");
     while(loop != NULL)
     {
         lance2movi(m, loop->lance, loop->especial);
@@ -4952,7 +4952,7 @@ char randommove(tabuleiro *tabu)
         libera_lances(cabeca_succ);  //BUG era succ_geral, virou succ, agora eh cabeca_succ
         return '-'; //ok
     } //else succ!=NULL
-    printf("# empty from randommove\n");
+    printdbg(debug, "# empty from randommove\n");
     return 'e'; // really empty!
 
 }
