@@ -6,8 +6,9 @@
 .PRECIOUS: %.o
 SHELL=/bin/bash -o pipefail
 
-MAJOR = 5
-MINOR = 84
+MAJOR ?= 5
+MINOR ?= 84
+DEBUG ?= 0
 BUILD = $(shell date +"%g%m%d.%H%M%S")
 DEFSYM = $(subst .,_,$(BUILD))
 VERSION = $(MAJOR).$(MINOR)
@@ -16,7 +17,7 @@ CCW = i686-w64-mingw32-gcc
 CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99 
 # -Wno-unused-variable -Wno-unused-function
 #CFLAGS = -Ofast -ansi -pedantic-errors
-CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\""
+CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG)
 LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm
 #LDLIBS += -lgmp
 #OBJ = libeco-ux64.o
