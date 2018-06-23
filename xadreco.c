@@ -2209,7 +2209,7 @@ char humajoga(tabuleiro *tabu)
             if(minutes == 0 && secs <10.0 && incre <= 0.0)
                 secs = 30.0 * 60.0; /* no time, use 30 min */
             else //minutes !=0
-                secs += incre * TOTAL_MOVIMENTOS; /* incremento baseado em 40 lances */
+                secs += incre * TOTAL_MOVIMENTOS; /* incremento baseado em 60 lances */
             tempomovclockmax = secs / (float)moves; //em segundos
             tempomovclock = tempomovclockmax; //+90)/2;
 
@@ -2226,7 +2226,7 @@ char humajoga(tabuleiro *tabu)
             scanf2(movinito);
             osecs = atof(movinito) / 100.0; /* opponent time left */
 
-            moves = TOTAL_MOVIMENTOS - tabu->numero; 
+            moves = TOTAL_MOVIMENTOS - tabu->numero/2; 
             if(moves <= 0)
                 moves = 5;
             if(incre>=0.0)
