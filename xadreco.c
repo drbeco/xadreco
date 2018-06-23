@@ -589,6 +589,8 @@ int main(int argc, char *argv[])
     int seed=0;
     server = none;
 
+    srand(time(NULL)+getpid());
+
     IFDEBUG("Starting optarg loop...");
 
     /* getopt() configured options:
@@ -618,8 +620,6 @@ int main(int argc, char *argv[])
                 seed = atoi(optarg);
                 if(seed)
                     srand(seed);
-                else
-                    srand(time(NULL));
                 randomchess = 1;
                 break;
             case 'c': /* kind of connection: none, fics, lichess */
@@ -649,8 +649,6 @@ int main(int argc, char *argv[])
     seed = RANDOM;
     if(seed)
         srand(seed);
-    else
-        srand(time(NULL));
     randomchess = 1;
 #endif
 #if RANDOM < -1
@@ -4643,13 +4641,13 @@ float rand_minmax(float min, float max)
     //      time_t t;
     //      t=time(NULL);
     //      s = cloock()*10000/CLOCKS_PER_SEC; // retorna cloock em milesimos de segundos...
-    static int ini = 1;
-    if(ini)
-    {
-        srand((unsigned)(clock() * 100 / CLOCKS_PER_SEC + time(NULL)));
+    /* static int ini = 1; */
+    /* if(ini) */
+    /* { */
+        /* srand((unsigned)(clock() * 100 / CLOCKS_PER_SEC + time(NULL))); */
         //+(unsigned) time(&t));
-        ini--;
-    }
+        /* ini--; */
+    /* } */
     sorteio = (float)(rand() % 2719);
     //rand retorna entre 0 e RAND_MAX;
     sorteio /= 2718.281828459;
