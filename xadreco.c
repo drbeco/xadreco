@@ -63,6 +63,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h> /* get options from system argc/argv */
+#include <stdarg.h> /* function with multiple arguments */
 
 /* ---------------------------------------------------------------------- */
 /* definitions */
@@ -79,6 +80,8 @@
     #warning not a raspberry pi, are you?
 #endif
 
+//Versao do programa
+//program version
 #ifndef VERSION /* gcc -DVERSION="0.1" */
 #define VERSION "5.84" /**< Version Number (string) */
 #endif
@@ -91,16 +94,16 @@
 
 /* Debug */
 #ifndef DEBUG /* gcc -DDEBUG=1 */
-#define DEBUG 0 /**< Activate/deactivate debug mode */
+    #define DEBUG 0 /**< Activate/deactivate debug mode */
 #endif
 
 #if DEBUG==0
-#define NDEBUG
+    #define NDEBUG
 #endif
 #include <assert.h> /* Verify assumptions with assert. Turn off with #define NDEBUG */ 
 
 /** @brief Debug message if DEBUG on */
-#define IFDEBUG(M) if(DEBUG) fprintf(stderr, "[DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
+#define IFDEBUG(M) if(DEBUG) fprintf(stderr, "# [DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
 
 #define TOTAL_MOVIMENTOS 60
 //estimativa da duracao do jogo
@@ -138,12 +141,6 @@
 #define AFOGOU -2
 //flagvf de geramov, so para retornar rapido com um lance valido ou NULL
 // dados ----------------------
-int debug = 1; /* BUG: trocar por DEBUG */
-//coloque zero para evitar gravar arquivo. 0:sem debug, 1:debug, 2:debug minimax
-//0:do not save file xadreco.log, 1:save file, 2:minimax debug
-/* const float version = 5.84;  BUG FIX : substituido por VERSION  */
-//Versao do programa
-//program version
 
 typedef struct stabuleiro
 {
@@ -367,8 +364,11 @@ int COMPUTER = 0;
 //flag to mark that command "?" run
 int WHISPER = 0; /*0:nada, 1:v>200 :)), 2: v>100 :), 3: -100<v<100 :|, 4: v<-100 :(, 5: v<-200 :(( */
 enum e_server {none, fics, lichess} server; /* Am I connected to someone, or stand alone? */
-int verb = 0; /* verbose variable */
 char bookfname[80]="livro.txt"; /* book file name */
+/* int verb = 0; /1* verbose variable *1/ */
+int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
+//coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
+//0:do not save file xadreco.log, 1:save file, 2:minimax debug
 
 /* ---------------------------------------------------------------------- */
 /* general prototypes --------------------------------------------------------- */
@@ -453,6 +453,10 @@ void help(void);
 void copyr(void); 
 /* imprime mensagem de copyright */
 /* print version and copyright information */
+void printfics(char *fmt, ...);
+/* print fics commands */
+void printdbg(int dbg, ...);
+/* print debug information  */
 
 // apoio xadrez -----------------------------------------------------
 int ataca(int cor, int col, int lin, tabuleiro tabu);
@@ -555,11 +559,12 @@ int main(int argc, char *argv[])
     tabuleiro tabu;
     char feature[256];
     char res;
-    char movinito[80] = "waitxboard"; /* scanf : entrada de comandos ou lances */
+    char movinito[80] = "wait_xboard"; /* scanf : entrada de comandos ou lances */
     int d2 = 0; /* wait for 2 dones */
 //    int joga; /* flag enquanto joga */
     struct tm *tmatual;
     char hora[] = "2013-12-03 00:28:21";
+    int seed=0;
     server = none;
 
     IFDEBUG("Starting optarg loop...");
@@ -570,12 +575,12 @@ int main(int argc, char *argv[])
      *        -v  verbose
      */
     /* Usage: xadreco [-h|-v] [-c{none,fics,lichess}] [-r] [-x] [-b path/bookfile.txt] */
-    /* -r,  --random                  Xadreco plays random moves. */
+    /* -r seed,  --random seed        Xadreco plays random moves. Initializes seed. If seed=0, 'true' random */
     /* -c,  --connection              none: no connection; fics: freeches.org; lichess: lichess.org*/
     /* -x,  --xboard                  Gives 'xboard' keyword immediattely (protocol is xboard with or withour -x) */
     /* -b path/bookfile.txt, --book   Sets the path for book file (not implemented) */
     opterr = 0;
-    while((opt = getopt(argc, argv, "vhVrc:xb:")) != EOF)
+    while((opt = getopt(argc, argv, "vhVr:c:xb:")) != EOF)
         switch(opt)
         {
             case 'h':
@@ -585,9 +590,14 @@ int main(int argc, char *argv[])
                 copyr();
                 break;
             case 'v':
-                verb++;
+                debug++;
                 break;
             case 'r':
+                seed = atoi(optarg);
+                if(seed)
+                    srand(seed);
+                else
+                    srand(time(NULL));
                 randomchess = 1;
                 break;
             case 'c': /* kind of connection: none, fics, lichess */
@@ -611,16 +621,21 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
         }
 
-    if(verb)
-        printf("#Verbose level set at: %d\n", verb);
+    printdbg(debug, "# DEBUG MACRO compiled value: %d\n", DEBUG);
+    printdbg(debug, "# Debug verbose level set at: %d\n", debug);
+    printdbg(debug, "# seed: -r %d\n", seed);
+    printdbg(debug, "# connection: -c %s\n", !server?"none":server==1?"fics":"lichess");
+    printdbg(debug, "# wait: -x %s\n", movinito);
+    printdbg(debug, "# book: -b %s\n", bookfname);
     
     //turn off buffers. Immediate input/output.
     setbuf(stdout, NULL);
     setbuf(stdin, NULL);
-    sprintf(feature, "%s%s%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 myname=\"Xadreco ", VERSION, "\" variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0");
-    printf("# Xadreco version %s build %s (C) 1994-2018, by Dr. Beco\n"
+    /* Xadreco 5.8 accepts Xboard Protocol V2 */
+    sprintf(feature, "%s%s%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=0 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 myname=\"Xadreco ", VERSION, "\" variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
+    printdbg(debug, "# Xadreco version %s build %s (C) 1994-2018, by Dr. Beco\n"
            "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
-           "# This is free software, and you are welcome to redistribute it "
+           "# This is free software, and you are welcome to redistribute it\n"
            "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
            "# for details.\n\n", VERSION, BUILD);
 
@@ -630,7 +645,7 @@ int main(int argc, char *argv[])
 
     if(strcmp(movinito, "xboard"))   // primeiro comando: xboard
     {
-        printf("# xboard: %s\n", movinito);
+        printdbg(debug, "# xboard: %s\n", movinito);
         msgsai("# xadreco : xboard command missing.\n", 36);
     }
     printf("\n"); /* output a newline when xboard comes in */
@@ -639,8 +654,10 @@ int main(int argc, char *argv[])
     printf("%s\n", feature);
     printf("feature done=1\n");
 
-    /* comandos que aparecem no inicio */
-    do
+    /* comandos que aparecem no inicio, terminando com done
+     * ignorar todos exceto: quit e post, ate contar dois 'done'
+     */
+    while(d2 < 2)
     {
         scanf("%s", movinito);
 
@@ -654,15 +671,14 @@ int main(int argc, char *argv[])
         {
             analise = 0;
             mostrapensando = 1;
-            printf("# xboard: post. Xadreco will show what its thinking. (1)\n");
+            printdbg(debug, "# xboard: post. Xadreco will show what its thinking. (1)\n");
         }
         else
             if(!strcmp(movinito, "done"))
                 d2++;
             else
-                printf("# xboard: ignoring %s\n", movinito);
+                printdbg(debug, "# xboard: ignoring %s\n", movinito);
     }
-    while(d2 < 2);
 
     /* joga==0, fim. joga==1, novo lance. (joga==2, nova partida) */
     //------------------------------------------------------------------------------
@@ -670,7 +686,8 @@ int main(int argc, char *argv[])
     inicia(&tabu);  // zera variaveis
     coloca_pecas(&tabu);  //coloca pecas na posicao inicial
     insere_listab(tabu);
-    inicia_fics();
+    if(server==fics)
+        inicia_fics();
     //------------------------------------------------------------------------------
     //joga_novamente: (play another move)
 
@@ -719,7 +736,8 @@ int main(int argc, char *argv[])
                 inicia(&tabu);  // zera variaveis
                 coloca_pecas(&tabu);  //coloca pecas na posicao inicial
                 insere_listab(tabu);
-                inicia_fics();
+                if(server==fics)
+                    inicia_fics();
                 break;
 //                    continue;
             case '*':
@@ -858,11 +876,11 @@ int main(int argc, char *argv[])
 void inicia_fics(void)
 {
     waits(10); /* bug: trocar por espera que nao prende a engine */
-    printf("tellicsnoalias tell mamer gettourney blitz\n");
-    printf("tellicsnoalias resume\n");
-    printf("tellicsnoalias seek 2 1 f m\n");
-    printf("tellicsnoalias seek 5 5 f m\n");
-    printf("tellicsnoalias seek 10 10 f m\n");
+    printfics("tellicsnoalias tell mamer gettourney blitz\n");
+    printfics("tellicsnoalias resume\n");
+    printfics("tellicsnoalias seek 2 1 f m\n");
+    printfics("tellicsnoalias seek 5 5 f m\n");
+    printfics("tellicsnoalias seek 10 10 f m\n");
 }
 
 // mostra a lista de lances da tela, a melhor variante, e responde ao comando "hint"
@@ -1970,7 +1988,7 @@ char humajoga(tabuleiro *tabu)
         if(!strcmp(movinito, "version"))
         {
 //            if (debug) printf ("# tellopponent Xadreco v.%.2f Compilacao %f para XBoard/WinBoard, baseado no Algoritmo Minimax, por Ruben Carlo Benante, 22/10/04.\n", version, build());
-            printf("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
+            printfics("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
             tente = 1;
             continue;
         }
@@ -2714,7 +2732,7 @@ char compjoga(tabuleiro *tabu)
             {
                 if(WHISPER != 1)
                 {
-                    printf("tellicsnoalias whisper :))\n");
+                    printfics("tellicsnoalias whisper :))\n");
                     WHISPER = 1;
                 }
             }
@@ -2723,7 +2741,7 @@ char compjoga(tabuleiro *tabu)
                 {
                     if(WHISPER != 5)
                     {
-                        printf("tellicsnoalias whisper :((\n");
+                        printfics("tellicsnoalias whisper :((\n");
                         WHISPER = 5;
                     }
                 }
@@ -2732,7 +2750,7 @@ char compjoga(tabuleiro *tabu)
                     {
                         if(WHISPER != 2)
                         {
-                            printf("tellicsnoalias whisper :)\n");
+                            printfics("tellicsnoalias whisper :)\n");
                             WHISPER = 2;
                         }
                     }
@@ -2741,14 +2759,14 @@ char compjoga(tabuleiro *tabu)
                         {
                             if(WHISPER != 4)
                             {
-                                printf("tellicsnoalias whisper :(\n");
+                                printfics("tellicsnoalias whisper :(\n");
                                 WHISPER = 4;
                             }
                         }
                         else
                             if(WHISPER != 3)
                             {
-                                printf("tellicsnoalias whisper :|\n");
+                                printfics("tellicsnoalias whisper :|\n");
                                 WHISPER = 3;
                             }
         }
@@ -4518,12 +4536,12 @@ float rand_minmax(float min, float max)
 //termina o programa
 void sai(int error)
 {
-    printf("# xadreco : sai ( %d )\n", error);
+    printdbg(debug, "# xadreco : sai ( %d )\n", error);
     libera_lances(result.plance);
     result.plance = NULL;
     retira_tudo_listab();     //zera a lista de tabuleiros
     if(error != 36) // faltou comando xboard
-        printf("tellicsnoalias exit\n");
+        printfics("tellicsnoalias exit\n");
     exit(error);
 }
 
@@ -4637,9 +4655,9 @@ void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, 
 
 void msgsai(char *msg, int error)  //aborta programa por falta de memoria
 {
-    printf("# xadreco : %s\n", msg);
+    printdbg(debug, "# xadreco : %s\n", msg);
     if(debug)
-        printf("tellicsnoalias tell beco %s\n", msg);
+        printfics("tellicsnoalias tell beco %s\n", msg);
     sai(error);
 }
 
@@ -4965,7 +4983,7 @@ void help(void)
     printf("\t-V,  --version\n\t\tShow version and copyright information.\n");
     printf("\t-v,  --verbose\n\t\tSet verbose level (cumulative).\n");
     /* add more options here */
-    printf("\t-r,  --random\n\t\tXadreco plays random moves.\n");
+    printf("\t-r seed,  --random seed\n\t\tXadreco plays random moves. Initializes seed. If seed=0, 'true' random.\n");
     printf("\t-c,  --connection\n\t\tnone: no connection; fics: freeches.org; lichess: lichess.org\n");
     printf("\t-x,  --xboard\n\t\tGives 'xboard' keyword immediattely (protocol is xboard with or withour -x)\n");
     printf("\t-b path/bookfile.txt,  --book\n\t\tSets the path for book file (not implemented)\n");
@@ -4989,10 +5007,35 @@ void help(void)
 void copyr(void)
 {
     IFDEBUG("copyr()");
-    printf("%s - Version %s, build %s\n", "test", VERSION, BUILD);
+    printf("%s - Version %s, build %s\n", "Xadreco", VERSION, BUILD);
     printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2018, "Ruben Carlo Benante", "rcb@beco.cc");
-    if(verb > 3) printf("copyr(): Verbose: %d\n", verb); /* -vvvv */
+    if(debug > 3) printf("copyr(): Verbose: %d\n", debug); /* -vvvv */
     exit(EXIT_FAILURE);
+}
+
+/* print fics commands */
+void printfics(char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    if(server==fics)
+        vprintf(fmt, args);
+    va_end(args);
+}
+
+/* print debug information  */
+void printdbg(int dbg, ...)
+{
+    va_list args;
+    char *fmt;
+
+    va_start(args, dbg);
+    fmt=va_arg(args, char *);
+    /* if(dbg>DEBUG) */
+    if(dbg)
+        vprintf(fmt, args);
+    va_end(args);
 }
 
 /* ---------------------------------------------------------------------------- */
