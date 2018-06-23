@@ -830,11 +830,11 @@ int main(int argc, char *argv[])
                 else
                 {
 //                    printdbg(debug, "# case 'e' 732: Computador sem lances validos 1. Erro: 35\n");
-                    printdbg("# xadreco : Error. I don't know what to play... (main)\n");
+                    printdbg(debug, "# xadreco : Error. I don't know what to play... (main)\n");
                     res = randommove(&tabu);
                     if(res == 'e') //vazio mesmo! Nem aleatorio foi!
                     {
-                        printdbg("# xadreco : I really don't know what to play... resigning!\n");
+                        printdbg(debug, "# xadreco : I really don't know what to play... resigning!\n");
                         primeiro = segundo = 'h';
                         printf("resign");
                         if(primeiro == 'c')
@@ -853,7 +853,7 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        printdbg("# xadreco : Playing a random move (main)!\n");
+                        printdbg(debug, "# xadreco : Playing a random move (main)!\n");
                         res = joga_em(&tabu, *result.plance, 1);
                     }
                 }
@@ -1872,7 +1872,7 @@ char humajoga(tabuleiro *tabu)
             primeiro = 'h';
             segundo = 'h';
             tente = 1;
-            printdbg("# xboard: force. Xadreco is in force mode.\n");
+            printdbg(debug, "# xboard: force. Xadreco is in force mode.\n");
             continue;
         }
         if(!strcmp(movinito, "undo"))   // volta um movimento (ply)
@@ -1881,7 +1881,7 @@ char humajoga(tabuleiro *tabu)
             segundo = 'h';
             volta_lance(tabu);
             tente = 1;
-            printdbg("# xboard: undo. Back one ply. Xadreco is in force mode.\n");
+            printdbg(debug, "# xboard: undo. Back one ply. Xadreco is in force mode.\n");
             continue;
         }
         if(!strcmp(movinito, "remove"))   // volta dois movimentos == 1 lance
@@ -1889,7 +1889,7 @@ char humajoga(tabuleiro *tabu)
             volta_lance(tabu);
             volta_lance(tabu);
             tente = 1;
-            printdbg("# xboard: remove. Back one move.\n");
+            printdbg(debug, "# xboard: remove. Back one move.\n");
             continue;
         }
         if(!strcmp(movinito, "post"))   //showthinking ou mostrapensando
@@ -1897,14 +1897,14 @@ char humajoga(tabuleiro *tabu)
             analise = 0;
             mostrapensando = 1;
             tente = 1;
-            printdbg("# xboard: post. Xadreco will show what its thinking. (2)\n");
+            printdbg(debug, "# xboard: post. Xadreco will show what its thinking. (2)\n");
             continue;
         }
         if(!strcmp(movinito, "nopost"))   //no show thinking ou desliga o mostrapensando
         {
             mostrapensando = 0;
             tente = 1;
-            printdbg("# xboard: nopost. Xadreco will not show what its thinking.\n");
+            printdbg(debug, "# xboard: nopost. Xadreco will not show what its thinking.\n");
             continue;
         }
 //        if (!strcmp (movinito, "randomchess")) //randomchess: pensa ou joga ao acaso
@@ -1934,7 +1934,7 @@ char humajoga(tabuleiro *tabu)
 //                tente = 1;
 //                continue;
 //            }
-            printdbg("# xboard: analyze. Xadreco starts analyzing in force mode.\n");
+            printdbg(debug, "# xboard: analyze. Xadreco starts analyzing in force mode.\n");
             analise = 1;
             mostrapensando = 0;
             primeiro = 'h';
@@ -1947,7 +1947,7 @@ char humajoga(tabuleiro *tabu)
         {
             analise = 0;
             tente = 1;
-            printdbg("# xboard: exit. Xadreco stops analyzing.\n");
+            printdbg(debug, "# xboard: exit. Xadreco stops analyzing.\n");
             continue;
         }
         if(!strcmp(movinito, "draw"))   //aceitar empate? (o outro esta oferecendo)
