@@ -17,7 +17,13 @@ CCW = i686-w64-mingw32-gcc
 CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99 
 # -Wno-unused-variable -Wno-unused-function
 #CFLAGS = -Ofast -ansi -pedantic-errors
-CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG)
+#RANDOM=-1:command line. RANDOM=-2:no random. RANDOM>=0: yes, seed N, 0=seed by time
+RANDOM ?= -1
+#CONNECT=0, 1 or 2: none, fics, lichess. CONNECT=3: command line decides
+CONNECT ?= 3
+#NOWAIT=1: no wait for xboard command. NOWAIT=0: command line decides
+NOWAIT ?= 0
+CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG) -DRANDOM=$(RANDOM) -DCONNECT=$(CONNECT) -DNOWAIT=$(NOWAIT)
 LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm
 #LDLIBS += -lgmp
 #OBJ = libeco-ux64.o

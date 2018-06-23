@@ -105,6 +105,17 @@
 /** @brief Debug message if DEBUG on */
 #define IFDEBUG(M) if(DEBUG) fprintf(stderr, "# [DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
 
+/* Command line defaults */
+#ifndef RANDOM
+    #define RANDOM -1
+#endif
+#ifndef CONNECT
+    #define CONNECT 3
+#endif
+#ifndef NOWAIT
+    #define NOWAIT 0
+#endif
+
 #define TOTAL_MOVIMENTOS 60
 //estimativa da duracao do jogo
 //estimate of game lenght
@@ -620,10 +631,35 @@ int main(int argc, char *argv[])
                 printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
                 return EXIT_FAILURE;
         }
+/* RANDOM >= 0, defined YES at compiler time */
+/* RANDOM < -1, defined NO at compiler time */
+/* Otherwise, RANDOM == -1 defined by command line */
+#if RANDOM >= 0
+    seed = RANDOM;
+    if(seed)
+        srand(seed);
+    else
+        srand(time(NULL));
+    randomchess = 1;
+#endif
+#if RANDOM < -1
+    randomchess = 0;
+#endif
+
+/* if CONNECT<3 && CONNECT>=0, defined at compiler time: 0=none, 1=fics, 2=lichess */
+#if CONNECT < 3 && CONNECT >=0
+    server = CONNECT;
+#endif
+
+/* if NOWAIT == 1, defined to NOT wait at compiler time */
+#if NOWAIT == 1
+    strcpy(movinito, "xboard");
+    d2 = 2; /* don't wait for done */
+#endif
 
     printdbg(debug, "# DEBUG MACRO compiled value: %d\n", DEBUG);
     printdbg(debug, "# Debug verbose level set at: %d\n", debug);
-    printdbg(debug, "# seed: -r %d\n", seed);
+    printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess?"yes":"no", seed);
     printdbg(debug, "# connection: -c %s\n", !server?"none":server==1?"fics":"lichess");
     printdbg(debug, "# wait: -x %s\n", movinito);
     printdbg(debug, "# book: -b %s\n", bookfname);
