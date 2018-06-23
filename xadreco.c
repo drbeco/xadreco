@@ -700,7 +700,7 @@ int main(int argc, char *argv[])
         if(tabu.numero == 2) //pretas jogou o primeiro. Relogios iniciam
         {
             tinijogo = tinimov = tatual;
-            if(debug) printf("# xadreco : N.2. Relogio ligado em %s\n", hora);  //ctime(&tinijogo));
+            printdbg(debug, "# xadreco : N.2. Relogio ligado em %s\n", hora);  //ctime(&tinijogo));
         }
         if(tabu.numero > 2)
         {
@@ -708,12 +708,12 @@ int main(int argc, char *argv[])
             if(tabu.vez == brancas) //iniciando vez das brancas
             {
                 tpretasac += tdifs; //acumulou lance anterior, das pretas
-                if(debug) printf("# xadreco : N.%d. Pretas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.numero, tdifs, tpretasac, hora);
+                printdbg(debug, "# xadreco : N.%d. Pretas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.numero, tdifs, tpretasac, hora);
             }
             else
             {
                 tbrancasac += tdifs;
-                if(debug) printf("# xadreco : N.%d. Brancas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.numero, tdifs, tbrancasac, hora);
+                printdbg(debug, "# xadreco : N.%d. Brancas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.numero, tdifs, tbrancasac, hora);
             }
             tinimov = tatual; //ancora para proximo tempo acumulado
         }
@@ -772,7 +772,7 @@ int main(int argc, char *argv[])
             //            continue;
             case 'c':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by mutual agreement}");  //aceitar empate
-                if(debug) printf("# xadreco : offer draw, draw accepted\n");
+                printdbg(debug, "# xadreco : offer draw, draw accepted\n");
                 printf("offer draw\n");
                 printf("1/2-1/2 {Draw by mutual agreement}\n");
                 primeiro = segundo = 'h';
@@ -823,13 +823,13 @@ int main(int argc, char *argv[])
             case 'e': //se existe um resultado, envia ele para finalizar a partida
                 if(ultimo_resultado[0] != '\0')
                 {
-                    if(debug) printf("# xadreco : case 'e' (empty) %s\n", ultimo_resultado);
+                    printdbg(debug, "# xadreco : case 'e' (empty) %s\n", ultimo_resultado);
                     printf("%s\n", ultimo_resultado);
                     primeiro = segundo = 'h';
                 }
                 else
                 {
-//                    if(debug) printf("# case 'e' 732: Computador sem lances validos 1. Erro: 35\n");
+//                    printdbg(debug, "# case 'e' 732: Computador sem lances validos 1. Erro: 35\n");
                     printf("# xadreco : Error. I don't know what to play... (main)\n");
                     res = randommove(&tabu);
                     if(res == 'e') //vazio mesmo! Nem aleatorio foi!
@@ -2124,7 +2124,7 @@ char humajoga(tabuleiro *tabu)
             tempomovclockmax = secs / (float)moves + incre; //em segundos
             tempomovclock = tempomovclockmax; //+90)/2;
 
-            if(debug) printf("# xadreco : %.1fs+%.1fs por %d lances: ajustado para st %f s por lance\n", secs, incre, moves, tempomovclock);
+            printdbg(debug, "# xadreco : %.1fs+%.1fs por %d lances: ajustado para st %f s por lance\n", secs, incre, moves, tempomovclock);
             tente = 1;
             continue;
         }
@@ -2149,7 +2149,7 @@ char humajoga(tabuleiro *tabu)
             }
             if(testasim)
                 strcpy(movinito, pieces);
-            if(debug) printf("# xboard: %s\n", movinito);
+            printdbg(debug, "# xboard: %s\n", movinito);
             j = 7; //linha de '8' a '1'
             i = 0; //coluna de 'a' a 'h'
             k = 0; //indice da string
@@ -2272,13 +2272,13 @@ char humajoga(tabuleiro *tabu)
                 strcpy(movinito, halfmove);
             else
                 scanf("%s", movinito);  //Num. de movimentos (ply)
-            if(debug) printf("# xboard: %s\n", movinito);
+            printdbg(debug, "# xboard: %s\n", movinito);
             tabu->empate_50 = atoi(movinito);  //contador:quando chega a 50, empate.
             if(testasim)
                 strcpy(movinito, fullmove);
             else
                 scanf("%s", movinito);  //Num. de lances
-            if(debug) printf("# xboard: %s\n", movinito);
+            printdbg(debug, "# xboard: %s\n", movinito);
             tabu->numero = 0; //mudou para ply.
             //(atoi(movinito)-1)+0.3;
             //inicia no 0.3 para indicar 0
@@ -2676,7 +2676,7 @@ char compjoga(tabuleiro *tabu)
     //Utilizado: ABANDONA==-2730, alterado quando contra outra engine
     if(result.valor < ABANDONA && ofereci <= 0)
     {
-        if(debug) printf("# xadreco : resign. value: %+.2f\n", result.valor / 100.0);
+        printdbg(debug, "# xadreco : resign. value: %+.2f\n", result.valor / 100.0);
         --ofereci;
         printf("resign\n");
     }
@@ -2699,7 +2699,7 @@ char compjoga(tabuleiro *tabu)
     //oferecer empate: result.valor esta invertido na vez.
     if(result.valor < QUANTO_EMPATE1 && (tabu->numero > MOVE_EMPATE1 && tabu->numero < MOVE_EMPATE2) && ofereci > 0)
     {
-        if(debug) printf("# xadreco : offer draw (1) value: %+.2f\n", result.valor / 100.0);
+        printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", result.valor / 100.0);
         --ofereci;
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
         printf("offer draw\n");
@@ -2707,7 +2707,7 @@ char compjoga(tabuleiro *tabu)
     //oferecer empate: result.valor esta invertido na vez.
     if(result.valor < QUANTO_EMPATE2 && tabu->numero >= MOVE_EMPATE2 && ofereci > 0)
     {
-        if(debug) printf("# xadreco : offer draw (2) value: %+.2f\n", result.valor / 100.0);
+        printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", result.valor / 100.0);
         --ofereci;
         printf("offer draw\n");
     }
