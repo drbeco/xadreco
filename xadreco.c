@@ -113,7 +113,7 @@ int main(void)
         tab[3][7] = DC;
         tab[4][7] = RC;
         printf("\n\n\nQuem comeca? (c/h): ");
-        primeiro = getche();
+        primeiro = getchar();
         printf("\n\nQual a dificuldade (1-6): ");
         scanf("%d", &nivel);
         if(primeiro == 'c')
@@ -174,7 +174,7 @@ joga_novamente:
                 goto joga_novamente;
         }
         printf("\nQuer jogar de novo (s/n): ");
-        vez = getche();
+        vez = getchar();
     }
     while(vez == 's');
 }
@@ -302,7 +302,7 @@ char humajoga(void)
             else
             {
                 printf("\nEmpate nao foi aceito. Jogue!");
-                getch();
+                getchar();
                 imptab();
                 val = 4;
                 continue;
@@ -321,7 +321,7 @@ char humajoga(void)
             printf("\ndigite: 'desisto.' para desistir");
             printf(", e 'empate?' para pedir empate.\n\n");
             printf("\n\n Tecle <enter> para continuar.");
-            getch();
+            getchar();
             imptab();
             val = 4;
             continue;
@@ -370,7 +370,7 @@ char humajoga(void)
                 {
                     printf
                     ("\n\nO peao foi promovido. Escolha uma peca (d,t,b,c)? ");
-                    peca = getche();
+                    peca = getchar();
                     switch(peca)
                     {
                         case 'd':
@@ -416,7 +416,7 @@ char humajoga(void)
         }
         if(val < 6)
         {
-            getch();
+            getchar();
             imptab();
         }
     }
@@ -571,6 +571,7 @@ int valido(int prof)
             if(lance[0] == lance[2])	/* movimento, sem captura. */
             {
                 if(humano_joga)
+                {
                     if(primeiro == 'h')	/* jogam as brancas. */
                     {
                         if(lance[1] > lance[3])
@@ -1034,7 +1035,7 @@ char compjoga(void)
             break;
         default:
             printf("Erro na funcao compjoga. val=%d", val);
-            getch();
+            getchar();
     }
     if(lances[0][5] != 6)
         ENPASSANT = -1;
