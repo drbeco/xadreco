@@ -6,8 +6,8 @@
 .PRECIOUS: %.o
 SHELL=/bin/bash -o pipefail
 
-MAJOR ?= 5
-MINOR ?= 84
+MAJOR ?= 0
+MINOR ?= 2
 DEBUG ?= 0
 BUILD = $(shell date +"%g%m%d.%H%M%S")
 DEFSYM = $(subst .,_,$(BUILD))
