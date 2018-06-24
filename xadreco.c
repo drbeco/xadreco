@@ -32,34 +32,34 @@
 //
 //-----------------------------------------------------------------------------
 //
-//xadreco version 0.1 Motor de xadrez compatível com o XBoard/WinBoard (C)
+//xadreco version 0.1 Motor de xadrez compativel com o XBoard/WinBoard (C)
 //Copyright (C) 2004, Ruben Carlo Benante.
 //
-//Este programa é software livre; você pode redistribuí-lo e/ou
-//modificá-lo sob os termos da Licença Pública Geral GNU, conforme
-//publicada pela Free Software Foundation; tanto a versão 2 da
-//Licença como (a seu critério) qualquer versão mais nova.
+//Este programa e software livre; voce pode redistribui-lo e/ou
+//modifica-lo sob os termos da Licenca Publica Geral GNU, conforme
+//publicada pela Free Software Foundation; tanto a versao 2 da
+//Licenca como (a seu criterio) qualquer versao mais nova.
 //
-//Este programa é distribuído na expectativa de ser útil, mas SEM
-//QUALQUER GARANTIA; sem mesmo a garantia implícita de
-//COMERCIALIZAÇÃO ou de ADEQUAÇÃO A QUALQUER PROPÓSITO EM
-//PARTICULAR. Consulte a Licença Pública Geral GNU para obter mais
+//Este programa e distribuido na expectativa de ser util, mas SEM
+//QUALQUER GARANTIA; sem mesmo a garantia implicita de
+//COMERCIALIZACAO ou de ADEQUACAO A QUALQUER PROPOSITO EM
+//PARTICULAR. Consulte a Licenca Publica Geral GNU para obter mais
 //detalhes.
 //
-//Você deve ter recebido uma cópia da Licença Pública Geral GNU
-//junto com este programa; se não, escreva para a Free Software
+//Voce deve ter recebido uma copia da Licenca Publica Geral GNU
+//junto com este programa; se nao, escreva para a Free Software
 //Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 //02111-1307, USA.
 //
-//Se você redistribuir ou modificar este programa, você deve citar
-//o código-fonte original e o nome do autor:
+//Se voce redistribuir ou modificar este programa, voce deve citar
+//o codigo-fonte original e o nome do autor:
 //Ruben Carlo Benante.
 //email: benante@ig.com.br
-//página web: http://www.geocities.com/pag_sax/xadreco/
-//endereço:
+//pagina web: http://www.geocities.com/pag_sax/xadreco/
+//endereco:
 //Universidade Federal de Pernambuco
-//Centro de Informática
-//Sala de Pós-graduação 7-1
+//Centro de Informatica
+//Sala de Pos-graduacao 7-1
 //Caixa Postal 7851
 //CEP 50670-970
 //Recife, PE, Brasil
@@ -68,13 +68,13 @@
 //
 //-----------------------------------------------------------------------------
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//%% Direitos Autorais segundo normas do código-livre: (GNU - GPL)
+//%% Direitos Autorais segundo normas do codigo-livre: (GNU - GPL)
 //%% Universidade Estadual Paulista - UNESP, Universidade Federal de Pernambuco - UFPE
 //%% Jogo de xadrez: xadreco
 //%% Arquivo xadreco.c
-//%% Técnica: Sorteio da peça
+//%% Tecnica: Sorteio da peca
 //%% Autor do original: Ruben Carlo Benante
-//%% Criacao: 27/03/97 (há alguns arquivos obj e auxiliares com data de 19/08/94)
+//%% Criacao: 27/03/97 (ha alguns arquivos obj e auxiliares com data de 19/08/94)
 //%% e-mail do autor: benante@ig.com.br
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -1007,7 +1007,7 @@ compjoga (void)
 
 	{
 	  for (i = 0; i < 4; i++)
-	    lance[i] = rand () % 8;	//tecnica de sorteio de peça! Não é tão inteligente...
+	    lance[i] = rand () % 8;	//tecnica de sorteio de peca! Nao e tao inteligente...
 	  val = valido (0);
 	}
       while (val < 6);		//enquanto o lance nao for valido (val>=6)
