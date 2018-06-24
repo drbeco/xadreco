@@ -1,89 +1,63 @@
-//xadreco version 0.1 Chess engine compatible with XBoard/WinBoard Protocol (C)
-//Copyright (C) 1994-2013, Ruben Carlo Benante.
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either version 2
-//of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-//
-//If you redistribute it and/or modify it, you need to
-//cite the original source-code and author name:
-//Ruben Carlo Benante.
-//email: benante@ig.com.br
-//web page: http://www.geocities.com/pag_sax/xadreco/
-//address:
-//Federal University of Pernambuco
-//Center of Computer Science
-//PostGrad Room 7-1
-//PO Box 7851
-//Zip Code 50670-970
-//Recife, PE, Brazil
-//FAX: +55 (81) 2126-8438
-//PHONE: +55 (81) 2126-8430  x.4067
-//
-//-----------------------------------------------------------------------------
-//
-//xadreco version 0.1 Motor de xadrez compativel com o XBoard/WinBoard (C)
-//Copyright (C) 2004, Ruben Carlo Benante.
-//
-//Este programa e software livre; voce pode redistribui-lo e/ou
-//modifica-lo sob os termos da Licenca Publica Geral GNU, conforme
-//publicada pela Free Software Foundation; tanto a versao 2 da
-//Licenca como (a seu criterio) qualquer versao mais nova.
-//
-//Este programa e distribuido na expectativa de ser util, mas SEM
-//QUALQUER GARANTIA; sem mesmo a garantia implicita de
-//COMERCIALIZACAO ou de ADEQUACAO A QUALQUER PROPOSITO EM
-//PARTICULAR. Consulte a Licenca Publica Geral GNU para obter mais
-//detalhes.
-//
-//Voce deve ter recebido uma copia da Licenca Publica Geral GNU
-//junto com este programa; se nao, escreva para a Free Software
-//Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-//02111-1307, USA.
-//
-//Se voce redistribuir ou modificar este programa, voce deve citar
-//o codigo-fonte original e o nome do autor:
-//Ruben Carlo Benante.
-//email: benante@ig.com.br
-//pagina web: http://www.geocities.com/pag_sax/xadreco/
-//endereco:
-//Universidade Federal de Pernambuco
-//Centro de Informatica
-//Sala de Pos-graduacao 7-1
-//Caixa Postal 7851
-//CEP 50670-970
-//Recife, PE, Brasil
-//FAX: +55 (81) 2126-8438
-//FONE: +55 (81) 2126-8430  ramal.4067
-//
-//-----------------------------------------------------------------------------
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//%% Direitos Autorais segundo normas do codigo-livre: (GNU - GPL)
-//%% Universidade Estadual Paulista - UNESP, Universidade Federal de Pernambuco - UFPE
-//%% Jogo de xadrez: xadreco
-//%% Arquivo xadreco.c
-//%% Tecnica: Sorteio da peca
-//%% Autor do original: Ruben Carlo Benante
-//%% Criacao: 27/03/97 (ha alguns arquivos obj e auxiliares com data de 19/08/94)
-//%% e-mail do autor: benante@ig.com.br
+//%% Xadreco versao 0.2 - Jogo de Xadrez / Chess engine
+//%% Descricao: 
+//%%   Versao 0.2 reescrita a partir da original historica 0.1, para linux
+//%%   Jogo de xadrez Xadreco compativel com protocolo Xboard
+//%% Autor: Ruben Carlo Benante (C) Copyright 1994-2018
+//%% E-mail do autor: rcb@beco.cc 
+//%% Licenca e Direitos Autorais segundo normas do codigo-livre: (GNU - GPL v2.0)
+//%% Arquivo: xadreco.c
+//%% Tecnica de IA: Sorteio da peca (sem IA)
+//%% Web page: http://www.github.com/drbeco/xadreco
+//%% Criacao: 19/08/1994 (v0.1)
+//%% Primeira versao: 27/03/97
+//%% Reescrita: 2018-06-24 (v0.2...)
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//%% This program is free software; you can redistribute it and/or
+//%% modify it under the terms of the GNU General Public License
+//%% as published by the Free Software Foundation; either version 2
+//%% of the License, or (at your option) any later version.
+//%% 
+//%% This program is distributed in the hope that it will be useful,
+//%% but WITHOUT ANY WARRANTY; without even the implied warranty of
+//%% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//%% GNU General Public License for more details.
+//%% 
+//%% You should have received a copy of the GNU General Public License
+//%% along with this program; if not, write to the Free Software
+//%% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+//%% 
+//%% If you redistribute it and/or modify it, you need to
+//%% cite the original source-code and the author's name.
+//%% -----------------------------------------------------------------------------
+//%% Este programa e software livre; voce pode redistribui-lo e/ou
+//%% modifica-lo sob os termos da Licenca Publica Geral GNU, conforme
+//%% publicada pela Free Software Foundation; tanto a versao 2 da
+//%% Licenca como (a seu criterio) qualquer versao mais nova.
+//%% 
+//%% Este programa e distribuido na expectativa de ser util, mas SEM
+//%% QUALQUER GARANTIA; sem mesmo a garantia implicita de
+//%% COMERCIALIZACAO ou de ADEQUACAO A QUALQUER PROPOSITO EM
+//%% PARTICULAR. Consulte a Licenca Publica Geral GNU para obter mais
+//%% detalhes.
+//%% 
+//%% Voce deve ter recebido uma copia da Licenca Publica Geral GNU
+//%% junto com este programa; se nao, escreva para a Free Software
+//%% Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+//%% 02111-1307, USA.
+//%% 
+//%% Se voce redistribuir ou modificar este programa, voce deve citar
+//%% o codigo-fonte original e o nome do autor.
 
+//-----------------------------------------------------------------------------
 #include <conio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <dos.h>
 #include <time.h>
+
+//-----------------------------------------------------------------------------
 int valido (int p);
 char situacao (int vez);
 int estatico (int p);
@@ -92,6 +66,8 @@ void lance2movi (char *s);
 int peca_ataca (int col, int lin, int prof);
 void imptab (void);
 int rei_xeque (int humano_joga);
+
+//-----------------------------------------------------------------------------
 enum
 { RC = 200, DC = 40, TC = 25, BC = 16, CC = 15, PC = 5, VZ = 0, PH = -5, CH =
     -15, BH = -16, TH = -25, DH = -40, RH = -200
@@ -102,8 +78,9 @@ int nivel = 0;
 int lance[4] = { 0, 0, 0, 0 };
 char vez;
 int ENPASSANT, ANDOURH, ANDOURC, ANDOUTHR, ANDOUTHD, ANDOUTCR, ANDOUTCD;
-void
-main (void)
+
+//-----------------------------------------------------------------------------
+void main (void)
 {
   char humajoga (void);
   char compjoga (void);
@@ -207,8 +184,8 @@ main (void)
   while (vez == 's');
 }
 
-void
-imptab (void)
+//-----------------------------------------------------------------------------
+void imptab (void)
 {
   int col, lin;
   int colmax, colmin, linmax, linmin, inc;
@@ -315,8 +292,8 @@ imptab (void)
 	   movinito[2], movinito[3]);
 }
 
-char
-humajoga (void)
+//-----------------------------------------------------------------------------
+char humajoga (void)
 {
   char *movinito = "        ";
   int val;
@@ -467,8 +444,8 @@ humajoga (void)
   return (situacao (0));	//vez do computador jogar, por isso o: zero.
 }
 
-int
-valido (int prof)		//---------------------------------------------------
+//-----------------------------------------------------------------------------
+int valido (int prof)		//---------------------------------------------------
 {				// duvida: retorna (0 ou 1) ou um status dos lances?
   int peca, casa, peca_do_comp, humano_joga, icol, ilin, casacol, casalin;
   int movi = 19;		//menor ou igual a 5: erros. de 6 a 18: status.
@@ -912,8 +889,8 @@ valido (int prof)		//---------------------------------------------------
   return (movi);
 }
 
-char
-situacao (int humano_joga)
+//-----------------------------------------------------------------------------
+char situacao (int humano_joga)
 {
 
   // pega o tabuleiro e retorna: M,m,a,p,i,5,r,T,t,B,b
@@ -955,8 +932,8 @@ situacao (int humano_joga)
   return (' ');
 }
 
-int
-estatico (int prof)
+//-----------------------------------------------------------------------------
+int estatico (int prof)
 {
   int col, lin, peca_comp = 0, peca_huma = 0;
 
@@ -993,8 +970,8 @@ estatico (int prof)
     return (peca_comp - peca_huma);	//par
 }
 
-char
-compjoga (void)
+//-----------------------------------------------------------------------------
+char compjoga (void)
 {
   int i, j, peca, lances[30][6], tabu[8][8];
   int val, troca, lan;
@@ -1128,8 +1105,8 @@ compjoga (void)
   return (val);
 }
 
-int
-peca_ataca (int col, int lin, int peca_do_huma)
+//-----------------------------------------------------------------------------
+int peca_ataca (int col, int lin, int peca_do_huma)
 {
 
   //peca_do_huma==par   => peca do comp ataca casa(col,lin)
@@ -1337,8 +1314,8 @@ peca_ataca (int col, int lin, int peca_do_huma)
   return (0);
 }
 
-void
-lance2movi (char *s)
+//-----------------------------------------------------------------------------
+void lance2movi (char *s)
 {
   int i;
   for (i = 0; i < 2; i++)
@@ -1348,8 +1325,9 @@ lance2movi (char *s)
       s[2 * i + 1] = lance[2 * i + 1] + '1';
     }
 }
-int
-movi2lance (char *s)
+
+//-----------------------------------------------------------------------------
+int movi2lance (char *s)
 {
   int i;
   for (i = 0; i < 2; i++)
@@ -1364,8 +1342,8 @@ movi2lance (char *s)
     } return (1);
 }
 
-int
-rei_xeque (int humano_joga)
+//-----------------------------------------------------------------------------
+int rei_xeque (int humano_joga)
 {
   int ilin, icol, movi;
   humano_joga = humano_joga % 2;
@@ -1379,3 +1357,9 @@ rei_xeque (int humano_joga)
 	  break;
   return (0);
 }
+
+
+/* ---------------------------------------------------------------------------- */
+/* vi: set ai cin et ts=4 sw=4 tw=0 wm=0 fo=croqltn : C config for Vim modeline */
+/* Template by Dr. Beco <rcb at beco dot cc>  Version 20160714.153029           */
+
