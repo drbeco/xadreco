@@ -207,7 +207,7 @@ void imptab(void)
     }
     textbackground(0);
     clrscr();
-    cprintf("\n\r  ");
+    cprintf("\n  ");
     textcolor(5);
     textbackground(1);
     cprintf("                          ");
@@ -217,7 +217,7 @@ void imptab(void)
     {
         textcolor(15);
         textbackground(0);
-        cprintf("\n\r%d ", lin + 1);
+        cprintf("\n%d ", lin + 1);
         textcolor(5);
         textbackground(1);
         cprintf(" ");
@@ -273,18 +273,17 @@ void imptab(void)
     while(lin != linmax);
     textcolor(15);
     textbackground(0);
-    cprintf("\n\r  ");
+    cprintf("\n  ");
     textcolor(5);
     textbackground(1);
     cprintf("                          ");
     textcolor(15);
     textbackground(0);
-    cprintf("\n\r  ");
+    cprintf("\n  ");
     if(primeiro == 'h')
-        cprintf("  a  b  c  d  e  f  g  h\n\n\r");
-
+        cprintf("  a  b  c  d  e  f  g  h\n\n");
     else
-        cprintf("  h  g  f  e  d  c  b  a\n\n\r");
+        cprintf("  h  g  f  e  d  c  b  a\n\n");
     textcolor(6);
     textbackground(0);
     lance2movi(movinito);
@@ -484,7 +483,6 @@ int valido(int prof)
                         if(tab[5][0] || tab[6][0])	/* Tem pecas entre rei e torre. */
                             return (1);
                     }
-
                     else		/*  primeiro e' o humano. Comp joga com as pretas. */
                     {
                         if(peca_ataca(4, 7, 1))	/*  Rei preto do comp esta em xeque. */
@@ -534,7 +532,6 @@ int valido(int prof)
                         if(tab[3][0] || tab[2][0] || tab[1][0])	/* Pecas entre rei e torre. */
                             return (1);
                     }
-
                     else		/*  primeiro e' o humano. Comp joga com as pretas. */
                     {
                         if(peca_ataca(4, 7, 1))	/*  Rei preto do comp esta em xeque. */
@@ -916,7 +913,6 @@ int estatico(int prof)
         for(lin = 0; lin < 8; lin++)
             if(tab[col][lin] > 0)	/* peca_comp ou peca_huma e' um valor positivo */
                 peca_comp += tab[col][lin];
-
             else
                 peca_huma -= tab[col][lin];
 
@@ -1162,7 +1158,6 @@ int peca_ataca(int col, int lin, int peca_do_huma)
         {
             casacol = col;		/* para cada diagonal, comece na casa origem. */
             casalin = lin;
-
             do
             {
                 casacol = casacol + icol;
@@ -1296,7 +1291,6 @@ int rei_xeque(int humano_joga)
             }
     return (0);
 }
-
 
 /* ------------------------------------------------------------------------- */
 /* vi: set ai cin et ts=4 sw=4 tw=0 wm=0 fo=croqltn : C config Vim modeline  */
