@@ -50,11 +50,9 @@
 //%% o codigo-fonte original e o nome do autor.
 
 //-----------------------------------------------------------------------------
-#include <conio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <dos.h>
 #include <time.h>
 
 //-----------------------------------------------------------------------------
