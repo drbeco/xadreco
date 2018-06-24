@@ -79,18 +79,25 @@ char vez;
 int ENPASSANT, ANDOURH, ANDOURC, ANDOUTHR, ANDOUTHD, ANDOUTCR, ANDOUTCD;
 
 /* ------------------------------------------------------------------------- */
+/* ncurses */
+
+void clrscr(void) {;}
+void textcolor( __attribute__ ((__unused__)) int c) {;}
+void textbackground( __attribute__((__unused__)) int b) {;}
+#define cprintf printf
+
+/* ------------------------------------------------------------------------- */
 int main(void)
 {
     char humajoga(void);
     char compjoga(void);
     char resultado;
     int i, j;
-    randomize();
+    srand(time(NULL));
 
     do
     {
         clrscr();
-
         /*  inicializar variaveis do roque e enpassant */
         ANDOURH = ANDOURC = ANDOUTHR = ANDOUTHD = ANDOUTCR = ANDOUTCD = 0;
         ENPASSANT = -1;
@@ -297,6 +304,7 @@ char humajoga(void)
         printf("\n\nQual o lance? ");
         scanf("%s", movinito);
         if(!strcmp(movinito, "empate?"))
+        {
             if(estatico(0) <= -65)
                 return ('c');
             else
@@ -307,11 +315,14 @@ char humajoga(void)
                 val = 4;
                 continue;
             }
+        }
         if(!strcmp(movinito, "desisto."))
+        {
             if(primeiro == 'c')
                 return ('b');		/* pretas abandonam */
             else
                 return ('B');		/* brancas abandonam */
+        }
         if(!movi2lance(movinito))
         {
             printf("\nPara jogar por exemplo C3BD (notacao descritiva),");
@@ -433,7 +444,7 @@ char humajoga(void)
 int valido(int prof)
 {
     /*  duvida: retorna (0 ou 1) ou um status dos lances? */
-    int peca, casa, peca_do_comp, humano_joga, icol, ilin, casacol, casalin;
+    int peca, peca_do_comp, humano_joga, icol, ilin, casacol, casalin;
     int movi = 19;		/* menor ou igual a 5: erros. de 6 a 18: status. */
     int tabu[8][8];
     peca = tab[lance[0]][lance[1]];
@@ -757,47 +768,51 @@ int valido(int prof)
                 if(peca == 25)	/*  andou com a torre. */
                 {
                     if(lance[0] == 7)	/*  se for torre do rei... */
+                    {
                         if(humano_joga && ANDOUTHR != 1)
                             if(primeiro == 'h')
                                 if(lance[1] == 0)
                                     movi = 7;	/*  Andou pela primeira vez a THR. */
-                                else;	/*  humano de brancas andou com THD pela coluna h; */
+                                else { ; }	/*  humano de brancas andou com THD pela coluna h; */
                             else
                                 if(lance[1] == 7)
                                     movi = 7;
-                                else;		/*  humano de pretas andou com THD pela coluna h; */
+                                else { ; }		/*  humano de pretas andou com THD pela coluna h; */
                         else		/*  nao e' humano ou humano ja tinha andado a torre do rei. */
                             if(!humano_joga && ANDOUTCR != 1)
                                 if(primeiro == 'c')
                                     if(lance[1] == 0)
                                         movi = 9;	/*  Andou pela primeira vez a TCR. */
-                                    else;	/*  comp de brancas andou com TCD pela coluna h; */
+                                    else { ; }	/*  comp de brancas andou com TCD pela coluna h; */
                                 else
                                     if(lance[1] == 7)
                                         movi = 9;
-                                    else;		/*  comp de pretas andou com TCR pela coluna h; */
-                            else;		/* nao e' comp ou comp ja tinha andado a torre do rei */
+                                    else { ; }		/*  comp de pretas andou com TCR pela coluna h; */
+                            else { ; }		/* nao e' comp ou comp ja tinha andado a torre do rei */
+                    }
                     if(lance[0] == 0)	/*  se for torre da dama */
+                    {
                         if(humano_joga && ANDOUTHD != 1)
                             if(primeiro == 'h')
                                 if(lance[1] == 0)
                                     movi = 8;	/*  Andou pela primeira vez a THD. */
-                                else;	/*  humano de brancas andou com THR pela coluna a; */
+                                else { ; }	/*  humano de brancas andou com THR pela coluna a; */
                             else
                                 if(lance[1] == 7)
                                     movi = 8;
-                                else;		/*  humano de pretas andou com THR pela coluna a; */
+                                else { ; }		/*  humano de pretas andou com THR pela coluna a; */
                         else		/*  nao e' humano ou humano ja tinha andado a torre do rei. */
                             if(!humano_joga && ANDOUTCD != 1)
                                 if(primeiro == 'c')
                                     if(lance[1] == 0)
                                         movi = 10;	/*  Andou pela primeira vez a TCD. */
-                                    else;	/*  comp de brancas andou com TCR pela coluna a; */
+                                    else { ; }	/*  comp de brancas andou com TCR pela coluna a; */
                                 else
                                     if(lance[1] == 7)
                                         movi = 10;
-                                    else;		/*  comp de pretas andou com TCR pela coluna a; */
-                            else;		/* nao e' comp ou comp ja tinha andado a torre do rei */
+                                    else { ; }		/*  comp de pretas andou com TCR pela coluna a; */
+                            else { ; }		/* nao e' comp ou comp ja tinha andado a torre do rei */
+                    }
                 }			/*  nao andou com torre. */
             }
             break;
@@ -826,17 +841,21 @@ int valido(int prof)
             if(humano_joga)
             {
                 if(tab[icol][ilin] == -200)
+                {
                     if(peca_ataca(icol, ilin, 0))
                         movi = 2;
                     else
                         break;
+                }
             }
             else
                 if(tab[icol][ilin] == 200)
+                {
                     if(peca_ataca(icol, ilin, 1))
                         movi = 2;
                     else
                         break;
+                }
     for(ilin = 0; ilin < 8; ilin++)
         for(icol = 0; icol < 8; icol++)
             tab[icol][ilin] = tabu[icol][ilin];
@@ -866,6 +885,7 @@ char situacao(int humano_joga)
     for(i = 0; i < 4; i++)
         lance[i] = lancebak[i];
     if(val < 6)
+    {
         if(rei_xeque(humano_joga))
             if(primeiro == 'h')	/* Se humano e' brancas */
                 if(humano_joga)	/* e esta em xeque */
@@ -879,6 +899,7 @@ char situacao(int humano_joga)
                     return ('M');		/* em xeque. */
         else			/* sem lances, mas nao esta em xeque... */
             return ('a');		/* empate por afogamento */
+    }
     return (' ');
 }
 
@@ -924,11 +945,10 @@ int estatico(int prof)
 char compjoga(void)
 {
     int i, j, peca, lances[30][6], tabu[8][8];
-    int val, troca, lan;
+    int val=0, troca, lan;
     int aux[6];
     for(j = 0; j < 30; j++)
     {
-
         do
         {
             for(i = 0; i < 4; i++)
@@ -1152,6 +1172,7 @@ int peca_ataca(int col, int lin, int peca_do_huma)
             }
             while(tab[casacol][casalin] == 0);
             if(casacol >= 0 && casacol <= 7 && casalin >= 0 && casalin <= 7)
+            {
                 if(peca_do_huma)
                     if(tab[casacol][casalin] == -16 || tab[casacol][casalin] == -40)
                         return (1);
@@ -1160,6 +1181,7 @@ int peca_ataca(int col, int lin, int peca_do_huma)
                 else
                     if(tab[casacol][casalin] == 16 || tab[casacol][casalin] == 40)
                         return (1);
+            }
         }				/*  proxima diagonal */
 
     /*  ataque de rei... */
@@ -1261,15 +1283,17 @@ int movi2lance(char *s)
 /* ------------------------------------------------------------------------- */
 int rei_xeque(int humano_joga)
 {
-    int ilin, icol, movi;
+    int ilin, icol;
     humano_joga = humano_joga % 2;
     for(ilin = 0; ilin < 8; ilin++)
         for(icol = 0; icol < 8; icol++)
             if(tab[icol][ilin] == -200 * (humano_joga * 2 - 1))
+            {
                 if(peca_ataca(icol, ilin, !humano_joga))
                     return (1);
                 else
                     break;
+            }
     return (0);
 }
 
