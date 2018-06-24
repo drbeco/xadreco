@@ -78,7 +78,7 @@ char vez;
 int ENPASSANT, ANDOURH, ANDOURC, ANDOUTHR, ANDOUTHD, ANDOUTCR, ANDOUTCD;
 
 //-----------------------------------------------------------------------------
-void main (void)
+int main (void)
 {
   char humajoga (void);
   char compjoga (void);
@@ -751,7 +751,7 @@ int valido (int prof)		//---------------------------------------------------
 		}
 	    }			// else do computador joga
 	}			// else do movimento de captura do peao
-      if (lance[3] == 0 || lance[3] == 7 && peca == 5)
+      if (lance[3] == 0 || (lance[3] == 7 && peca == 5))
 	movi = 13;		//peao promoveu
       break;
     case 40:
