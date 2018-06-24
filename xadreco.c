@@ -191,7 +191,7 @@ void imptab(void)
 {
     int col, lin;
     int colmax, colmin, linmax, linmin, inc;
-    char *movinito = "desisto.";
+    char movinito[80];
     linmin = 7;
     linmax = -1;
     inc = -1;
@@ -295,7 +295,7 @@ void imptab(void)
 /* ------------------------------------------------------------------------- */
 char humajoga(void)
 {
-    char *movinito = "        ";
+    char movinito[80];
     int val;
     char peca;
 
