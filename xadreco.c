@@ -387,6 +387,8 @@ int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
 //0:do not save file xadreco.log, 1:save file, 2:minimax debug
 int pong; /* what to ping back */
+int OFERECEREMPATE=0;
+/* se decidir oferecer empate, primeiro manda o lance, depois a oferta */
 
 /* ---------------------------------------------------------------------- */
 /* general prototypes --------------------------------------------------------- */
@@ -1013,6 +1015,11 @@ void imptab(tabuleiro tabu)
 //            printf ("# xadreco : move %s (%ds)\n", movinito, (int)difclocks());
         }
         printf2("move %s\n", movinito);
+        if(OFERECEREMPATE==1)
+        {
+            printf2("offer draw\n");
+            OFERECEREMPATE=0;
+        }
     }
     // estimar tempo de movimento em segundos:
     if(tpretasac > 5.0 && tbrancasac > 5.0)
@@ -2814,7 +2821,8 @@ char compjoga(tabuleiro *tabu)
     {
         if((int)(rand() % 2)) //sorteio 50% de chances
         {
-            printf("offer draw\n");
+            /* printf("offer draw\n"); */
+            OFERECEREMPATE=1;
             --ofereci;
         }
     }
@@ -2822,17 +2830,19 @@ char compjoga(tabuleiro *tabu)
     //oferecer empate: result.valor esta invertido na vez.
     if(result.valor < QUANTO_EMPATE1 && (tabu->numero > MOVE_EMPATE1 && tabu->numero < MOVE_EMPATE2) && ofereci > 0)
     {
-        printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", result.valor / 100.0);
-        --ofereci;
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
-        printf("offer draw\n");
+        printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", result.valor / 100.0);
+        /* printf("offer draw\n"); */
+        OFERECEREMPATE=1;
+        --ofereci;
     }
     //oferecer empate: result.valor esta invertido na vez.
     if(result.valor < QUANTO_EMPATE2 && tabu->numero >= MOVE_EMPATE2 && ofereci > 0)
     {
         printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", result.valor / 100.0);
+        /* printf("offer draw\n"); */
+        OFERECEREMPATE=1;
         --ofereci;
-        printf("offer draw\n");
     }
     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
     //algum problema ocorreu que esta sem lances
