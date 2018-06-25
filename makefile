@@ -1,6 +1,15 @@
 # Autoversion makefile
 # (C) 2015-2016, Ruben Carlo Benante
 # GNU License v2
+#
+# Compilar para lichess
+# 	make CONNECT=2 XDEBUG=1 DEBUG=1
+#
+# Compilar para fics
+#   make CONNECT=1
+#
+# TODO:
+#   random just for first move
 
 .PHONY: clean cleanall
 .PRECIOUS: %.o
