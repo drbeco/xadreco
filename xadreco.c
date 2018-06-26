@@ -5071,13 +5071,17 @@ char randommove(tabuleiro *tabu)
     movimento *cabeca_succ = NULL, *succ = NULL, *melhor_caminho = NULL;
 
     limpa_pensa();  //limpa plance para iniciar a ponderacao
-    nmov = 0; //gerar todos
+    nmov = 0; /* flag para geramov retornar todos */
     cabeca_succ = geramov(*tabu, &nmov);  //gera os sucessores
     succ = cabeca_succ;
+    if(nmov == 0)
+    {
+        printdbg(debug, "# empty from randommove - geramov() gave 0 moves back");
+        return 'e';
+    }
     moveto = (int)(rand() % nmov);  //sorteia um lance possivel da lista de lances
-    for(i = 0; i < moveto; ++i)
-        if(succ != NULL)
-            succ = succ->prox; //escolhe este lance como o que sera jogado
+    while(succ != NULL && moveto-- > 0)
+        succ = succ->prox; //escolhe este lance como o que sera jogado
 
     if(succ != NULL)
     {
@@ -5089,9 +5093,8 @@ char randommove(tabuleiro *tabu)
         libera_lances(cabeca_succ);  //BUG era succ_geral, virou succ, agora eh cabeca_succ
         return '-'; //ok
     } //else succ!=NULL
-    printdbg(debug, "# empty from randommove\n");
+    printdbg(debug, "# empty from randommove - BUG\n");
     return 'e'; // really empty!
-
 }
 
 
