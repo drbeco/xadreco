@@ -818,81 +818,81 @@ int main(int argc, char *argv[])
 //                    continue;
             case '*':
                 strcpy(ultimo_resultado, "* {Game was unfinished}");
-                printf("* {Game was unfinished}\n");
+                printf2("* {Game was unfinished}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'M':
                 strcpy(ultimo_resultado, "0-1 {Black mates}");
-                printf("0-1 {Black mates}\n");
+                printf2("0-1 {Black mates}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'm':
                 strcpy(ultimo_resultado, "1-0 {White mates}");
-                printf("1-0 {White mates}\n");
+                printf2("1-0 {White mates}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'a':
                 strcpy(ultimo_resultado, "1/2-1/2 {Stalemate}");
-                printf("1/2-1/2 {Stalemate}\n");
+                printf2("1/2-1/2 {Stalemate}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'p':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by endless checks}");
-                printf("1/2-1/2 {Draw by endless checks}\n");
+                printf2("1/2-1/2 {Draw by endless checks}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'c':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by mutual agreement}");  //aceitar empate
                 printdbg(debug, "# xadreco : offer draw, draw accepted\n");
-                printf("offer draw\n");
-                printf("1/2-1/2 {Draw by mutual agreement}\n");
+                printf2("offer draw\n");
+                printf2("1/2-1/2 {Draw by mutual agreement}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'i':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by insufficient mating material}");
-                printf("1/2-1/2 {Draw by insufficient mating material}\n");
+                printf2("1/2-1/2 {Draw by insufficient mating material}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case '5':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by fifty moves rule}");
-                printf("1/2-1/2 {Draw by fifty moves rule}\n");
+                printf2("1/2-1/2 {Draw by fifty moves rule}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'r':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by triple repetition}");
-                printf("1/2-1/2 {Draw by triple repetition}\n");
+                printf2("1/2-1/2 {Draw by triple repetition}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'T':
                 strcpy(ultimo_resultado, "0-1 {White flag fell}");
-                printf("0-1 {White flag fell}\n");
+                printf2("0-1 {White flag fell}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 't':
                 strcpy(ultimo_resultado, "1-0 {Black flag fell}");
-                printf("1-0 {Black flag fell}\n");
+                printf2("1-0 {Black flag fell}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'B':
                 strcpy(ultimo_resultado, "0-1 {White resigns}");
-                printf("0-1 {White resigns}\n");
+                printf2("0-1 {White resigns}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'b':
                 strcpy(ultimo_resultado, "1-0 {Black resigns}");
-                printf("1-0 {Black resigns}\n");
+                printf2("1-0 {Black resigns}\n");
                 primeiro = segundo = 'h';
                 break;
             //            continue;
@@ -900,7 +900,7 @@ int main(int argc, char *argv[])
                 if(ultimo_resultado[0] != '\0')
                 {
                     printdbg(debug, "# xadreco : case 'e' (empty) %s\n", ultimo_resultado);
-                    printf("%s\n", ultimo_resultado);
+                    printf2("%s\n", ultimo_resultado);
                     primeiro = segundo = 'h';
                 }
                 else
@@ -912,19 +912,19 @@ int main(int argc, char *argv[])
                     {
                         printdbg(debug, "# xadreco : I really don't know what to play... resigning!\n");
                         primeiro = segundo = 'h';
-                        printf("resign");
+                        printf2("resign\n");
                         if(primeiro == 'c')
                         {
                             res = 'B';
                             strcpy(ultimo_resultado, "0-1 {White resigns}");
-                            printf("0-1 {White resigns}\n");
+                            printf2("0-1 {White resigns}\n");
 
                         }
                         else
                         {
                             res = 'b';
                             strcpy(ultimo_resultado, "1-0 {Black resigns}");
-                            printf("1-0 {Black resigns}\n");
+                            printf2("1-0 {Black resigns}\n");
                         }
                     }
                     else
@@ -969,7 +969,7 @@ void mostra_lances(tabuleiro tabu)
     //nivel pontuacao tempo totalnodo variante
     //nivel esta errado!
 //    printf ("# xadreco : ply score time nodes pv\n");
-    printf("%3d %+6d %3d %7d ", nivel, result.valor, (int)difclocks(), totalnodo);
+    printf2("%3d %+6d %3d %7d ", nivel, result.valor, (int)difclocks(), totalnodo);
     //result.valor*10 o xboard divide por 100. centi-peao
 //    if (debug) printf ("# xadreco : %d %+.2f %d %d ", nivel, result.valor / 100.0, (int)difclocks(), totalnodo);
     //result.valor/100 para a Dama ficar com valor 9
@@ -2274,7 +2274,7 @@ char humajoga(tabuleiro *tabu)
             while(movinito[k] != '\0')
             {
                 if(i < 0 || i > 8)  //BUG 8 ta errado, mas ta atingido. precisa arrumar isso.
-                    msgsai("# Posicao FEN incorreta.", 24);  //em vez de msg sai, printf("Error (Wrong FEN %s): setboard", movinito);
+                    msgsai("# Posicao FEN incorreta.", 24);  //em vez de msg sai, printf2("Error (Wrong FEN %s): setboard", movinito);
                 switch(movinito[k])  //KkQqRrBbNnPp
                 {
                     case 'K':
@@ -2446,7 +2446,7 @@ char humajoga(tabuleiro *tabu)
         /*		if(!strcmp (movinito, "ping"))
         		{
                     scanf ("%s", movinito);
-                    printf("pong %s",movinito);
+                    printf2("pong %s",movinito);
                     printdbg(debug, "# pong %s\n", movinito);
                     tente = 1;
                     continue;
@@ -2502,7 +2502,7 @@ char humajoga(tabuleiro *tabu)
         if(!movi2lance(lanc, movinito))   //se nao existe este lance
         {
 //            printdbg(debug, "# xadreco : Error (unknown command): %s\n", movinito);
-            printf("Error (unknown command): %s\n", movinito);
+            printf2("Error (unknown command): %s\n", movinito);
             tente = 1;
             continue;
         }
@@ -2510,7 +2510,7 @@ char humajoga(tabuleiro *tabu)
         if(pval == NULL)
         {
 //            printdbg(debug, "# xadreco : Illegal move: %s\n", movinito);
-            printf("Illegal move: %s\n", movinito);
+            printf2("Illegal move: %s\n", movinito);
             tente = 1;
             continue;
         }
@@ -2808,7 +2808,7 @@ char compjoga(tabuleiro *tabu)
     {
         printdbg(debug, "# xadreco : resign. value: %+.2f\n", result.valor / 100.0);
         --ofereci;
-        printf("resign\n");
+        printf2("resign\n");
     }
     //pode oferecer empate duas vezes (caso !randomchess). Uma assim que perder 2 peoes. Outra apos 60 lances e com menos de 2 peoes
 //    if(!randomchess)
@@ -2821,7 +2821,7 @@ char compjoga(tabuleiro *tabu)
     {
         if((int)(rand() % 2)) //sorteio 50% de chances
         {
-            /* printf("offer draw\n"); */
+            /* printf2("offer draw\n"); */
             OFERECEREMPATE=1;
             --ofereci;
         }
@@ -2832,7 +2832,7 @@ char compjoga(tabuleiro *tabu)
     {
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
         printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", result.valor / 100.0);
-        /* printf("offer draw\n"); */
+        /* printf2("offer draw\n"); */
         OFERECEREMPATE=1;
         --ofereci;
     }
@@ -2840,7 +2840,7 @@ char compjoga(tabuleiro *tabu)
     if(result.valor < QUANTO_EMPATE2 && tabu->numero >= MOVE_EMPATE2 && ofereci > 0)
     {
         printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", result.valor / 100.0);
-        /* printf("offer draw\n"); */
+        /* printf2("offer draw\n"); */
         OFERECEREMPATE=1;
         --ofereci;
     }
@@ -5076,7 +5076,7 @@ char randommove(tabuleiro *tabu)
     succ = cabeca_succ;
     if(nmov == 0)
     {
-        printdbg(debug, "# empty from randommove - geramov() gave 0 moves back");
+        printdbg(debug, "# empty from randommove - geramov() gave 0 moves back\n");
         return 'e';
     }
     moveto = (int)(rand() % nmov);  //sorteia um lance possivel da lista de lances
