@@ -40,6 +40,8 @@
  * http://xadreco.beco.cc/                                                 *
  ***************************************************************************/
 
+/* ---------------------------------------------------------------------- */
+/* includes */
 #ifdef __linux
     #warning Linux detected
     #include <sys/select.h>
@@ -158,6 +160,9 @@
 #define AFOGOU -2
 //flagvf de geramov, so para retornar rapido com um lance valido ou NULL
 // dados ----------------------
+
+/* ---------------------------------------------------------------------- */
+/* typedefs, enums and structures */
 
 typedef struct stabuleiro
 {
@@ -283,6 +288,16 @@ typedef struct slistab
 }
 listab;
 
+enum piece_values
+{
+    REI = 10000, DAMA = 900, TORRE = 500, BISPO = 325, CAVALO = 300, PEAO = 100, VAZIA = 0, NULA = -1
+};
+//valor das pecas (positivo==pretas)
+//pieces value (positive==black)
+
+/* ---------------------------------------------------------------------- */
+/* globals */
+
 int myrating, opprating;
 //my rating and opponent rating
 //meu rating e rating do oponente
@@ -311,13 +326,6 @@ char disc;
 int mostrapensando = 0;
 //mostra as linhas que o computador esta escolhendo
 //show thinking option
-enum piece_values
-{
-    REI = 10000, DAMA = 900, TORRE = 500, BISPO = 325, CAVALO = 300, PEAO =
-        100, VAZIA = 0, NULA = -1
-};
-//valor das pecas (positivo==pretas)
-//pieces value (positive==black)
 char primeiro = 'h', segundo = 'c';
 //primeiro e segundo jogadores: h:humano, c:computador
 //first and second players: h:human, c:computer
@@ -391,8 +399,9 @@ int OFERECEREMPATE=0;
 /* se decidir oferecer empate, primeiro manda o lance, depois a oferta */
 
 /* ---------------------------------------------------------------------- */
-/* general prototypes --------------------------------------------------------- */
-// prototipos gerais ---------------------------------------------------------
+/* general prototypes */
+/* prototipos gerais */
+
 void imptab(tabuleiro tabu);
 //imprime o tabuleiro
 //print board
@@ -576,7 +585,9 @@ char compjoga(tabuleiro *tabu);
 //computador joga. Chama o livro de aberturas ou o minimax.
 //computer play. Call the opening book or the minimax functions.
 
-// funcoes -------------------------------------------------------------------------
+/* ---------------------------------------------------------------------- */
+/* codigo principal - main code */
+
 int main(int argc, char *argv[])
 {
     int opt; /* return from getopt() */
@@ -705,7 +716,7 @@ int main(int argc, char *argv[])
     waits(1);
 
     /* Xadreco 5.8 accepts Xboard Protocol V2 */
-    sprintf(feature, "%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
+    sprintf(feature, "%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
 
     printf2("feature done=0\n");
     printf2("feature myname=\"Xadreco %s\"\n", VERSION);
