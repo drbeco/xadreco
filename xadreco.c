@@ -718,6 +718,13 @@ int main(int argc, char *argv[])
     /* Xadreco 5.8 accepts Xboard Protocol V2 */
     sprintf(feature, "%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
 
+    /* feature ics=1 */
+    /* 1591 >first : ics freechess.org */
+    /* 31519 >first : rating 1407 1130 */
+    /* 31523 <first : # xboard: myrating: 1407 opprating: 1130 */
+    /* bug accepted ping gives back pong */
+
+
     printf2("feature done=0\n");
     printf2("feature myname=\"Xadreco %s\"\n", VERSION);
     printf2("%s\n", feature);
