@@ -936,7 +936,7 @@ int main(int argc, char *argv[])
                 {
 //                    printdbg(debug, "# case 'e' 732: Computador sem lances validos 1. Erro: 35\n");
                     printdbg(debug, "# xadreco : Error. I don't know what to play... (main)\n");
-                    res = randommove(&tabu);
+                    res = randommove(&tabu); /* BUG no need for this second call */
                     if(res == 'e') //vazio mesmo! Nem aleatorio foi!
                     {
                         printdbg(debug, "# xadreco : I really don't know what to play... resigning!\n");
@@ -955,6 +955,7 @@ int main(int argc, char *argv[])
                             strcpy(ultimo_resultado, "1-0 {Black resigns}");
                             printf2("1-0 {Black resigns}\n");
                         }
+//                primeiro = segundo = 'h';
                     }
                     else
                     {
@@ -962,7 +963,6 @@ int main(int argc, char *argv[])
                         res = joga_em(&tabu, *result.plance, 1);
                     }
                 }
-//                primeiro = segundo = 'h';
                 break;
             //            continue;
             case 'x': //xeque: joga novamente
