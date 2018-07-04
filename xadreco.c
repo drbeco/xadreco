@@ -2163,11 +2163,13 @@ char humajoga(tabuleiro *tabu)
         if(!strcmp(movinito, "ics")) /* Am I at a server? */
         {
             scanf2(movinito); /* get server name */
-            printdbg(debug, "# connected to server: %s\n",movinito);
             if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
                 server=fics; /* FICS */
             else
                 server=lichess; /* LICHESS */
+            printdbg(debug, "# xboard: connected to server: %s (%d)\n", movinito, server);
+            tente = 1;
+            continue;
         }
         if(!strcmp(movinito, "resign"))
         {
