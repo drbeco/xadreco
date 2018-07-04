@@ -111,6 +111,7 @@
 #ifndef RANDOM
     #define RANDOM -1
 #endif
+/* if CONNECT<3 && CONNECT>=0, defined at compiler time: 0=none, 1=fics, 2=lichess */
 #ifndef CONNECT
     #define CONNECT 3
 #endif
@@ -768,10 +769,20 @@ int main(int argc, char *argv[])
                         printf2("pong %d\n", pong);
                     }
                     else
-                        if(!strcmp(movinito, "force")) /* lichess don't accept, goes by force */
+                        if(!strcmp(movinito, "force")) /* lichess don't send 'accept', goes by 'force' */
                             break;
                         else
-                            printdbg(debug, "# xboard: ignoring %s\n", movinito);
+                            if(!strcmp(movinito, "ics")) /* Am I at a server? */
+                            {
+                                scanf2(movinito); /* get server name */
+                                printdbg(debug, "# connected to server: %s\n",movinito);
+                                if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
+                                    server=fics; /* FICS */
+                                else
+                                    server=lichess; /* LICHESS */
+                            }
+                            else
+                                printdbg(debug, "# xboard: ignoring %s\n", movinito);
     }
 
     /* joga==0, fim. joga==1, novo lance. (joga==2, nova partida) */
@@ -2087,8 +2098,10 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "version"))
         {
-            printdbg(debug, "tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
+            /* printdbg(debug, "tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD); */
             printfics("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
+            printfics("tellicsnoalias tell beco Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
+            /* post("Xadreco v%s build %s, XBoard protocol, based on Minimax Algorithm, by Ruben C. Benante (drbeco), 1994-2018.\n", VERSION, BUILD); */
             tente = 1;
             continue;
         }
@@ -2146,6 +2159,15 @@ char humajoga(tabuleiro *tabu)
         {
             printdbg(debug, "# xboard: new. Xadreco sets the board in initial position.\n");
             return ('w');
+        }
+        if(!strcmp(movinito, "ics")) /* Am I at a server? */
+        {
+            scanf2(movinito); /* get server name */
+            printdbg(debug, "# connected to server: %s\n",movinito);
+            if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
+                server=fics; /* FICS */
+            else
+                server=lichess; /* LICHESS */
         }
         if(!strcmp(movinito, "resign"))
         {
@@ -5172,9 +5194,11 @@ void printfics(char *fmt, ...)
 {
     va_list args;
 
+    if(server!=fics)
+        return;
+
     va_start(args, fmt);
-    if(server==fics)
-        vprintf(fmt, args);
+    vprintf(fmt, args);
     va_end(args);
 }
 
