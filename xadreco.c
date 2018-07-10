@@ -143,7 +143,7 @@
 #define XEQUEMATE 100000
 //define o valor do xequemate
 //defines the value of the checkmate
-#define LINHASDOLIVRO 408
+//#define LINHASBOAS 483 (fix: trocado para valor dinamico / changed to count it dynamically)
 //define a qtd de linhas no livro de abertura
 //define how much lines there are in the openning book
 #define MOVE_EMPATE1 52
@@ -315,9 +315,12 @@ movimento *succ_geral;
 //ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas;
 //pointer to the first list move that should be analyzed
 FILE *fmini; //log file for debug==2
-int USALIVRO = 1;
+int USALIVRO;
 //1:consulta o livro de aberturas livro.txt. 0:nao consulta
 //1:use opening book. 0:do not use.
+int LINHASBOAS = 0;
+// numero de linhas a tentar. Abaixo de "#LINHASRUINS: ..." nao tentar
+// number of lines to try. Do not count bellow "#LINHASRUINS: ..."
 int ofereci;
 //o computador pode oferecer empate (duas|uma) vezes.
 //the engine can offer draw twice: one as he got a bad position, other in the end of game
@@ -427,9 +430,12 @@ int igual(int *lance1, int *lance2);
 char pega(char *no, char *msg);
 //pegar caracter (linux e windows)
 //to solve getch, getche, getchar and whatever problems of portability
-float rand_minmax(float min, float max);
-//retorna um valor entre [min,max], inclusive
-//return a random value between [min,max], inclusive
+float mudaintervalo(float min1, float max1, float min2, float max2, float x1);
+/* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
+int irand_minmax(int min, int max);
+/* retorna valor inteiro aleatorio entre [min,max[ */
+//retorna um valor entre [min,max[, intervalo aberto a direita
+//return a random value between [min,max[, not included the right side
 void sai(int error);
 //termina o programa
 //exit the program
@@ -533,6 +539,12 @@ int igual_strlances_strlinha(char *strlances, char *strlinha);
 //return TRUE if the game strlances match with one line strlinha of the opening book
 int estatico_pmovi(tabuleiro tabu, movimento *cabeca);
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
+void pega2moves(char *linha2, char *linha);
+//dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
+void pegaNmoves(char *linha2, char *linha, char *strlance); 
+/* pega total de lances em strlance + 1 */
+void conta_linhas_livro(void);
+/* conta quantas linhas boas tem o livro; para em #LINHASRUINS */
 
 // computador joga ----------------------------------------------------------
 movimento *geramov(tabuleiro tabu, int *nmov);
@@ -601,8 +613,8 @@ int main(int argc, char *argv[])
     struct tm *tmatual;
     char hora[] = "2013-12-03 00:28:21";
     int seed=0;
-    server = none;
 
+    server = none;
     srand(time(NULL)+getpid());
 
     IFDEBUG("Starting optarg loop...");
@@ -703,10 +715,7 @@ int main(int argc, char *argv[])
 
     /* 'xboard': scanf if not there yet */
     if(strcmp("xboard", movinito))
-    /* { */
         scanf2(movinito);
-        /* printdbg(debug, "# xboard: %s\n", movinito); */
-    /* } */
 
     if(strcmp(movinito, "xboard"))   // primeiro comando: xboard
     {
@@ -720,11 +729,12 @@ int main(int argc, char *argv[])
     sprintf(feature, "%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
 
     /* feature ics=1 */
-    /* 1591 >first : ics freechess.org */
+    /* fics 1591 >first : ics freechess.org */
+    /* none 1591 >first : ics - */
+
     /* 31519 >first : rating 1407 1130 */
     /* 31523 <first : # xboard: myrating: 1407 opprating: 1130 */
     /* bug accepted ping gives back pong */
-
 
     printf2("feature done=0\n");
     printf2("feature myname=\"Xadreco %s\"\n", VERSION);
@@ -737,7 +747,6 @@ int main(int argc, char *argv[])
     while(d2 < 2)
     {
         scanf2(movinito);
-        /* printdbg(debug, "# xboard: %s\n", movinito); */
 
         if(!strcmp(movinito, "quit"))
             msgsai("# Thanks for playing Xadreco.", 0);
@@ -775,19 +784,24 @@ int main(int argc, char *argv[])
                             if(!strcmp(movinito, "ics")) /* Am I at a server? */
                             {
                                 scanf2(movinito); /* get server name */
-                                printdbg(debug, "# connected to server: %s\n",movinito);
                                 if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
                                     server=fics; /* FICS */
                                 else
-                                    server=lichess; /* LICHESS */
+                                    if(!strcmp(movinito, "-")) /* Is it stand-alone? */
+                                        server=none; /* no server */
+                                    else
+                                        server=lichess; /* LICHESS */
+                                printdbg(debug, "# xboard: (main) connected to server: %s (%d)\n",movinito, server);
                             }
                             else
                                 printdbg(debug, "# xboard: ignoring %s\n", movinito);
-    }
+    } /* main while starting xboard protocol */
+    printdbg(debug, "# xboard: main while done\n");
 
     /* joga==0, fim. joga==1, novo lance. (joga==2, nova partida) */
     //------------------------------------------------------------------------------
     // novo jogo
+    conta_linhas_livro(); /* atualiza LINHASBOAS; assume que livro nao cresce durante jogo */
     inicia(&tabu);  // zera variaveis
     coloca_pecas(&tabu);  //coloca pecas na posicao inicial
     insere_listab(tabu);
@@ -822,17 +836,19 @@ int main(int argc, char *argv[])
             }
             tinimov = tatual; //ancora para proximo tempo acumulado
         }
-        if(tabu.vez == brancas)  // jogam as brancas
+
+        if(tabu.vez == brancas)  /* jogam as brancas */
             if(primeiro == 'c')
                 res = compjoga(&tabu);
             else
                 res = humajoga(&tabu);
-        else // jogam as pretas
+        else                     /* jogam as pretas */
             if(segundo == 'c')
                 res = compjoga(&tabu);
             else
                 res = humajoga(&tabu);
-        if(res != 'w' && res != 'c')
+
+        if(res != 'w' && res != 'c') /* BUG : porque ? */
             imptab(tabu);
         switch(res)
         {
@@ -844,7 +860,7 @@ int main(int argc, char *argv[])
                 if(server==fics)
                     inicia_fics();
                 break;
-//                    continue;
+            //            continue;
             case '*':
                 strcpy(ultimo_resultado, "* {Game was unfinished}");
                 printf2("* {Game was unfinished}\n");
@@ -934,41 +950,29 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-//                    printdbg(debug, "# case 'e' 732: Computador sem lances validos 1. Erro: 35\n");
-                    printdbg(debug, "# xadreco : Error. I don't know what to play... (main)\n");
-                    res = randommove(&tabu); /* BUG no need for this second call */
-                    if(res == 'e') //vazio mesmo! Nem aleatorio foi!
+                    printdbg(debug, "# xadreco (main) : I really don't know what to play... resigning!\n");
+                    printf2("resign\n");
+                    if(primeiro == 'c')
                     {
-                        printdbg(debug, "# xadreco : I really don't know what to play... resigning!\n");
-                        primeiro = segundo = 'h';
-                        printf2("resign\n");
-                        if(primeiro == 'c')
-                        {
-                            res = 'B';
-                            strcpy(ultimo_resultado, "0-1 {White resigns}");
-                            printf2("0-1 {White resigns}\n");
+                        res = 'B';
+                        strcpy(ultimo_resultado, "0-1 {White resigns}");
+                        printf2("0-1 {White resigns}\n");
 
-                        }
-                        else
-                        {
-                            res = 'b';
-                            strcpy(ultimo_resultado, "1-0 {Black resigns}");
-                            printf2("1-0 {Black resigns}\n");
-                        }
-//                primeiro = segundo = 'h';
                     }
                     else
                     {
-                        printdbg(debug, "# xadreco : Playing a random move (main)!\n");
-                        res = joga_em(&tabu, *result.plance, 1);
+                        res = 'b';
+                        strcpy(ultimo_resultado, "1-0 {Black resigns}");
+                        printf2("1-0 {Black resigns}\n");
                     }
+                    primeiro = segundo = 'h';
                 }
                 break;
             //            continue;
             case 'x': //xeque: joga novamente
             case 'y': //retorna y: simplesmente gira o laco para jogar de novo. Troca de adv.
             default: //'-' para tudo certo...
-//                primeiro = segundo = 'h';
+            //       primeiro = segundo = 'h';
                 break;
         } //fim do switch(res)
     } //while (TRUE)
@@ -1023,26 +1027,15 @@ void libera_lances(movimento *cabeca)
 }
 
 // imprime o movimento
-// funcao intermediaria chamada no intervalo humajoga / 'ga
+// funcao intermediaria chamada no intervalo humajoga / compjoga 
 void imptab(tabuleiro tabu)
 {
-//     int col, lin, casacor;
-    //nao precisa se tem textbackground
-//     int colmax, colmin, linmax, linmin, inc;
     char movinito[80];
-    double razao;
     movinito[79] = '\0';
     lance2movi(movinito, tabu.lancex, tabu.especial);
-    //imprime o movimento
+    /* imprime o movimento */
     if((tabu.vez == brancas && segundo == 'c') || (tabu.vez == pretas && primeiro == 'c'))
     {
-        if(debug)
-        {
-            ;
-//            difclock = clock2 - clock1;
-            /* BUG:  tatual = time(NULL); //atualiza, pois a funcao difclocks() a atualiza tambem e pode ficar errada a conta */
-//            printf ("# xadreco : move %s (%ds)\n", movinito, (int)difclocks());
-        }
         printf2("move %s\n", movinito);
         if(OFERECEREMPATE==1)
         {
@@ -1050,23 +1043,6 @@ void imptab(tabuleiro tabu)
             OFERECEREMPATE=0;
         }
     }
-    // estimar tempo de movimento em segundos:
-    if(tpretasac > 5.0 && tbrancasac > 5.0)
-    {
-        if(primeiro == 'c') //computador brancas
-            razao = (tpretasac / (tabu.numero / 2.0)) / (tbrancasac / (tabu.numero / 2.0));
-        else //computador pretas
-            razao = (tbrancasac / (tabu.numero / 2.0)) / (tpretasac / (tabu.numero / 2.0));
-        tempomovclock *= razao;
-        if(tempomovclock > tempomovclockmax)
-            tempomovclock = tempomovclockmax; //maximo tempomovclockmax
-        if(tempomovclock < 2) //minimo 1 segundo
-            tempomovclock = 2; /* evita ficar sem lances */
-
-//        printf ("# xadreco : tempomovclock=%f\n", tempomovclock);
-    }
-
-
 }
 
 //int para char
@@ -1970,7 +1946,6 @@ char humajoga(tabuleiro *tabu)
     {
         tente = 0;
         scanf2(movinito);	//---------------- (*quase) Toda entrada do xboard
-//        printdbg(debug, "# xboard: %s\n", movinito);
 
         if(!strcmp(movinito, "hint"))   // Dica
         {
@@ -2166,8 +2141,11 @@ char humajoga(tabuleiro *tabu)
             if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
                 server=fics; /* FICS */
             else
-                server=lichess; /* LICHESS */
-            printdbg(debug, "# xboard: connected to server: %s (%d)\n", movinito, server);
+                if(!strcmp(movinito, "-")) /* Is it stand-alone? */
+                    server=none; /* no server */
+                else
+                    server=lichess; /* LICHESS */
+            printdbg(debug, "# xboard: (humajoga) connected to server: %s (%d)\n", movinito, server);
             tente = 1;
             continue;
         }
@@ -2257,8 +2235,12 @@ char humajoga(tabuleiro *tabu)
                 secs = 30.0 * 60.0; /* no time, use 30 min */
             else //minutes !=0
                 secs += incre * TOTAL_MOVIMENTOS; /* incremento baseado em 60 lances */
-            tempomovclockmax = secs / (float)moves; //em segundos
-            tempomovclock = tempomovclockmax; //+90)/2;
+            /* tempomovclockmax = 120.0; */
+            tempomovclock = secs / (float)moves; //em segundos
+            if(tempomovclock > tempomovclockmax)
+                tempomovclock = tempomovclockmax; //maximo tempomovclockmax
+            if(tempomovclock < 2) //minimo 1 segundo
+                tempomovclock = 2; /* evita ficar sem lances */
 
             printdbg(debug, "# xadreco level: %.1fs+%.1fs por %d lances: ajustado para st %f s por lance\n", secs, incre, moves, tempomovclock);
             tente = 1;
@@ -2282,8 +2264,13 @@ char humajoga(tabuleiro *tabu)
                 osecs += incre * moves;
             }
 
-            tempomovclockmax = (secs / (float)moves) * (secs/osecs); //em segundos
-            tempomovclock = tempomovclockmax; //+90)/2;
+            /* tempomovclockmax = 120.0; */
+            tempomovclock = (secs / (float)moves) * (secs/osecs); //em segundos
+            if(tempomovclock > tempomovclockmax)
+                tempomovclock = tempomovclockmax; //maximo tempomovclockmax
+            if(tempomovclock < 2) //minimo 1 segundo
+                tempomovclock = 2; /* evita ficar sem lances */
+
             printdbg(debug, "# xadreco time: meu: %.1fs opo:%.1fs, para %d lances: ajustado para st %f s por lance\n", secs, osecs, moves, tempomovclock);
             tente = 1;
             continue;
@@ -2477,7 +2464,7 @@ char humajoga(tabuleiro *tabu)
                 default: //'-' nada...
                     tabu->situa = 0;
             }
-            USALIVRO = 0; // Baseado somente nos movimentos, nao na posicao.
+            USALIVRO = 0; // TODO: UCI usa setboard para mover Baseado somente nos movimentos, nao na posicao.
             primeiro = 'h';
             segundo = 'h';
             insere_listab(*tabu);
@@ -3718,8 +3705,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //ponto de vista branco (branco eh negativo, preto eh positivo)
     //inverte sinal
     pecab = (-pecab);
-    material =
-        (int)((1.0 + 75.0 / (float)(pecab + pecap)) * (float)(pecab - pecap));
+    material = (int)((1.0 + 75.0 / (float)(pecab + pecap)) * (float)(pecab - pecap));
     if(tabu.vez == pretas)
         material = (-material);
 
@@ -4590,85 +4576,296 @@ int igual_strlances_strlinha(char *strlances, char *strlinha)
     return 1;
 }
 
+//dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
+void pega2moves(char *linha2, char *linha)
+{
+    strcpy(linha2, linha);
+    /* 'e2e4 e7e5 \0' */
+    /* '012345678\0' */
+    linha2[9]='\0'; /* nao inclui espaco apos lance */
+}
+
+/* pega total de lances em strlance + 1 */
+void pegaNmoves(char *linha2, char *linha, char *strlance)
+{
+    int ll, lli;
+    
+    ll = strlen(strlance);
+    lli = strlen(linha);
+
+    strcpy(linha2, strlance);
+
+    if(ll >= lli-5) /* nao tem mais um lance para add */
+        return;
+
+    do
+    {
+        linha2[ll] = linha[ll];
+        ll++;
+    } while(linha[ll]!='\0' || linha[ll]==' ');
+    linha2[ll]='\0';
+}
+
 //retorna em result.plance uma variante do livro
 void usalivro(tabuleiro tabu)
 {
     movimento *cabeca;
-    char linha[256], strlance[256];
+    char linha[256], strlance[256], sjoga[256], linha2[256];
     FILE *flivro;
-    int i = 0, sorteio;
-    int novovalor;
+    int sorteio, nlinha=0;
+    /* int novovalor; */
+    char *p;
+
     cabeca = NULL;
     flivro = fopen(bookfname, "r");
     if(!flivro)
-        USALIVRO = 0;
-    else
     {
-        if(tabu.numero == 0)  // No primeiro lance de brancas, sorteia uma abertura
+        /* chamada por compjoga() e analisa() */
+        libera_lances(result.plance); 
+        result.plance = NULL;
+        return;
+    }
+
+    if(tabu.numero == 0)  // No primeiro lance de brancas, sorteia uma abertura
+    {
+        if(LINHASBOAS<1)
         {
-            sorteio = (int) rand_minmax(0, LINHASDOLIVRO);
-            //maximo de linhas no livro!
-            while(!feof(flivro) && i < sorteio)
+            fclose(flivro);
+            libera_lances(result.plance);
+            result.plance = NULL;
+            return;
+        }
+
+        sorteio = irand_minmax(1, LINHASBOAS+1); /* irand_minmax  [min,max[ */
+        nlinha=0;
+        while(1)
+        {
+            fgets(linha, 256, flivro);
+            if(feof(flivro))
+                break;
+            if(linha[0]=='#')
             {
-                (void) fgets(linha, 256, flivro);
-                i++;
+                if((p=strchr(linha, ' '))!=NULL)
+                    *p='\0';
+                if(!strcmp(linha, "#LINHASRUINS"))
+                    break; /* daqui para baixo nao conta */
+                continue; /* essa eh #comentario, ignora */
             }
-            while(linha[0] == '#')
-                //a ultima linha nao deve ser comentario
-                (void) fgets(linha, 256, flivro);
+            nlinha++;
+            if(nlinha==sorteio)
+                break;
+        }
+        printdbg(debug, "# move 0 - sorteado= %d, linha: '%s'", sorteio, linha);
+
+        //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
+        cabeca = string2pmovi(tabu.numero, linha);
+        result.valor = estatico_pmovi(tabu, cabeca);
+        libera_lances(result.plance);
+        result.plance = copilistmov(cabeca);
+    }
+    else
+        if(tabu.numero == 1)  // No primeiro lance de pretas, sorteia uma possivel resposta
+        {
+            sjoga[0]='\0';
+            listab2string(strlance); /* um lance de brancas 'e2e4 ' */
+            while(1)
+            {
+                fgets(linha, 256, flivro);
+                if(feof(flivro))
+                    break;
+                if(linha[0]=='#')
+                {
+                    if((p=strchr(linha, ' '))!=NULL)
+                        *p='\0';
+                    if(!strcmp(linha, "#LINHASRUINS"))
+                        break; /* daqui para baixo nao conta */
+                    continue; /* essa eh #comentario, ignora */
+                }
+                if(!igual_strlances_strlinha(strlance, linha))
+                    continue;
+                pega2moves(linha2, linha);
+                if(!strcmp(linha2, sjoga))
+                    continue;
+                strcpy(sjoga, linha2);
+                nlinha++;
+            }
+            printf("#Num de linhas diferentes para %s eh %d\n", strlance, nlinha);
+            if(nlinha<1)
+            {
+                fclose(flivro);
+                libera_lances(result.plance);
+                result.plance = NULL;
+                return;
+             }
+   
+            fseek(flivro, 0, SEEK_SET);
+            sorteio = irand_minmax(1, nlinha+1); /* irand_minmax  [min,max[ */
+            nlinha=0;
+            listab2string(strlance); /* um lance de brancas 'e2e4 ' */
+            sjoga[0]='\0';
+            while(1)
+            {
+                fgets(linha, 256, flivro);
+                if(feof(flivro))
+                    break;
+                if(linha[0]=='#')
+                {
+                    if((p=strchr(linha, ' '))!=NULL)
+                        *p='\0';
+                    if(!strcmp(linha, "#LINHASRUINS"))
+                        break; /* daqui para baixo nao conta */
+                    continue; /* essa eh #comentario, ignora */
+                }
+                if(!igual_strlances_strlinha(strlance, linha))
+                    continue;
+                pega2moves(linha2, linha);
+                if(!strcmp(linha2, sjoga)) /* igual ao anterior, nao conta */
+                    continue;
+                strcpy(sjoga, linha2);
+                nlinha++;
+                if(nlinha==sorteio)
+                    break;
+            }
+            printdbg(debug, "# xboard move 1 - sorteado= %d, linha: '%s'", sorteio, linha);
+            /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.numero, linha);
             result.valor = estatico_pmovi(tabu, cabeca);
             libera_lances(result.plance);
             result.plance = copilistmov(cabeca);
         }
-        else //Responde de pretas com a primeira abertura que achar (primeira tentativa)
+        else /* tab.numero>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
         {
-            //Pega a primeira, e troca por outras via sorteio. (segunda tentativa)
-            //mudar isso para avaliar as linhas e escolher a melhor (terceira)
-            listab2string(strlance);
-            //pega a lista de tabuleiros e faz uma string
-            while(!feof(flivro))
+            sjoga[0]='\0';
+            listab2string(strlance); /* N lances jogados ate entao 'e2e4 e7e5 b1c3 ... ' */
+            while(1)
             {
-                (void) fgets(linha, 256, flivro);
-                if(igual_strlances_strlinha(strlance, linha))
+                fgets(linha, 256, flivro);
+                if(feof(flivro))
+                    break;
+                if(linha[0]=='#')
                 {
-                    if(cabeca == NULL)
-                    {
-                        cabeca = string2pmovi(tabu.numero, linha);
-                        //eh a primeira linha que casou
-                        result.valor = estatico_pmovi(tabu, cabeca);
-                        libera_lances(result.plance);
-                        result.plance = copilistmov(cabeca);
-                    }
-                    else
-                    {
-                        //                        sorteio=(int)rand_minmax(0,100);
-                        //sorteia num. entre zero e 100 inclusive
-                        //                        if(sorteio>85)
-                        //as melhores linhas devem estar no topo do livro (so troca para baixo com P()=15%
-                        //                        {
-                        //                            libera_lances(cabeca);
-                        //                              cabeca=string2pmovi(tabu.numero, linha);
-                        //                        }
-                        // Ordenar por valor estatico da variante
-                        libera_lances(cabeca);
-                        cabeca = string2pmovi(tabu.numero, linha);
-                        //eh a primeira linha que casou
-                        novovalor = estatico_pmovi(tabu, cabeca);
-                        if(novovalor > result.valor)
-                        {
-                            result.valor = novovalor;
-                            libera_lances(result.plance);
-                            result.plance = copilistmov(cabeca);
-                        }
-                    } //                    libera_lances(cabeca);
-                } //se achou no livro a abertura atual
-            } //while tem linhas no arquivo
-        } //else nao e o primeiro lance
-    } //erro ao abrir arquivo Livro.txt
+                    if((p=strchr(linha, ' '))!=NULL)
+                        *p='\0';
+                    if(!strcmp(linha, "#LINHASRUINS"))
+                        break; /* daqui para baixo nao conta */
+                    continue; /* essa eh #comentario, ignora */
+                }
+                if(!igual_strlances_strlinha(strlance, linha))
+                    continue;
+                pegaNmoves(linha2, linha, strlance); /* pega total de lances em strlance + 1 */
+                if(!strcmp(linha2, sjoga)) /* mesma linha anterior, nao conta */
+                    continue;
+                strcpy(sjoga, linha2);
+                nlinha++;
+            }
+            printf("# tab.numero>1, Num de linhas diferentes para %s eh %d\n", strlance, nlinha);
+            if(nlinha<1)
+            {
+                fclose(flivro);
+                libera_lances(result.plance);
+                result.plance = NULL;
+                return;
+             }
+   
+            fseek(flivro, 0, SEEK_SET);
+            sorteio = irand_minmax(1, nlinha+1); /* irand_minmax  [min,max[ */
+            nlinha=0;
+            listab2string(strlance); /* um lance de brancas 'e2e4 ' */
+            sjoga[0]='\0';
+            while(1)
+            {
+                fgets(linha, 256, flivro);
+                if(feof(flivro))
+                    break;
+                if(linha[0]=='#')
+                {
+                    if((p=strchr(linha, ' '))!=NULL)
+                        *p='\0';
+                    if(!strcmp(linha, "#LINHASRUINS"))
+                        break; /* daqui para baixo nao conta */
+                    continue; /* essa eh #comentario, ignora */
+                }
+                if(!igual_strlances_strlinha(strlance, linha))
+                    continue;
+                pegaNmoves(linha2, linha, strlance); /* pega total de lances em strlance + 1 */
+                if(!strcmp(linha2, sjoga)) /* igual ao anterior, nao conta */
+                    continue;
+                strcpy(sjoga, linha2);
+                nlinha++;
+                if(nlinha==sorteio)
+                    break;
+            }
+            printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: '%s'", sorteio, linha);
+            /* contou ate a linha sorteada, jogue */
+            cabeca = string2pmovi(tabu.numero, linha);
+            result.valor = estatico_pmovi(tabu, cabeca);
+            libera_lances(result.plance);
+            result.plance = copilistmov(cabeca);
+            
+            /* if(cabeca == NULL) */
+            /* { */
+            /*     cabeca = string2pmovi(tabu.numero, linha); */
+            /*     result.valor = estatico_pmovi(tabu, cabeca); */
+            /*     libera_lances(result.plance); */
+            /*     result.plance = copilistmov(cabeca); */
+            /* } */
+            /* else */
+            /* { */
+            /*     libera_lances(cabeca); */
+            /*     cabeca = string2pmovi(tabu.numero, linha); */
+            /*     //eh a primeira linha que casou */
+            /*     novovalor = estatico_pmovi(tabu, cabeca); */
+            /*     if(novovalor > result.valor) */
+            /*     { */
+            /*         result.valor = novovalor; */
+            /*         libera_lances(result.plance); */
+            /*         result.plance = copilistmov(cabeca); */
+            /*     } */
+            /* } */
+        } //else nao e o primeiro lance nem de brancas, nem de pretas
+
     if(flivro)
-        (void) fclose(flivro);
+        fclose(flivro);
     return;
+}
+
+/* conta quantas linhas boas tem o livro; para em #LINHASRUINS */
+void conta_linhas_livro(void)
+{
+    char linha[256];
+    FILE *flivro;
+    char *p;
+
+    LINHASBOAS = 0;
+    flivro = fopen(bookfname, "r");
+    if(!flivro)
+    {
+        USALIVRO = 0;
+        LINHASBOAS = 0;
+        return;
+    }
+
+    while(1)
+    {
+        fgets(linha, 256, flivro);
+        if(feof(flivro))
+            break;
+        if((p=strchr(linha, '\n'))==NULL) /* nao achou fim de linha! */
+        {
+            printdbg(debug, "# xboard : conta_linhas_livro ERROR - linha maior que buffer 256 bytes\n");
+            break;
+        }
+        if(linha[0]=='#')
+        {
+            if((p=strchr(linha, ' '))==NULL)
+                continue; /* comentario # sem espaco, ignora */
+            *p='\0'; /* tem espaco, cerca a primeira palavra para teste */
+            if(!strcmp(linha, "#LINHASRUINS"))
+                break; /* tag para fim de contagem */
+            continue; /* comentario qualquer, ignore */
+        }
+        LINHASBOAS++;
+    }
 }
 
 //pegar caracter (linux e windows)
@@ -4685,27 +4882,24 @@ char pega(char *no, char *msg)
     return (char) p;
 }
 
-//retorna um valor entre [min,max], inclusive
-float rand_minmax(float min, float max)
+/* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
+float mudaintervalo(float min1, float max1, float min2, float max2, float x1) 
 {
-    float sorteio;
-    //    cloock_t s;
-    //      time_t t;
-    //      t=time(NULL);
-    //      s = cloock()*10000/CLOCKS_PER_SEC; // retorna cloock em milesimos de segundos...
-    /* static int ini = 1; */
-    /* if(ini) */
-    /* { */
-        /* srand((unsigned)(clock() * 100 / CLOCKS_PER_SEC + time(NULL))); */
-        //+(unsigned) time(&t));
-        /* ini--; */
-    /* } */
-    sorteio = (float)(rand() % 2719);
-    //rand retorna entre 0 e RAND_MAX;
-    sorteio /= 2718.281828459;
-    sorteio *= (max - min);
-    sorteio += min;
-    return sorteio;
+  if((min1 - max1)==0.0) // erro! divisao por zero
+    return 0.0;
+  return (x1 * ((min2 - max2)/(min1 - max1)) + max2 - max1 * ((min2 - max2)/(min1 - max1)));
+}
+
+/* retorna valor inteiro aleatorio entre [min,max[ */
+int irand_minmax(int min, int max)
+{
+  static int first=1;
+  if(first) /* inicializa semente */
+  {
+    srand(time(NULL));
+    first=0;
+  }
+  return (int)mudaintervalo(0.0, RAND_MAX, (float)min, (float)max, (float)rand());
 }
 
 //termina o programa
@@ -4731,8 +4925,11 @@ void inicia(tabuleiro *tabu)
     retira_tudo_listab();
     plcabeca = NULL; //cabeca da lista de repeteco
     ofereci = 1; //computador pode oferecer 1 empate
-    USALIVRO = 1;
+    USALIVRO = 0;
+    if(LINHASBOAS>0)
+        USALIVRO = 1;
     //use o livro nas posicoes iniciais
+    setboard = 0; //setboard command
 //    if (setboard == 1) //se for -1, deixa aparecer o primeiro.
 //        setboard = 0;
     tabu->roqueb = 1; // inicializar variaveis do roque e peao_pulou
@@ -4755,10 +4952,9 @@ void inicia(tabuleiro *tabu)
     ABANDONA = -2430; // volta o abandona para jogar contra humanos...
     COMPUTER = 0; // jogando contra outra engine?
     //mostrapensando = 0; //post and nopost commands
-    setboard = 0; //setboard command
     analise = 0; //analyze and exit commands
     tempomovclock = 3.0;	//em segundos
-    tempomovclockmax = 3.0; // max allowed
+    tempomovclockmax = 120.0; // max allowed - no correpondence bot
     tbrancasac = 0.0; //tempo acumulado
     tpretasac = 0.0; //acumulated time
     tultimoinput = time(NULL); //pausa para nao fazer muito poll seguido
@@ -5037,6 +5233,7 @@ int estatico_pmovi(tabuleiro tabu, movimento *cabeca)
     }
     return estatico(tabu, 0, niv, -LIMITE, LIMITE);
     //      return rand_minmax(-8, +8);
+    /* sorteio = irand_minmax(-8, 9); /-* irand_minmax  [min,max[ */
 }
 
 // pollinput() Emprestado do jogo de xadrez pepito: dica de Fabio Maia
@@ -5109,7 +5306,7 @@ double difclocks(void)
 char randommove(tabuleiro *tabu)
 {
     int nmov;
-    int moveto, i;
+    int moveto;
     movimento *cabeca_succ = NULL, *succ = NULL, *melhor_caminho = NULL;
 
     limpa_pensa();  //limpa plance para iniciar a ponderacao

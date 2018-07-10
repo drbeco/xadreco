@@ -25,7 +25,7 @@
 #*   Webpage: http://xadreco.beco.cc/                                      *
 #***************************************************************************
 
-xboard -tc 1 -inc 0 -mps 40 -size petite -coords -highlight -fd "." -fcp "./xadreco" -sd "." -scp "./xadreco"
+xboard -firstIsUCI false -secondIsUCI false -tc 5 -inc 5 -mps 40 -size petite -coords -highlight -fd "." -fcp "./xadreco" -sd "." -scp "./xadreco" -debug
 
 #end of xadreco.sh file
 
