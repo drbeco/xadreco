@@ -615,7 +615,11 @@ int main(int argc, char *argv[])
     int seed=0;
 
     server = none;
+#ifdef __linux
     srand(time(NULL)+getpid());
+#else
+    srand(time(NULL));
+#endif
 
     IFDEBUG("Starting optarg loop...");
 
@@ -815,7 +819,8 @@ int main(int argc, char *argv[])
         tatual = time(NULL);
         // printdbg(debug, "# xadreco : Tempo atual %s", ctime(&tatual)); //ctime returns "\n"
         tmatual = localtime(&tatual); // convert time_t to struct tm
-        strftime(hora, sizeof(hora), "%F %T", tmatual);
+        /* strftime(hora, sizeof(hora), "%F %T", tmatual); */ /* not accepted in that other operating xystem */
+        strftime(hora, sizeof(hora), "%Y-%m-%d %H:%M:%S", tmatual);
         if(tabu.numero == 2) //pretas jogou o primeiro. Relogios iniciam
         {
             tinijogo = tinimov = tatual;
@@ -5259,7 +5264,7 @@ int pollinput(void)
     static int init = 0;
     static int pipe;
     static HANDLE inh;
-    static INPUT_RECORD Buffer[256];
+    /* static INPUT_RECORD Buffer[256]; */
 
     DWORD dw = 0;
     if(!init)
