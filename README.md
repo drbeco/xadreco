@@ -1,5 +1,5 @@
 Xadreco v.0.0 -- last version (v10.0)
-Copyright (C) 1994-2016 by Ruben Carlo Benante
+Copyright (C) 1988-2020 by Ruben Carlo Benante
 rcb@beco.cc 
 date: 17/07/2007
 modified: 02/08/2016
@@ -12,12 +12,12 @@ http://codigolivre.org.br/projects/xadreco/ (old, unavailable)
 Table of contents:
 
 1- Copyright notice (Nota de direitos)
-2- Description of each file inside the package (descriÁ„o dos arquivos)
-3- Credits (CrÈditos)
-4- Install process for xboard / linux (Processo de instaÁ„o xboard/linux)
-5- Install process for winboard / windows (Processo de instalaÁ„o winboard/windows)
-6- Install process for UCI GUI; like fritz / probably windows (Processo de instalaÁ„o para GUI UCI; como o fritz, provavelmente windows).
-7- Change log of this version (MudanÁas desta vers„o).
+2- Description of each file inside the package (descri√ß√£o dos arquivos)
+3- Credits (Cr√©ditos)
+4- Install process for xboard / linux (Processo de insta√ß√£o xboard/linux)
+5- Install process for winboard / windows (Processo de instala√ß√£o winboard/windows)
+6- Install process for UCI GUI; like fritz / probably windows (Processo de instala√ß√£o para GUI UCI; como o fritz, provavelmente windows).
+7- Change log of this version (Mudan√ßas desta vers√£o).
 8- Know bugs (Bugs conhecidos)
 9- To do (afazeres)
 
@@ -36,23 +36,23 @@ This file is part of GPL program Xadreco (v5.7 and all other versions)
 ----
 
 2- Description of each file inside the package
-Files included in GPL (Arquivos incluÌdos na GPL):
+Files included in GPL (Arquivos inclu√≠dos na GPL):
 Files inside xadrecov57.tar.gz (arquivos dentro do xadrecov57.tar.gz)
 
-COPYING and GPL-pt_BR.txt - GNU/GPL License (licenÁa GNU/GPL em inglÍs e portuguÍs)
-engines.ini - Arena config file (configuraÁ„o do Arena)
+COPYING and GPL-pt_BR.txt - GNU/GPL License (licen√ßa GNU/GPL em ingl√™s e portugu√™s)
+engines.ini - Arena config file (configura√ß√£o do Arena)
 livro.txt - Opening Book (livro de aberturas)
-readme.txt - this file: installation help (este arquivo: ajuda da instalaÁ„o)
-winboard.ini - Winboard config file example (configuraÁ„o do winboard)
+readme.txt - this file: installation help (este arquivo: ajuda da instala√ß√£o)
+winboard.ini - Winboard config file example (configura√ß√£o do winboard)
 xadreco-logo1.jpg - Xadreco's Logo (Logotipo do Xadreco)
-xadrecov57.cpp - source code (cÛdigo fonte) (for linux/windows)
-xadreco - linux binary application (execut·vel linux)
-xadreco.exe - windows application (execut·vel windows)
-xadreco-icon.png - Xadreco's icon (Ìcone do xadreco)
+xadrecov57.cpp - source code (c√≥digo fonte) (for linux/windows)
+xadreco - linux binary application (execut√°vel linux)
+xadreco.exe - windows application (execut√°vel windows)
+xadreco-icon.png - Xadreco's icon (√≠cone do xadreco)
 
 Another third part files:
-wb2uci.eng - UCI configuration file for Wb2Uci.exe translation app. (Arquivo de configuraÁ„o UCI para a aplicaÁ„o tradutora WB2Uci.exe)
-Wb2Uci.exe - Translation application for Winboard to UCI, by Odd Gunnar Malin (see bellow). AplicaÁ„o tradutora do Winboard para UCi, por Odd Gunnar Malin (Veja abaixo).
+wb2uci.eng - UCI configuration file for Wb2Uci.exe translation app. (Arquivo de configura√ß√£o UCI para a aplica√ß√£o tradutora WB2Uci.exe)
+Wb2Uci.exe - Translation application for Winboard to UCI, by Odd Gunnar Malin (see bellow). Aplica√ß√£o tradutora do Winboard para UCi, por Odd Gunnar Malin (Veja abaixo).
 
 ----
 
@@ -148,14 +148,14 @@ C:\Program files\WinBoard\engines\xadrecov57
 xadreco.tar.gz
 
 5.4- Follow 5.4.1 for a easy new installation. Follow 5.4.2 if you have others engines working with winboard already.
-(Siga 5.4.1 para uma instalaÁ„o nova e simples. Siga 5.4.2 se vc j· tem outras engines instaladas com o winboard).
+(Siga 5.4.1 para uma instala√ß√£o nova e simples. Siga 5.4.2 se vc j√° tem outras engines instaladas com o winboard).
 
 5.4.1- If you have a fresh winboard install, you can just copy the file
 C:\Program files\WinBoard\engines\xadrecov57\winboard.ini
 to the winboard folder:
 C:\Program files\WinBoard\
 
-(Se sua instalaÁ„o do winboard È nova, basta copiar o arquivo winboard.ini que acompanha
+(Se sua instala√ß√£o do winboard √© nova, basta copiar o arquivo winboard.ini que acompanha
 o xadreco para a pasta do winboard)
 
 5.4.2- If you have already set up another engines to your winboard.ini, then just open your winboard.ini and add the lines:
@@ -170,7 +170,7 @@ winboard.exe -cp -scp "engines\xadrecov57\xadreco.exe" -sd "engines\xadrecov57\"
 Notice that this version do not need the parameter "xboard" to work.
 
 
-(Se vocÍ j· tem algumas outras engines configuradas no seu winboard.ini, ent„o adicione as linhas:
+(Se voc√™ j√° tem algumas outras engines configuradas no seu winboard.ini, ent√£o adicione as linhas:
 
 winboard.exe -cp -fcp "engines\xadrecov57\xadreco.exe" -fd "engines\xadrecov57\"
 no grupo /firstChessProgramNames= 
@@ -180,7 +180,7 @@ e
 winboard.exe -cp -scp "engines\xadrecov57\xadreco.exe" -sd "engines\xadrecov57\"
 no grupo /secondChessProgramNames= 
 
-Repare que a partir desta vers„o n„o È mais necess·rio o par‚metro "xboard" para o seu funcionamento.
+Repare que a partir desta vers√£o n√£o √© mais necess√°rio o par√¢metro "xboard" para o seu funcionamento.
 
 ----
 
@@ -200,10 +200,10 @@ xadreco.tar.gz
 - ENGINE
 - CREATE UCI ENGINE
 
-* Click at button (Clique no bot„o):
+* Click at button (Clique no bot√£o):
 - BROWSE
 
-* Go to folder (V· para a pasta):
+* Go to folder (V√° para a pasta):
 C:\Program files\ChessBase\Engines\xadreco
 (C:\Arquivos de programas\ChessBase\Engines\xadreco)
 
@@ -215,12 +215,12 @@ Wb2Uci.exe
 * Click Ok (Clique em OK):
 
 * That is it. You are ready to use the engine. 
-(Pronto, a engine est· disponÌvel).
+(Pronto, a engine est√° dispon√≠vel).
 
 --
 
 To play your first game do this
-(Para jogar uma primeira partida, faÁa assim):
+(Para jogar uma primeira partida, fa√ßa assim):
 
 * Click at menu (Clique no menu):
 - ENGINE
@@ -230,33 +230,33 @@ To play your first game do this
 
 * Click Ok (Clique em Ok):
 
-* Do you move as white. (FaÁa seu lance de brancas).
+* Do you move as white. (Fa√ßa seu lance de brancas).
 
 --
 
 More info about WINBOARD to UCI at Odd Gunnar Malin page.
-(Maiores informaÁıes sobre WINBOARD para UCI), veja
-a p·gina de Odd Gunnar Malin.
+(Maiores informa√ß√µes sobre WINBOARD para UCI), veja
+a p√°gina de Odd Gunnar Malin.
 
 ----
 
-7- Change log of this version (MudanÁas desta vers„o).
+7- Change log of this version (Mudan√ßas desta vers√£o).
 
-* FunÁ„o est·tica simplificada
-* Eliminada toda estrutura para jogar usando apenas o xadreco; Agora sÛ com o xboard
-* N„o h· mais necessidade do par‚metro "xboard" na inicializaÁ„o.
+* Fun√ß√£o est√°tica simplificada
+* Eliminada toda estrutura para jogar usando apenas o xadreco; Agora s√≥ com o xboard
+* N√£o h√° mais necessidade do par√¢metro "xboard" na inicializa√ß√£o.
 
 ----
 
 8- Know bugs (Bugs conhecidos)
 * Parece haver algum erro de sinal que o faz jogar alguns lances suicidas
-* Memory leak - MemÛria n„o est· sendo devolvida corretamente
+* Memory leak - Mem√≥ria n√£o est√° sendo devolvida corretamente
 
 ----
 
 9- To do (afazeres)
-* Simplificar o processo de representaÁ„o do tabuleiro
-* Simplificar a funÁ„o minimax para usar sinal (+) para brancas e (-) para pretas sempre.
+* Simplificar o processo de representa√ß√£o do tabuleiro
+* Simplificar a fun√ß√£o minimax para usar sinal (+) para brancas e (-) para pretas sempre.
 
 ----
 
