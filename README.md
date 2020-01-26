@@ -1,5 +1,5 @@
 Xadreco v.0.0 -- last version (v10.0)
-Copyright (C) 1994-2016 by Ruben Carlo Benante
+Copyright (C) 1988-2020 by Ruben Carlo Benante
 rcb@beco.cc 
 date: 17/07/2007
 modified: 02/08/2016
