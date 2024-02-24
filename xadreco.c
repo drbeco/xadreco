@@ -585,7 +585,7 @@ void retira_listab(void);
 void copitab(tabuleiro *dest, tabuleiro *font);
 //copia font para dest. dest=font.
 //copy font to dest. dest=font
-void libera_lances(movimento *cabeca);
+void libera_lances(movimento **cabeca);
 //libera da memoria uma lista encadeada de movimentos
 //free memory of a list of moves
 void retira_tudo_listab(void);
@@ -1016,19 +1016,19 @@ void mostra_lances(tabuleiro tabu)
 }
 
 //fim do mostra_lances
-void libera_lances(movimento *cabeca)
+void libera_lances(movimento **cabeca)
 {
     movimento *loop, *aux;
-    if(cabeca == NULL)
+    if(*cabeca == NULL)
         return;
-    loop = cabeca;
+    loop = *cabeca;
     while(loop != NULL)
     {
         aux = loop->prox;
         free(loop);
         loop = aux;
     }
-//     cabeca = NULL;
+    *cabeca = NULL;
 }
 
 // imprime o movimento
@@ -2702,7 +2702,7 @@ char situacao(tabuleiro tabu)
     }
     else //Tem lances... mudou a geramov: tem um lance so: nmovi==AFOGOU
     {
-        libera_lances(cabeca); //libera o lance
+        libera_lances(&cabeca); //libera o lance
         if(xeque_rei_das(tabu.vez, tabu))
             return ('x');
     }
@@ -2734,7 +2734,7 @@ char compjoga(tabuleiro *tabu)
         usalivro(*tabu);
         if(result.plance == NULL)
             USALIVRO = 0;
-        libera_lances(melhorcaminho1);
+        libera_lances(&melhorcaminho1);
         melhorcaminho1 = copilistmov(result.plance);
         melhorvalor1 = result.valor;
     }
@@ -2743,7 +2743,7 @@ char compjoga(tabuleiro *tabu)
         //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
         nv = 1;
         nmov = 0; // zero= retorna todos validos
-        libera_lances(succ_geral);
+        libera_lances(&succ_geral);
         succ_geral = geramov(*tabu, &nmov);  //gera os sucessores
         totalnodo = 0;
         //funcao COMPJOGA (CONFERIR)
@@ -2763,7 +2763,7 @@ char compjoga(tabuleiro *tabu)
                 succ->valor_estatico = 0;
                 result.valor = 0;
                 result.plance = copilistmov(melhor_caminho);
-                libera_lances(melhor_caminho);
+                libera_lances(&melhor_caminho);
                 melhorcaminho1 = copilistmov(result.plance);
                 melhorvalor1 = result.valor;
             } //else succ!=NULL
@@ -2793,7 +2793,7 @@ char compjoga(tabuleiro *tabu)
                 //01/12/2013, funcao difclocks trabalhando com segundos (nao mais centisegundos)
                 if(difclocks() < tempomovclock)
                 {
-                    libera_lances(melhorcaminho1);
+                    libera_lances(&melhorcaminho1);
                     melhorcaminho1 = copilistmov(result.plance);
                     melhorvalor1 = result.valor;
                 }
@@ -2831,7 +2831,7 @@ char compjoga(tabuleiro *tabu)
                 nv++; // busca em amplitude: aumenta um nivel.
             } //while result.plance < XEQUEMATE
     } // fim do se nao usou livro
-    libera_lances(result.plance);
+    libera_lances(&result.plance);
     result.plance = copilistmov(melhorcaminho1);
     result.valor = melhorvalor1;
     //nivel extra de debug
@@ -2977,7 +2977,7 @@ char analisa(tabuleiro *tabu)
     {
         nv = 1;
         nmov = 0; //nmove==0, retorna todos validos.
-        libera_lances(succ_geral);
+        libera_lances(&succ_geral);
         succ_geral = geramov(*tabu, &nmov);  //gera os sucessores
         totalnodo = 0;
         while(result.valor < XEQUEMATE)
@@ -3081,7 +3081,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     if(cabeca_succ == NULL)
     {
         //entao o estatico refletira isso: afogamento
-        //libera_lances(result.plance); //bugbug
+        //libera_lances(&result.plance); //bugbug
         result.plance = NULL;
         //coloque um nulo no ponteiro plance
         //nao eh necessario libera_lance, pois plance eh temporario apesar de global.
@@ -3123,7 +3123,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         if(novo_valor > alfa)  // || (novo_valor==alfa && rand()%10>7))
         {
             alfa = novo_valor;
-            libera_lances(melhor_caminho);
+            libera_lances(&melhor_caminho);
             melhor_caminho = copimel(*succ, result.plance);  //cria nova cabeca
         }
         if(debug == 2 && prof == 0)
@@ -3159,9 +3159,9 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     result.valor = alfa;
     result.plance = copilistmov(melhor_caminho);
     //funcao retorna uma cabeca nova
-    libera_lances(melhor_caminho);
+    libera_lances(&melhor_caminho);
     if(prof != 0)
-        libera_lances(cabeca_succ);
+        libera_lances(&cabeca_succ);
     //caso contrario, cabeca_succ esta apontando para succ_geral
     if(debug == 2)
         fprintf(fmini, "#\n#------------------------------------------END Minimax prof: %d", prof);
@@ -4626,7 +4626,7 @@ void usalivro(tabuleiro tabu)
     if(!flivro)
     {
         /* chamada por compjoga() e analisa() */
-        libera_lances(result.plance); 
+        libera_lances(&result.plance); 
         result.plance = NULL;
         return;
     }
@@ -4636,7 +4636,7 @@ void usalivro(tabuleiro tabu)
         if(LINHASBOAS<1)
         {
             fclose(flivro);
-            libera_lances(result.plance);
+            libera_lances(&result.plance);
             result.plance = NULL;
             return;
         }
@@ -4665,7 +4665,7 @@ void usalivro(tabuleiro tabu)
         //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
         cabeca = string2pmovi(tabu.numero, linha);
         result.valor = estatico_pmovi(tabu, cabeca);
-        libera_lances(result.plance);
+        libera_lances(&result.plance);
         result.plance = copilistmov(cabeca);
     }
     else
@@ -4698,7 +4698,7 @@ void usalivro(tabuleiro tabu)
             if(nlinha<1)
             {
                 fclose(flivro);
-                libera_lances(result.plance);
+                libera_lances(&result.plance);
                 result.plance = NULL;
                 return;
              }
@@ -4735,7 +4735,7 @@ void usalivro(tabuleiro tabu)
             /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.numero, linha);
             result.valor = estatico_pmovi(tabu, cabeca);
-            libera_lances(result.plance);
+            libera_lances(&result.plance);
             result.plance = copilistmov(cabeca);
         }
         else /* tab.numero>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
@@ -4767,7 +4767,7 @@ void usalivro(tabuleiro tabu)
             if(nlinha<1)
             {
                 fclose(flivro);
-                libera_lances(result.plance);
+                libera_lances(&result.plance);
                 result.plance = NULL;
                 return;
              }
@@ -4804,26 +4804,26 @@ void usalivro(tabuleiro tabu)
             /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.numero, linha);
             result.valor = estatico_pmovi(tabu, cabeca);
-            libera_lances(result.plance);
+            libera_lances(&result.plance);
             result.plance = copilistmov(cabeca);
             
             /* if(cabeca == NULL) */
             /* { */
             /*     cabeca = string2pmovi(tabu.numero, linha); */
             /*     result.valor = estatico_pmovi(tabu, cabeca); */
-            /*     libera_lances(result.plance); */
+            /*     libera_lances(&result.plance); */
             /*     result.plance = copilistmov(cabeca); */
             /* } */
             /* else */
             /* { */
-            /*     libera_lances(cabeca); */
+            /*     libera_lances(&cabeca); */
             /*     cabeca = string2pmovi(tabu.numero, linha); */
             /*     //eh a primeira linha que casou */
             /*     novovalor = estatico_pmovi(tabu, cabeca); */
             /*     if(novovalor > result.valor) */
             /*     { */
             /*         result.valor = novovalor; */
-            /*         libera_lances(result.plance); */
+            /*         libera_lances(&result.plance); */
             /*         result.plance = copilistmov(cabeca); */
             /*     } */
             /* } */
@@ -4911,7 +4911,7 @@ int irand_minmax(int min, int max)
 void sai(int error)
 {
     printdbg(debug, "# xadreco : sai ( %d )\n", error);
-    libera_lances(result.plance);
+    libera_lances(&result.plance);
     result.plance = NULL;
     retira_tudo_listab();     //zera a lista de tabuleiros
     if(error != 36) // faltou comando xboard
@@ -4925,7 +4925,7 @@ void inicia(tabuleiro *tabu)
     int i, j;
     pausa = 'n';
     result.valor = 0;
-    libera_lances(result.plance);
+    libera_lances(&result.plance);
     result.plance = NULL;
     retira_tudo_listab();
     plcabeca = NULL; //cabeca da lista de repeteco
@@ -4990,7 +4990,7 @@ void  coloca_pecas(tabuleiro *tabu)
 //limpa algumas variaveis para iniciar ponderacao
 void limpa_pensa(void)
 {
-    libera_lances(result.plance);
+    libera_lances(&result.plance);
     result.plance = NULL;
     //eh necessario
     result.valor = -LIMITE;
@@ -5199,7 +5199,7 @@ void ordena_succ(int nmov)  //ordena succ_geral
         {
             aux = copimel(*pior, insere);
             //insere pior na cabeca (a lista  fica em ordem decrescente: o melhor na cabeca)
-            libera_lances(insere);
+            libera_lances(&insere);
             insere = aux;
             pior->ordena = 1;
         }
@@ -5211,13 +5211,13 @@ void ordena_succ(int nmov)  //ordena succ_geral
         if(loop->flag_50 > 1 || loop->especial)
         {
             aux = copimel(*loop, insere);  //movimento *copimel(movimento ummovi, movimento *plan)
-            libera_lances(insere);
+            libera_lances(&insere);
             insere = aux;
             loop = loop->prox;
         }
         else
             break;
-    libera_lances(succ_geral);
+    libera_lances(&succ_geral);
     succ_geral = insere;
 }
 
@@ -5333,8 +5333,8 @@ char randommove(tabuleiro *tabu)
         melhor_caminho = copimel(*succ, NULL);
         result.valor = 0;
         result.plance = copilistmov(melhor_caminho);
-        libera_lances(melhor_caminho);
-        libera_lances(cabeca_succ);  //BUG era succ_geral, virou succ, agora eh cabeca_succ
+        libera_lances(&melhor_caminho);
+        libera_lances(&cabeca_succ);  //BUG era succ_geral, virou succ, agora eh cabeca_succ
         return '-'; //ok
     } //else succ!=NULL
     printdbg(debug, "# empty from randommove - BUG\n");
