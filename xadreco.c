@@ -3441,7 +3441,7 @@ movimento *copilistmov(movimento *font)
     movimento *cabeca, *pmovi;
     if(font == NULL)
         return NULL;
-    cabeca = (movimento *) malloc(sizeof(movimento));   //valor novo que sera do result.plance
+    cabeca = (movimento *) malloc(sizeof(movimento));   //valor novo que sera do result.plance # BUG valgrind memory leak
     if(cabeca == NULL)
         msgsai("# Erro ao alocar memoria em copilistmov 1", 30);
     pmovi = cabeca;
