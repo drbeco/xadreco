@@ -57,7 +57,7 @@
 #endif
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+    #include <config.h>
 #endif
 
 #include <time.h>
@@ -85,11 +85,11 @@
 //Versao do programa
 //program version
 #ifndef VERSION /* gcc -DVERSION="0.1" */
-#define VERSION "5.84" /**< Version Number (string) */
+    #define VERSION "5.84" /**< Version Number (string) */
 #endif
 
 #ifndef BUILD
-#define BUILD "19940819.190934"
+    #define BUILD "19940819.190934"
 #endif
 #define TRUE 1
 #define FALSE 0
@@ -102,7 +102,7 @@
 #if DEBUG==0
     #define NDEBUG
 #endif
-#include <assert.h> /* Verify assumptions with assert. Turn off with #define NDEBUG */ 
+#include <assert.h> /* Verify assumptions with assert. Turn off with #define NDEBUG */
 
 /** @brief Debug message if DEBUG on */
 #define IFDEBUG(M) if(DEBUG) fprintf(stderr, "# [DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
@@ -393,13 +393,13 @@ int COMPUTER = 0;
 //flag to mark that command "?" run
 int WHISPER = 0; /*0:nada, 1:v>200 :)), 2: v>100 :), 3: -100<v<100 :|, 4: v<-100 :(, 5: v<-200 :(( */
 enum e_server {none, fics, lichess} server; /* Am I connected to someone, or stand alone? */
-char bookfname[80]="livro.txt"; /* book file name */
+char bookfname[80] = "livro.txt"; /* book file name */
 /* int verb = 0; /1* verbose variable *1/ */
 int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
 //0:do not save file xadreco.log, 1:save file, 2:minimax debug
 int pong; /* what to ping back */
-int OFERECEREMPATE=0;
+int OFERECEREMPATE = 0;
 /* se decidir oferecer empate, primeiro manda o lance, depois a oferta */
 
 /* ---------------------------------------------------------------------- */
@@ -483,10 +483,10 @@ void inicia_fics(void);
 //get tourney, resume, seek games...
 char randommove(tabuleiro *tabu);
 // joga aleatorio!
-void help(void); 
+void help(void);
 /* imprime o help e termina */
 /* print some help */
-void copyr(void); 
+void copyr(void);
 /* imprime mensagem de copyright */
 /* print version and copyright information */
 void printfics(char *fmt, ...);
@@ -541,7 +541,7 @@ int estatico_pmovi(tabuleiro tabu, movimento *cabeca);
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
 void pega2moves(char *linha2, char *linha);
 //dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
-void pegaNmoves(char *linha2, char *linha, char *strlance); 
+void pegaNmoves(char *linha2, char *linha, char *strlance);
 /* pega total de lances em strlance + 1 */
 void conta_linhas_livro(void);
 /* conta quantas linhas boas tem o livro; para em #LINHASRUINS */
@@ -600,7 +600,6 @@ char compjoga(tabuleiro *tabu);
 
 /* ---------------------------------------------------------------------- */
 /* codigo principal - main code */
-
 int main(int argc, char *argv[])
 {
     int opt; /* return from getopt() */
@@ -609,14 +608,14 @@ int main(int argc, char *argv[])
     char res;
     char movinito[80] = "wait_xboard"; /* scanf : entrada de comandos ou lances */
     int d2 = 0; /* wait for 2 dones */
-//    int joga; /* flag enquanto joga */
+    // int joga; /* flag enquanto joga */
     struct tm *tmatual;
     char hora[] = "2013-12-03 00:28:21";
-    int seed=0;
+    int seed = 0;
 
     server = none;
 #ifdef __linux
-    srand(time(NULL)+getpid());
+    srand(time(NULL) + getpid());
 #else
     srand(time(NULL));
 #endif
@@ -655,10 +654,11 @@ int main(int argc, char *argv[])
             case 'c': /* kind of connection: none, fics, lichess */
                 if(!strcmp("fics", optarg))
                     server = fics;
-                else if(!strcmp("lichess", optarg))
-                    server = lichess;
                 else
-                    server = none;
+                    if(!strcmp("lichess", optarg))
+                        server = lichess;
+                    else
+                        server = none;
                 break;
             case 'x': /* no wait for first xboard keyword */
                 strcpy(movinito, "xboard");
@@ -672,9 +672,9 @@ int main(int argc, char *argv[])
                 printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
                 return EXIT_FAILURE;
         }
-/* RANDOM >= 0, defined YES at compiler time */
-/* RANDOM < -1, defined NO at compiler time */
-/* Otherwise, RANDOM == -1 defined by command line */
+    /* RANDOM >= 0, defined YES at compiler time */
+    /* RANDOM < -1, defined NO at compiler time */
+    /* Otherwise, RANDOM == -1 defined by command line */
 #if RANDOM >= 0
     seed = RANDOM;
     if(seed)
@@ -685,37 +685,37 @@ int main(int argc, char *argv[])
     randomchess = 0;
 #endif
 
-/* if CONNECT<3 && CONNECT>=0, defined at compiler time: 0=none, 1=fics, 2=lichess */
+    /* if CONNECT<3 && CONNECT>=0, defined at compiler time: 0=none, 1=fics, 2=lichess */
 #if CONNECT < 3 && CONNECT >=0
     server = CONNECT;
 #endif
 
-/* if NOWAIT == 1, defined to NOT wait at compiler time */
+    /* if NOWAIT == 1, defined to NOT wait at compiler time */
 #if NOWAIT == 1
     strcpy(movinito, "xboard");
     d2 = 2; /* don't wait for done */
 #endif
 
-/* if XDEBUG<=0, command line -vvv..., otherwise debug=XDEBUG */
+    /* if XDEBUG<=0, command line -vvv..., otherwise debug=XDEBUG */
 #if XDEBUG > 0
     debug = XDEBUG;
 #endif
 
     printdbg(debug, "# DEBUG MACRO compiled value: %d\n", DEBUG);
     printdbg(debug, "# Debug verbose level set at: %d\n", debug);
-    printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess?"yes":"no", seed);
-    printdbg(debug, "# connection: -c %s\n", !server?"none":server==1?"fics":"lichess");
+    printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
+    printdbg(debug, "# connection: -c %s\n", !server ? "none" : server == 1 ? "fics" : "lichess");
     printdbg(debug, "# wait: -x %s\n", movinito);
     printdbg(debug, "# book: -b %s\n", bookfname);
-    
+
     //turn off buffers. Immediate input/output.
     setbuf(stdout, NULL);
     setbuf(stdin, NULL);
     printdbg(debug, "# Xadreco version %s build %s (C) 1994-2018, by Dr. Beco\n"
-           "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
-           "# This is free software, and you are welcome to redistribute it\n"
-           "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
-           "# for details.\n\n", VERSION, BUILD);
+             "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
+             "# This is free software, and you are welcome to redistribute it\n"
+             "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
+             "# for details.\n\n", VERSION, BUILD);
 
     /* 'xboard': scanf if not there yet */
     if(strcmp("xboard", movinito))
@@ -789,13 +789,13 @@ int main(int argc, char *argv[])
                             {
                                 scanf2(movinito); /* get server name */
                                 if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
-                                    server=fics; /* FICS */
+                                    server = fics; /* FICS */
                                 else
                                     if(!strcmp(movinito, "-")) /* Is it stand-alone? */
-                                        server=none; /* no server */
+                                        server = none; /* no server */
                                     else
-                                        server=lichess; /* LICHESS */
-                                printdbg(debug, "# xboard: (main) connected to server: %s (%d)\n",movinito, server);
+                                        server = lichess; /* LICHESS */
+                                printdbg(debug, "# xboard: (main) connected to server: %s (%d)\n", movinito, server);
                             }
                             else
                                 printdbg(debug, "# xboard: ignoring %s\n", movinito);
@@ -807,9 +807,11 @@ int main(int argc, char *argv[])
     // novo jogo
     conta_linhas_livro(); /* atualiza LINHASBOAS; assume que livro nao cresce durante jogo */
     inicia(&tabu);  // zera variaveis
+    assert(tabu.vez == brancas && "board not initialized");
     coloca_pecas(&tabu);  //coloca pecas na posicao inicial
     insere_listab(tabu);
-    if(server==fics)
+    assert(plcabeca != NULL && "board history null");
+    if(server == fics)
         inicia_fics();
     //------------------------------------------------------------------------------
     //joga_novamente: (play another move)
@@ -862,7 +864,7 @@ int main(int argc, char *argv[])
                 inicia(&tabu);  // zera variaveis
                 coloca_pecas(&tabu);  //coloca pecas na posicao inicial
                 insere_listab(tabu);
-                if(server==fics)
+                if(server == fics)
                     inicia_fics();
                 break;
             //            continue;
@@ -977,7 +979,7 @@ int main(int argc, char *argv[])
             case 'x': //xeque: joga novamente
             case 'y': //retorna y: simplesmente gira o laco para jogar de novo. Troca de adv.
             default: //'-' para tudo certo...
-            //       primeiro = segundo = 'h';
+                //       primeiro = segundo = 'h';
                 break;
         } //fim do switch(res)
     } //while (TRUE)
@@ -1032,7 +1034,7 @@ void libera_lances(movimento **cabeca)
 }
 
 // imprime o movimento
-// funcao intermediaria chamada no intervalo humajoga / compjoga 
+// funcao intermediaria chamada no intervalo humajoga / compjoga
 void imptab(tabuleiro tabu)
 {
     char movinito[80];
@@ -1042,10 +1044,10 @@ void imptab(tabuleiro tabu)
     if((tabu.vez == brancas && segundo == 'c') || (tabu.vez == pretas && primeiro == 'c'))
     {
         printf2("move %s\n", movinito);
-        if(OFERECEREMPATE==1)
+        if(OFERECEREMPATE == 1)
         {
             printf2("offer draw\n");
-            OFERECEREMPATE=0;
+            OFERECEREMPATE = 0;
         }
     }
 }
@@ -1144,9 +1146,10 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
     int col, lin;
     int peca;
     int flagvf = *nmovi; /* flagvf==AFOGOU, retorna unico lance (saber se esta afogado), 0, retorna todos */
-//     int pp; //peao pulou
+    // int pp; //peao pulou
     int rr, ee, ff; //peao pulou, roque, especial e flag50;
 
+    assert(tabu.vez == brancas || tabu.vez == pretas && "Invalid turn in geramov");
     for(i = 0; i < 8; i++)  //#coluna
         for(j = 0; j < 8; j++)  //#linha
         {
@@ -1732,6 +1735,7 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
             pmovi = pmovi->prox;
         }
     } //fim do while, e consequentemente da lista
+    assert(*nmov >= 0 && "Negative move count in geramov");
     return cabeca; //lista criada: quem chamou que a libere
 }
 //fim de   ----------- movimento *geramov(tabuleiro tabu)
@@ -1937,7 +1941,7 @@ char humajoga(tabuleiro *tabu)
     //     char peca;
     int tente;
     int lanc[4], moves, minutes;
-    double secs, osecs, incre=0.0;
+    double secs, osecs, incre = 0.0;
     int i, j, k;
     //     int casacor;
     //nao precisa se tem textbackground
@@ -1945,7 +1949,7 @@ char humajoga(tabuleiro *tabu)
     char pieces[80], color[80], castle[80], enpassant[80], halfmove[80], fullmove[80]; //para testar uma posicao
     int testasim = 0, estat;
     movinito[79] = movinito[0] = '\0';
-    char *tc=NULL; /* time control has ":" */
+    char *tc = NULL; /* time control has ":" */
 
     do
     {
@@ -2144,12 +2148,12 @@ char humajoga(tabuleiro *tabu)
         {
             scanf2(movinito); /* get server name */
             if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
-                server=fics; /* FICS */
+                server = fics; /* FICS */
             else
                 if(!strcmp(movinito, "-")) /* Is it stand-alone? */
-                    server=none; /* no server */
+                    server = none; /* no server */
                 else
-                    server=lichess; /* LICHESS */
+                    server = lichess; /* LICHESS */
             printdbg(debug, "# xboard: (humajoga) connected to server: %s (%d)\n", movinito, server);
             tente = 1;
             continue;
@@ -2203,18 +2207,18 @@ char humajoga(tabuleiro *tabu)
             moves = atoi(movinito);
 
             scanf2(movinito);
-            if((tc=strchr(movinito, ':'))!=NULL) /* tem : */
+            if((tc = strchr(movinito, ':')) != NULL) /* tem : */
             {
                 *tc = '\0';
                 minutes = atoi(movinito);
                 tc++;
                 secs = atof(tc);
-                secs += minutes*60.0;
+                secs += minutes * 60.0;
             }
             else
             {
                 minutes = atoi(movinito);
-                secs = minutes*60.0;
+                secs = minutes * 60.0;
             }
 
             /* ultimo numero: incremento */
@@ -2236,7 +2240,7 @@ char humajoga(tabuleiro *tabu)
             // ?? usar metade do tempo disponivel.
 //            tempomovtclock /= 2.0;
             //bug apesar de correto, esta gastando o dobro do tempo. Problema com as rotinas de apoio? Problema com o minimax que nao sabe retornar?
-            if(minutes == 0 && secs <10.0 && incre <= 0.0)
+            if(minutes == 0 && secs < 10.0 && incre <= 0.0)
                 secs = 30.0 * 60.0; /* no time, use 30 min */
             else //minutes !=0
                 secs += incre * TOTAL_MOVIMENTOS; /* incremento baseado em 60 lances */
@@ -2260,17 +2264,17 @@ char humajoga(tabuleiro *tabu)
             scanf2(movinito);
             osecs = atof(movinito) / 100.0; /* opponent time left */
 
-            moves = TOTAL_MOVIMENTOS - tabu->numero/2; 
+            moves = TOTAL_MOVIMENTOS - tabu->numero / 2;
             if(moves <= 0)
                 moves = 5;
-            if(incre>=0.0)
+            if(incre >= 0.0)
             {
                 secs += incre * moves;
                 osecs += incre * moves;
             }
 
             /* tempomovclockmax = 120.0; */
-            tempomovclock = (secs / (float)moves) * (secs/osecs); //em segundos
+            tempomovclock = (secs / (float)moves) * (secs / osecs); //em segundos
             if(tempomovclock > tempomovclockmax)
                 tempomovclock = tempomovclockmax; //maximo tempomovclockmax
             if(tempomovclock < 2) //minimo 1 segundo
@@ -2433,7 +2437,7 @@ char humajoga(tabuleiro *tabu)
 
             /* tabu->numero => 0, 1, 2, 3, 4, 5
              * FEN          => 1, 1, 2, 2, 3, 3 */
-            tabu->numero = (atoi(movinito)-1)*2 + (tabu->vez == pretas?1:0);
+            tabu->numero = (atoi(movinito) -1) * 2 + (tabu->vez == pretas ? 1 : 0);
             //inicia no 0.3 para indicar 0
             /* ultimo resultado: - tudo certo, y troca vez */
             /* ultimo_resultado[0] = 'y'; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) */
@@ -2856,7 +2860,7 @@ char compjoga(tabuleiro *tabu)
         if((int)(rand() % 2)) //sorteio 50% de chances
         {
             /* printf2("offer draw\n"); */
-            OFERECEREMPATE=1;
+            OFERECEREMPATE = 1;
             --ofereci;
         }
     }
@@ -2867,7 +2871,7 @@ char compjoga(tabuleiro *tabu)
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
         printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", result.valor / 100.0);
         /* printf2("offer draw\n"); */
-        OFERECEREMPATE=1;
+        OFERECEREMPATE = 1;
         --ofereci;
     }
     //oferecer empate: result.valor esta invertido na vez.
@@ -2875,7 +2879,7 @@ char compjoga(tabuleiro *tabu)
     {
         printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", result.valor / 100.0);
         /* printf2("offer draw\n"); */
-        OFERECEREMPATE=1;
+        OFERECEREMPATE = 1;
         --ofereci;
     }
     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
@@ -3051,6 +3055,8 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     succ = NULL;
     melhor_caminho = NULL;
     cabeca_succ = NULL;
+
+    assert(prof >= 0 && alfa <= beta && "Invalid minimax parameters");
     if(profsuf(atual, prof, alfa, beta, niv))   // profundidade suficiente ==1 ou ==-1:tempo estourou
     {
         //coloque um nulo no ponteiro plance
@@ -3072,6 +3078,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         nmov = 0; //gerar todos
         cabeca_succ = geramov(atual, &nmov);  //nmov==0, retorna todos validos
     }
+    assert(cabeca_succ != NULL && "cabeca_succ null when trying minimax");
     //succ==NULL se alguem ganhou ou empatou
     //if(debug == 2) {
     //fprintf(fmini, "\nsucc=geramov(): ");
@@ -4587,28 +4594,29 @@ void pega2moves(char *linha2, char *linha)
     strcpy(linha2, linha);
     /* 'e2e4 e7e5 \0' */
     /* '012345678\0' */
-    linha2[9]='\0'; /* nao inclui espaco apos lance */
+    linha2[9] = '\0'; /* nao inclui espaco apos lance */
 }
 
 /* pega total de lances em strlance + 1 */
 void pegaNmoves(char *linha2, char *linha, char *strlance)
 {
     int ll, lli;
-    
+
     ll = strlen(strlance);
     lli = strlen(linha);
 
     strcpy(linha2, strlance);
 
-    if(ll >= lli-5) /* nao tem mais um lance para add */
+    if(ll >= lli - 5) /* nao tem mais um lance para add */
         return;
 
     do
     {
         linha2[ll] = linha[ll];
         ll++;
-    } while(linha[ll]!='\0' || linha[ll]==' ');
-    linha2[ll]='\0';
+    }
+    while(linha[ll] != '\0' || linha[ll] == ' ');
+    linha2[ll] = '\0';
 }
 
 //retorna em result.plance uma variante do livro
@@ -4617,7 +4625,7 @@ void usalivro(tabuleiro tabu)
     movimento *cabeca;
     char linha[256], strlance[256], sjoga[256], linha2[256];
     FILE *flivro;
-    int sorteio, nlinha=0;
+    int sorteio, nlinha = 0;
     /* int novovalor; */
     char *p;
 
@@ -4626,14 +4634,14 @@ void usalivro(tabuleiro tabu)
     if(!flivro)
     {
         /* chamada por compjoga() e analisa() */
-        libera_lances(&result.plance); 
+        libera_lances(&result.plance);
         result.plance = NULL;
         return;
     }
 
     if(tabu.numero == 0)  // No primeiro lance de brancas, sorteia uma abertura
     {
-        if(LINHASBOAS<1)
+        if(LINHASBOAS < 1)
         {
             fclose(flivro);
             libera_lances(&result.plance);
@@ -4641,23 +4649,23 @@ void usalivro(tabuleiro tabu)
             return;
         }
 
-        sorteio = irand_minmax(1, LINHASBOAS+1); /* irand_minmax  [min,max[ */
-        nlinha=0;
+        sorteio = irand_minmax(1, LINHASBOAS + 1); /* irand_minmax  [min,max[ */
+        nlinha = 0;
         while(1)
         {
             fgets(linha, 256, flivro);
             if(feof(flivro))
                 break;
-            if(linha[0]=='#')
+            if(linha[0] == '#')
             {
-                if((p=strchr(linha, ' '))!=NULL)
-                    *p='\0';
+                if((p = strchr(linha, ' ')) != NULL)
+                    * p = '\0';
                 if(!strcmp(linha, "#LINHASRUINS"))
                     break; /* daqui para baixo nao conta */
                 continue; /* essa eh #comentario, ignora */
             }
             nlinha++;
-            if(nlinha==sorteio)
+            if(nlinha == sorteio)
                 break;
         }
         printdbg(debug, "# move 0 - sorteado= %d, linha: '%s'", sorteio, linha);
@@ -4671,17 +4679,17 @@ void usalivro(tabuleiro tabu)
     else
         if(tabu.numero == 1)  // No primeiro lance de pretas, sorteia uma possivel resposta
         {
-            sjoga[0]='\0';
+            sjoga[0] = '\0';
             listab2string(strlance); /* um lance de brancas 'e2e4 ' */
             while(1)
             {
                 fgets(linha, 256, flivro);
                 if(feof(flivro))
                     break;
-                if(linha[0]=='#')
+                if(linha[0] == '#')
                 {
-                    if((p=strchr(linha, ' '))!=NULL)
-                        *p='\0';
+                    if((p = strchr(linha, ' ')) != NULL)
+                        * p = '\0';
                     if(!strcmp(linha, "#LINHASRUINS"))
                         break; /* daqui para baixo nao conta */
                     continue; /* essa eh #comentario, ignora */
@@ -4695,28 +4703,28 @@ void usalivro(tabuleiro tabu)
                 nlinha++;
             }
             printf("#Num de linhas diferentes para %s eh %d\n", strlance, nlinha);
-            if(nlinha<1)
+            if(nlinha < 1)
             {
                 fclose(flivro);
                 libera_lances(&result.plance);
                 result.plance = NULL;
                 return;
-             }
-   
+            }
+
             fseek(flivro, 0, SEEK_SET);
-            sorteio = irand_minmax(1, nlinha+1); /* irand_minmax  [min,max[ */
-            nlinha=0;
+            sorteio = irand_minmax(1, nlinha + 1); /* irand_minmax  [min,max[ */
+            nlinha = 0;
             listab2string(strlance); /* um lance de brancas 'e2e4 ' */
-            sjoga[0]='\0';
+            sjoga[0] = '\0';
             while(1)
             {
                 fgets(linha, 256, flivro);
                 if(feof(flivro))
                     break;
-                if(linha[0]=='#')
+                if(linha[0] == '#')
                 {
-                    if((p=strchr(linha, ' '))!=NULL)
-                        *p='\0';
+                    if((p = strchr(linha, ' ')) != NULL)
+                        * p = '\0';
                     if(!strcmp(linha, "#LINHASRUINS"))
                         break; /* daqui para baixo nao conta */
                     continue; /* essa eh #comentario, ignora */
@@ -4728,7 +4736,7 @@ void usalivro(tabuleiro tabu)
                     continue;
                 strcpy(sjoga, linha2);
                 nlinha++;
-                if(nlinha==sorteio)
+                if(nlinha == sorteio)
                     break;
             }
             printdbg(debug, "# xboard move 1 - sorteado= %d, linha: '%s'", sorteio, linha);
@@ -4740,17 +4748,17 @@ void usalivro(tabuleiro tabu)
         }
         else /* tab.numero>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
         {
-            sjoga[0]='\0';
+            sjoga[0] = '\0';
             listab2string(strlance); /* N lances jogados ate entao 'e2e4 e7e5 b1c3 ... ' */
             while(1)
             {
                 fgets(linha, 256, flivro);
                 if(feof(flivro))
                     break;
-                if(linha[0]=='#')
+                if(linha[0] == '#')
                 {
-                    if((p=strchr(linha, ' '))!=NULL)
-                        *p='\0';
+                    if((p = strchr(linha, ' ')) != NULL)
+                        * p = '\0';
                     if(!strcmp(linha, "#LINHASRUINS"))
                         break; /* daqui para baixo nao conta */
                     continue; /* essa eh #comentario, ignora */
@@ -4764,28 +4772,28 @@ void usalivro(tabuleiro tabu)
                 nlinha++;
             }
             printf("# tab.numero>1, Num de linhas diferentes para %s eh %d\n", strlance, nlinha);
-            if(nlinha<1)
+            if(nlinha < 1)
             {
                 fclose(flivro);
                 libera_lances(&result.plance);
                 result.plance = NULL;
                 return;
-             }
-   
+            }
+
             fseek(flivro, 0, SEEK_SET);
-            sorteio = irand_minmax(1, nlinha+1); /* irand_minmax  [min,max[ */
-            nlinha=0;
+            sorteio = irand_minmax(1, nlinha + 1); /* irand_minmax  [min,max[ */
+            nlinha = 0;
             listab2string(strlance); /* um lance de brancas 'e2e4 ' */
-            sjoga[0]='\0';
+            sjoga[0] = '\0';
             while(1)
             {
                 fgets(linha, 256, flivro);
                 if(feof(flivro))
                     break;
-                if(linha[0]=='#')
+                if(linha[0] == '#')
                 {
-                    if((p=strchr(linha, ' '))!=NULL)
-                        *p='\0';
+                    if((p = strchr(linha, ' ')) != NULL)
+                        * p = '\0';
                     if(!strcmp(linha, "#LINHASRUINS"))
                         break; /* daqui para baixo nao conta */
                     continue; /* essa eh #comentario, ignora */
@@ -4797,7 +4805,7 @@ void usalivro(tabuleiro tabu)
                     continue;
                 strcpy(sjoga, linha2);
                 nlinha++;
-                if(nlinha==sorteio)
+                if(nlinha == sorteio)
                     break;
             }
             printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: '%s'", sorteio, linha);
@@ -4806,7 +4814,7 @@ void usalivro(tabuleiro tabu)
             result.valor = estatico_pmovi(tabu, cabeca);
             libera_lances(&result.plance);
             result.plance = copilistmov(cabeca);
-            
+
             /* if(cabeca == NULL) */
             /* { */
             /*     cabeca = string2pmovi(tabu.numero, linha); */
@@ -4855,16 +4863,16 @@ void conta_linhas_livro(void)
         fgets(linha, 256, flivro);
         if(feof(flivro))
             break;
-        if((p=strchr(linha, '\n'))==NULL) /* nao achou fim de linha! */
+        if((p = strchr(linha, '\n')) == NULL) /* nao achou fim de linha! */
         {
             printdbg(debug, "# xboard : conta_linhas_livro ERROR - linha maior que buffer 256 bytes\n");
             break;
         }
-        if(linha[0]=='#')
+        if(linha[0] == '#')
         {
-            if((p=strchr(linha, ' '))==NULL)
+            if((p = strchr(linha, ' ')) == NULL)
                 continue; /* comentario # sem espaco, ignora */
-            *p='\0'; /* tem espaco, cerca a primeira palavra para teste */
+            *p = '\0'; /* tem espaco, cerca a primeira palavra para teste */
             if(!strcmp(linha, "#LINHASRUINS"))
                 break; /* tag para fim de contagem */
             continue; /* comentario qualquer, ignore */
@@ -4888,23 +4896,23 @@ char pega(char *no, char *msg)
 }
 
 /* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
-float mudaintervalo(float min1, float max1, float min2, float max2, float x1) 
+float mudaintervalo(float min1, float max1, float min2, float max2, float x1)
 {
-  if((min1 - max1)==0.0) // erro! divisao por zero
-    return 0.0;
-  return (x1 * ((min2 - max2)/(min1 - max1)) + max2 - max1 * ((min2 - max2)/(min1 - max1)));
+    if((min1 - max1) == 0.0) // erro! divisao por zero
+        return 0.0;
+    return (x1 * ((min2 - max2) / (min1 - max1)) + max2 - max1 * ((min2 - max2) / (min1 - max1)));
 }
 
 /* retorna valor inteiro aleatorio entre [min,max[ */
 int irand_minmax(int min, int max)
 {
-  static int first=1;
-  if(first) /* inicializa semente */
-  {
-    srand(time(NULL));
-    first=0;
-  }
-  return (int)mudaintervalo(0.0, RAND_MAX, (float)min, (float)max, (float)rand());
+    static int first = 1;
+    if(first) /* inicializa semente */
+    {
+        srand(time(NULL));
+        first = 0;
+    }
+    return (int)mudaintervalo(0.0, RAND_MAX, (float)min, (float)max, (float)rand());
 }
 
 //termina o programa
@@ -4931,7 +4939,7 @@ void inicia(tabuleiro *tabu)
     plcabeca = NULL; //cabeca da lista de repeteco
     ofereci = 1; //computador pode oferecer 1 empate
     USALIVRO = 0;
-    if(LINHASBOAS>0)
+    if(LINHASBOAS > 0)
         USALIVRO = 1;
     //use o livro nas posicoes iniciais
     setboard = 0; //setboard command
@@ -5398,7 +5406,7 @@ void printfics(char *fmt, ...)
 {
     va_list args;
 
-    if(server!=fics)
+    if(server != fics)
         return;
 
     va_start(args, fmt);
@@ -5432,7 +5440,7 @@ void printdbg(int dbg, ...)
     char *fmt;
 
     va_start(args, dbg);
-    fmt=va_arg(args, char *);
+    fmt = va_arg(args, char *);
     /* if(dbg>DEBUG) */
     if(dbg)
         vfprintf(XDEBUGFOUT, fmt, args);
@@ -5446,7 +5454,7 @@ void scanf2(char *movinito)
     printdbg(debug, "# scanf: %s\n", movinito);
 }
 
-/* ---------------------------------------------------------------------------- */
-/* vi: set ai cin et ts=4 sw=4 tw=0 wm=0 fo=croqltn : C config for Vim modeline */
-/* Template by Dr. Beco <rcb at beco dot cc>  Version 20160714.153029           */
+/* ---------------------------------------------------------------------- */
+/* vi: set ai et ts=4 sw=4 tw=0 wm=0 fo=croql : C config for Vim modeline */
+/* Template by Dr. Beco <rcb at beco dot cc>      Version 20250309.153530 */
 
