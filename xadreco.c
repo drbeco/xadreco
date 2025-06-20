@@ -66,6 +66,7 @@
 #include <stdlib.h>
 #include <getopt.h> /* get options from system argc/argv */
 #include <stdarg.h> /* function with multiple arguments */
+#include <signal.h> /* capture control-c to gracely abort */
 
 /* ---------------------------------------------------------------------- */
 /* definitions */
@@ -406,197 +407,193 @@ int OFERECEREMPATE = 0;
 /* general prototypes */
 /* prototipos gerais */
 
-void imptab(tabuleiro tabu);
 //imprime o tabuleiro
 //print board
-void mostra_lances(tabuleiro tabu);
-//mostra na tela informacoes do jogo e analises
+void imptab(tabuleiro tabu);
+//mostra na tela informacoes do jogo e analises 
 //show on screen game information and analyzes
-void lance2movi(char *m, int *l, int especial);
-//transforma lances int 0077 em char tipo a1h8
+void mostra_lances(tabuleiro tabu);
+//transforma lances int 0077 em char tipo a1h8 
 //change integer notation to algebric notation
-int movi2lance(int *l, char *m);
-//faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.
+void lance2movi(char *m, int *l, int especial);
+//faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.  
 //change algebric notation to integer notation. Return FALSE if it is not possible.
-inline int adv(int vez);
-//retorna o adversario de quem esta na vez
+int movi2lance(int *l, char *m);
+//retorna o adversario de quem esta na vez 
 //return the other player to play
-inline int sinal(int x);
-//retorna 1, -1 ou 0. Sinal de x
+inline int adv(int vez);
+//retorna 1, -1 ou 0. Sinal de x 
 //return 1, -1 or 0: signal of x.
-int igual(int *lance1, int *lance2);
-//compara dois vetores de lance[4]. Se igual, retorna 1
+inline int sinal(int x);
+//compara dois vetores de lance[4]. Se igual, retorna 1 
 //return 1 if lance1==lance2
-char pega(char *no, char *msg);
-//pegar caracter (linux e windows)
+int igual(int *lance1, int *lance2);
+//pegar caracter (linux e windows) 
 //to solve getch, getche, getchar and whatever problems of portability
-float mudaintervalo(float min1, float max1, float min2, float max2, float x1);
+char pega(char *no, char *msg);
 /* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
-int irand_minmax(int min, int max);
-/* retorna valor inteiro aleatorio entre [min,max[ */
-//retorna um valor entre [min,max[, intervalo aberto a direita
+float mudaintervalo(float min1, float max1, float min2, float max2, float x1);
+/* retorna valor inteiro aleatorio entre [min,max[ */ 
 //return a random value between [min,max[, not included the right side
-void sai(int error);
-//termina o programa
+int irand_minmax(int min, int max);
+//termina o programa 
 //exit the program
-void inicia(tabuleiro *tabu);
-//para inicializar alguns valores no inicio do programa;
+void sai(int error);
+//para inicializar alguns valores no inicio do programa 
 //to start some values in the beggining of the program
-void coloca_pecas(tabuleiro *tabu);
-//coloca as pecas na posicao inicial
+void inicia(tabuleiro *tabu);
+//coloca as pecas na posicao inicial 
 //put the pieces in the start position
+void coloca_pecas(tabuleiro *tabu);
+//testa posicao dada. devera ser melhorado.  
+//test a determined position should be improved.
 void testapos(char *pieces, char *color, char *castle, char *enpassant, char *halfmove, char *fullmove);
-//testa posicao dada. devera ser melhorado.
-//used to test a determined position; should be improved.
-void testajogo(char *movinito, int numero);
-//retorna um lance do jogo de teste
+//retorna um lance do jogo de teste 
 //returns a move in the test game
-void limpa_pensa(void);
-//limpa algumas variaveis para iniciar a ponderacao
+void testajogo(char *movinito, int numero);
+//limpa algumas variaveis para iniciar a ponderacao 
 //to clean some variables to start pondering
-void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff, int *nmovi);
-// enche_pmovi (movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int peao_pulou, int roque, int especial, int flag50, nummovi)
+void limpa_pensa(void);
+//preenche a estrutura movimento 
+//fullfil movimento structure
 //pp peao_pulou: contem -1 ou coluna do peao que andou duas neste lance
 //rr roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
 //ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
 //ff flag_50: 0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-//preenche a estrutura movimento
-//fullfil movimento structure
+void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff, int *nmovi);
+//mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok) 
+//message before exit program (lack of memory, etc, or just exiting ok)
 void msgsai(char *msg, int error);
-//emite mensagem antes de sair do programa (por falta de memoria ou outros itens), ou tudo certo
-//message before exit program because lack of memory or other problems, or just exiting ok.
-void imprime_linha(movimento *loop, int numero, int vez);
-//imprime uma sequencia de lances armazenada na lista movimento, numerados.
+//imprime uma sequencia de lances armazenada na lista movimento, numerados.  
 //print a sequence of moves in movimento list, numbered.
-int pollinput(void);
-// retorna verdadeiro se existe algum caracter no buffer para ser lido
+void imprime_linha(movimento *loop, int numero, int vez);
+// retorna verdadeiro se existe algum caracter no buffer para ser lido 
 // return true if there are some character in the buffer to be read
-/* char *build(void);  NO NEED, use BUILD */
-// compiled time - build version
+int pollinput(void);
+// compiled time - build version 
 // hora da compilacao - versao de construcao
-// difclocks = valores em segundos
+/* char *build(void);  NO NEED, use BUILD */
+//calcula diferenca de tempo em segundo do lance atual 
+//calculates time difference in seconds for the current move, return tdifs = difftime(tatual, tinimov);
 double difclocks(void);
-//calcula diferenca de tempo em segundo do lance atual
-//calculates time difference in seconds for the current move
-//return tdifs = difftime(tatual, tinimov);
-void inicia_fics(void);
 //get tourney, resume, seek games...
-char randommove(tabuleiro *tabu);
+void inicia_fics(void);
 // joga aleatorio!
-void help(void);
-/* imprime o help e termina */
+char randommove(tabuleiro *tabu);
+/* imprime o help e termina */ 
 /* print some help */
-void copyr(void);
-/* imprime mensagem de copyright */
+void help(void);
+/* imprime mensagem de copyright */ 
 /* print version and copyright information */
-void printfics(char *fmt, ...);
+void copyr(void);
 /* print fics commands */
+void printfics(char *fmt, ...);
+/* print debug information  */
 void printdbg(int dbg, ...);
 /* print debug information  */
 void printf2(char *fmt, ...);
-/* print debug information  */
-void scanf2(char *movinito);
 /* le entrada padrao */
+void scanf2(char *movinito);
 
 // apoio xadrez -----------------------------------------------------
-int ataca(int cor, int col, int lin, tabuleiro tabu);
-//retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
+//retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu 
 //return 1 if "color" atack square(col, lin) in board tabu
-int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor);
-//retorna o numero de ataques da "cor" na casa(col,lin) de tabu, *menor e a menor peca que ataca.
+int ataca(int cor, int col, int lin, tabuleiro tabu);
+//retorna o numero de ataques da "cor" na casa(col,lin) de tabu, *menor e a menor peca que ataca.  
 //return the number of atacks of "color" at square(col,lin) in board tabu, *menor is the minor piece that atack
-int xeque_rei_das(int cor, tabuleiro tabu);
-//retorna 1 se o rei de cor "cor" esta em xeque
+int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor);
+//retorna 1 se o rei de cor "cor" esta em xeque 
 //return 1 if "color" king is in check
-void volta_lance(tabuleiro *tabu);
-//para voltar um movimento. Use duas vezes para voltar um lance inteiro.
+int xeque_rei_das(int cor, tabuleiro tabu);
+//para voltar um movimento. Use duas vezes para voltar um lance inteiro.  
 //take back one ply. Use twice to take back one move
-char analisa(tabuleiro *tabu);
-//analisa uma posicao mas nao joga
+void volta_lance(tabuleiro *tabu);
+//analisa uma posicao mas nao joga 
 //analyze a position, but do not play it
-movimento *valido(tabuleiro tabu, int *lanc);
-//procura nos movimentos de geramov se o lance em questao eh valido. Retorna o *movimento preenchido. Se nao, retorna NULL.
+char analisa(tabuleiro *tabu);
+//procura nos movimentos de geramov se o lance em questao eh valido. Retorna o *movimento preenchido. Se nao, retorna NULL.  
 //search on the list generated by geramov if the move lanc is valid. Return *movimento fullfiled. If not, return NULL.
-char situacao(tabuleiro tabu);
-//retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
+movimento *valido(tabuleiro tabu, int *lanc);
+//retorna char que indica a situacao do tabuleiro, como mate, empate, etc...  
 //return a char that indicate the situation of the board, as mate, draw, etc...
-void ordena_succ(int nmov);
-//ordena succ_geral
+char situacao(tabuleiro tabu);
+//ordena succ_geral 
 //sort succ_geral
+void ordena_succ(int nmov);
 
 // livro --------------------------------------------------------------
-void usalivro(tabuleiro tabu);
 //retorna em result.plance uma variante do livro, baseado na posicao do tabuleiro tabu
 //put in result.plance a line found in the book, from the position on the board tabu
-void listab2string(char *strlance);
+void usalivro(tabuleiro tabu);
 //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
 //generate a string with all moves, like "e1e2 e7e5"
-movimento *string2pmovi(int numero, char *linha);
+void listab2string(char *strlance);
 //retorna uma (lista) linha de jogo como se fosse a resposta do minimax
 //return a variation on a list, like the minimax's return.
-int igual_strlances_strlinha(char *strlances, char *strlinha);
+movimento *string2pmovi(int numero, char *linha);
 //retorna verdadeiro se o jogo atual strlances casa com a linha do livro atual strlinha
 //return TRUE if the game strlances match with one line strlinha of the opening book
-int estatico_pmovi(tabuleiro tabu, movimento *cabeca);
+int igual_strlances_strlinha(char *strlances, char *strlinha);
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
-void pega2moves(char *linha2, char *linha);
+int estatico_pmovi(tabuleiro tabu, movimento *cabeca);
 //dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
-void pegaNmoves(char *linha2, char *linha, char *strlance);
+void pega2moves(char *linha2, char *linha);
 /* pega total de lances em strlance + 1 */
-void conta_linhas_livro(void);
+void pegaNmoves(char *linha2, char *linha, char *strlance);
 /* conta quantas linhas boas tem o livro; para em #LINHASRUINS */
+void conta_linhas_livro(void);
 
 // computador joga ----------------------------------------------------------
-movimento *geramov(tabuleiro tabu, int *nmov);
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 //return a list of possibles moves, ordered by check and capture. Should put a best order here.
-void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
+movimento *geramov(tabuleiro tabu, int *nmov);
 //coloca em result a melhor variante e seu valor.
 //put in result the better variation and its value
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv);
+void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
 //retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
 //return TRUE if (deep>level) or (deep==level and not capture or check) or (it is a draw)
-int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
+int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv);
 //retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 //return the static value of a position. If cod==1, means that this position was here only because the time is over in the middle of the search. Niv: the distance between the real board and the virtual copy examined.
-char joga_em(tabuleiro *tabu, movimento movi, int cod);
+int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
 //joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
 //do the move! Move movi on board tabu. Return the situation. Insert the new board in the listab *plfina list if cod==1
+char joga_em(tabuleiro *tabu, movimento movi, int cod);
 
 // listas dinamicas ----------------------------------------------------------------
-movimento *copimel(movimento pmovi, movimento *plance);
 //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
 //return a new list adding (new single move pmovi)+(old list moves plance)
-void copimov(movimento *dest, movimento *font);
+movimento *copimel(movimento pmovi, movimento *plance);
 //copia os itens da estrutura movimento, mas nao copia ponteiro prox. dest=font
 //copy only the contents of the structure, but not the pointer. dest=font
-void copilistmovmel(movimento *dest, movimento *font);
+void copimov(movimento *dest, movimento *font);
 //mantem dest, e copia para dest->prox a lista encadeada font. Assim, a nova lista e (dest+font)
 //keep dest, and copy the list font to dest->prox. So, the new list is (dest+font)
-movimento *copilistmov(movimento *font);
+void copilistmovmel(movimento *dest, movimento *font);
 //copia uma lista encadeada para outra nova. Retorna cabeca da lista destino
 //copy one list to another new one. Return the new head.
-void insere_listab(tabuleiro tabu);
+movimento *copilistmov(movimento *font);
 //Insere o tabuleiro tabu na lista listab. posiciona plcabeca, plfinal.   Para casos de empate de repeticao de lances, e para pegar o historico de lances
 //insert the board tabu in the list listab *plcabeca, positioning plcabeca and plfinal. Use to see draw, and to get history
-void retira_listab(void);
+void insere_listab(tabuleiro tabu);
 //posiciona plfinal no *ant. ou seja: apaga o ultimo da lista. (usada para voltar de variantes ruins ou para voltar um lance a pedido do jogador)
 //delete the last board in the listab. (used to retract from worst variations, or to take back a move asked by player)
-void copitab(tabuleiro *dest, tabuleiro *font);
+void retira_listab(void);
 //copia font para dest. dest=font.
 //copy font to dest. dest=font
-void libera_lances(movimento **cabeca);
+void copitab(tabuleiro *dest, tabuleiro *font);
 //libera da memoria uma lista encadeada de movimentos
 //free memory of a list of moves
-void retira_tudo_listab(void);
+void libera_lances(movimento **cabeca);
 //zera a lista de tabuleiros
 //free all listab list.
-char humajoga(tabuleiro *tabu);
+void retira_tudo_listab(void);
 //humano joga. Aceita comandos XBoard/WinBoard.
 //human play. Accept XBoard/WinBoard commands.
-char compjoga(tabuleiro *tabu);
+char humajoga(tabuleiro *tabu);
 //computador joga. Chama o livro de aberturas ou o minimax.
 //computer play. Call the opening book or the minimax functions.
+char compjoga(tabuleiro *tabu);
 
 /* ---------------------------------------------------------------------- */
 /* codigo principal - main code */
