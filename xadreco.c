@@ -989,7 +989,7 @@ int main(int argc, char *argv[])
 
 void inicia_fics(void)
 {
-    waits(10); /* bug: trocar por espera que nao prende a engine */
+    waits(1); /* was waits(10): reduced to avoid time forfeit at fast time controls */
     printfics("tellicsnoalias tell mamer gettourney blitz\n");
     printfics("tellicsnoalias resume\n");
     printfics("tellicsnoalias seek 2 1 f m\n");
@@ -2242,14 +2242,16 @@ char humajoga(tabuleiro *tabu)
                 secs = 30.0 * 60.0; /* no time, use 30 min */
             else //minutes !=0
                 secs += incre * TOTAL_MOVIMENTOS; /* incremento baseado em 60 lances */
-            /* tempomovclockmax = 120.0; */
+            tempomovclockmax = secs / 4.0; /* never spend more than 25% of remaining time */
+            if(tempomovclockmax < 1.0)
+                tempomovclockmax = 1.0;
             tempomovclock = secs / (float)moves; //em segundos
             if(tempomovclock > tempomovclockmax)
                 tempomovclock = tempomovclockmax; //maximo tempomovclockmax
-            if(tempomovclock < 2) //minimo 1 segundo
-                tempomovclock = 2; /* evita ficar sem lances */
+            if(tempomovclock < 0.5) //minimo meio segundo
+                tempomovclock = 0.5;
 
-            printdbg(debug, "# xadreco level: %.1fs+%.1fs por %d lances: ajustado para st %f s por lance\n", secs, incre, moves, tempomovclock);
+            printdbg(debug, "# xadreco level: %.1fs+%.1fs por %d lances: ajustado para st %f s por lance (max %f)\n", secs, incre, moves, tempomovclock, tempomovclockmax);
             tente = 1;
             continue;
         }
@@ -2271,14 +2273,16 @@ char humajoga(tabuleiro *tabu)
                 osecs += incre * moves;
             }
 
-            /* tempomovclockmax = 120.0; */
-            tempomovclock = (secs / (float)moves) * (secs / osecs); //em segundos
+            tempomovclockmax = secs / 4.0; /* never spend more than 25% of remaining time */
+            if(tempomovclockmax < 1.0)
+                tempomovclockmax = 1.0;
+            tempomovclock = secs / (float)moves; //em segundos
             if(tempomovclock > tempomovclockmax)
                 tempomovclock = tempomovclockmax; //maximo tempomovclockmax
-            if(tempomovclock < 2) //minimo 1 segundo
-                tempomovclock = 2; /* evita ficar sem lances */
+            if(tempomovclock < 0.5) //minimo meio segundo
+                tempomovclock = 0.5;
 
-            printdbg(debug, "# xadreco time: meu: %.1fs opo:%.1fs, para %d lances: ajustado para st %f s por lance\n", secs, osecs, moves, tempomovclock);
+            printdbg(debug, "# xadreco time: meu: %.1fs opo:%.1fs, para %d lances: ajustado para st %f s por lance (max %f)\n", secs, osecs, moves, tempomovclock, tempomovclockmax);
             tente = 1;
             continue;
         }
@@ -2800,6 +2804,8 @@ char compjoga(tabuleiro *tabu)
                     melhorcaminho1 = copilistmov(result.plance);
                     melhorvalor1 = result.valor;
                 }
+                else if(melhorcaminho1 != NULL) /* time exceeded and we have a move: stop now */
+                    break;
                 totalnodo += totalnodonivel;
                 ordena_succ(nmov);  //ordena succ_geral
                 if(debug == 2)
