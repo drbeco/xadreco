@@ -2764,6 +2764,7 @@ char compjoga(tabuleiro *tabu)
                 melhor_caminho = copimel(*succ, result.plance);
                 succ->valor_estatico = 0;
                 result.valor = 0;
+                libera_lances(&result.plance);
                 result.plance = copilistmov(melhor_caminho);
                 libera_lances(&melhor_caminho);
                 melhorcaminho1 = copilistmov(result.plance);
@@ -2835,6 +2836,7 @@ char compjoga(tabuleiro *tabu)
     } // fim do se nao usou livro
     libera_lances(&result.plance);
     result.plance = copilistmov(melhorcaminho1);
+    libera_lances(&melhorcaminho1);
     result.valor = melhorvalor1;
     //nivel extra de debug
     if(debug == 2)
@@ -3162,6 +3164,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             break;
     } //while(succ!=NULL)
     result.valor = alfa;
+    libera_lances(&result.plance);
     result.plance = copilistmov(melhor_caminho);
     //funcao retorna uma cabeca nova
     libera_lances(&melhor_caminho);
@@ -4877,6 +4880,7 @@ void conta_linhas_livro(void)
         }
         LINHASBOAS++;
     }
+    fclose(flivro);
 }
 
 //pegar caracter (linux e windows)
@@ -4919,6 +4923,7 @@ void sai(int error)
     printdbg(debug, "# xadreco : sai ( %d )\n", error);
     libera_lances(&result.plance);
     result.plance = NULL;
+    libera_lances(&succ_geral);
     retira_tudo_listab();     //zera a lista de tabuleiros
     if(error != 36) // faltou comando xboard
         printfics("tellicsnoalias exit\n");
