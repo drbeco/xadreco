@@ -57,6 +57,9 @@
 /* ---------------------------------------------------------------------- */
 /* definitions */
 
+#define SQ(c, r)  ((c) + (r) * 8)
+#define COL(sq)   ((sq) & 7)
+#define ROW(sq)   ((sq) >> 3)
 
 #ifdef __arm__
 #warning Linux ARM detected
