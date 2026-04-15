@@ -60,30 +60,30 @@
 #define waits(s) sleep(s)
 
 #ifdef __arm__
-    #warning Linux ARM detected
+#warning Linux ARM detected
 #else
-    #warning Linux x86_64 detected
+#warning Linux x86_64 detected
 #endif
 
 //Versao do programa
 //program version
 #ifndef VERSION /* gcc -DVERSION="0.1" */
-    #define VERSION "6.x" /**< Fallback version if makefile doesn't set it */
+#define VERSION "6.x" /**< Fallback version if makefile doesn't set it */
 #endif
 
 #ifndef BUILD
-    #define BUILD "19940819.190934"
+#define BUILD "19940819.190934"
 #endif
 #define TRUE 1
 #define FALSE 0
 
 /* Debug */
 #ifndef DEBUG /* gcc -DDEBUG=1 */
-    #define DEBUG 0 /**< Activate/deactivate debug mode */
+#define DEBUG 0 /**< Activate/deactivate debug mode */
 #endif
 
 #if DEBUG==0
-    #define NDEBUG
+#define NDEBUG
 #endif
 #include <assert.h> /* Verify assumptions with assert. Turn off with #define NDEBUG */
 
@@ -92,20 +92,20 @@
 
 /* Command line defaults */
 #ifndef RANDOM
-    #define RANDOM -1
+#define RANDOM -1
 #endif
 /* if CONNECT<3 && CONNECT>=0, defined at compiler time: 0=none, 1=fics, 2=lichess */
 #ifndef CONNECT
-    #define CONNECT 3
+#define CONNECT 3
 #endif
 #ifndef NOWAIT
-    #define NOWAIT 0
+#define NOWAIT 0
 #endif
 #ifndef XDEBUG
-    #define XDEBUG 0
+#define XDEBUG 0
 #endif
 #ifndef XDEBUGFOUT
-    #define XDEBUGFOUT stderr
+#define XDEBUGFOUT stderr
 #endif
 
 #define TOTAL_MOVIMENTOS 50
@@ -761,23 +761,23 @@ int main(int argc, char *argv[])
                         if(!strcmp(movinito, "force")) /* lichess don't send 'accept', goes by 'force' */
                             break;
                         else
-                        if(!strcmp(movinito, "new")) /* python-chess sends new without done */
-                            break;
-                        else
-                            if(!strcmp(movinito, "ics")) /* Am I at a server? */
-                            {
-                                scanf2(movinito); /* get server name */
-                                if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
-                                    server = fics; /* FICS */
-                                else
-                                    if(!strcmp(movinito, "-")) /* Is it stand-alone? */
-                                        server = none; /* no server */
-                                    else
-                                        server = lichess; /* LICHESS */
-                                printdbg(debug, "# xboard: (main) connected to server: %s (%d)\n", movinito, server);
-                            }
+                            if(!strcmp(movinito, "new")) /* python-chess sends new without done */
+                                break;
                             else
-                                printdbg(debug, "# xboard: ignoring %s\n", movinito);
+                                if(!strcmp(movinito, "ics")) /* Am I at a server? */
+                                {
+                                    scanf2(movinito); /* get server name */
+                                    if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
+                                        server = fics; /* FICS */
+                                    else
+                                        if(!strcmp(movinito, "-")) /* Is it stand-alone? */
+                                            server = none; /* no server */
+                                        else
+                                            server = lichess; /* LICHESS */
+                                    printdbg(debug, "# xboard: (main) connected to server: %s (%d)\n", movinito, server);
+                                }
+                                else
+                                    printdbg(debug, "# xboard: ignoring %s\n", movinito);
     } /* main while starting xboard protocol */
     printdbg(debug, "# xboard: main while done\n");
 
@@ -2804,8 +2804,9 @@ char compjoga(tabuleiro *tabu)
                     melhorcaminho1 = copilistmov(result.plance);
                     melhorvalor1 = result.valor;
                 }
-                else if(melhorcaminho1 != NULL) /* time exceeded and we have a move: stop now */
-                    break;
+                else
+                    if(melhorcaminho1 != NULL) /* time exceeded and we have a move: stop now */
+                        break;
                 totalnodo += totalnodonivel;
                 ordena_succ(nmov);  //ordena succ_geral
                 if(debug == 2)
