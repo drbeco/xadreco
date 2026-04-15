@@ -3220,6 +3220,9 @@ movimento *copilistmov(movimento *font)
 //niv: qual a distancia do tabuleiro real para a copia tabu avaliada?
 int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
 {
+    if(cod) //time expired: skip evaluation, abandon this branch
+        return alfa;
+
     int totb = 0, totp = 0;
     int i, j, k, cor, peca;
     int peaob, peaop, isob, isop, pecab = 0, pecap = 0, material;
@@ -3229,21 +3232,6 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //coloca todas pecas do tabuleiro em ordem de valor
     //64 casas, cada uma com 7 info: 0:i, 1:j, 2:peca,
     //3: qtdataquebranco, 4: menorb, 5: qtdataquepreto, 6: menorp
-    // Estranho de implementar isso. Precisa de mais testes
-    // Quando esta avaliando uma posicao e o tempo estourou, por
-    // via das duvidas e melhor nao confiar muito nessa posicao...
-    //------------------------------------------------------------
-    //ignorando a avaliacao estatica, pois precisa retornar
-    /*    if (cod)
-        {
-            k = -1;
-            for (i = 0; i < niv; i++)
-                k *= (-1);
-            return k * FIMTEMPO;	//bugbug
-        }*/
-    //estando em profsuf, resultado ruim retorna invertido
-    //        else
-    //              return LIMITE;
     //levando em conta a situacao do tabuleiro
     switch(tabu.situa)
     {
