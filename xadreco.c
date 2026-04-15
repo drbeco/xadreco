@@ -4397,15 +4397,15 @@ movimento *string2pmovi(int numero, char *linha)
     //posicao inicial
     tabuleiro tab =
     {
-        {
-            {-TORRE, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, TORRE},
-            {-CAVALO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, CAVALO},
-            {-BISPO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, BISPO},
-            {-DAMA, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, DAMA},
-            {-REI, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, REI},
-            {-BISPO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, BISPO},
-            {-CAVALO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, CAVALO},
-            {-TORRE, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, TORRE}
+        {   /* tab[64]: col 0-7, each col has rows 0-7 */
+            -TORRE, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, TORRE,   /* a1-a8 */
+            -CAVALO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, CAVALO, /* b1-b8 */
+            -BISPO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, BISPO,   /* c1-c8 */
+            -DAMA, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, DAMA,     /* d1-d8 */
+            -REI, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, REI,       /* e1-e8 */
+            -BISPO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, BISPO,   /* f1-f8 */
+            -CAVALO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, CAVALO, /* g1-g8 */
+            -TORRE, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, TORRE    /* h1-h8 */
         },
         -1, -1, 1, 1, 0, 0,
         {0, 0, 0, 0},
