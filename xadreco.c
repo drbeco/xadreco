@@ -57,7 +57,6 @@
 /* ---------------------------------------------------------------------- */
 /* definitions */
 
-#define waits(s) sleep(s)
 
 #ifdef __arm__
 #warning Linux ARM detected
