@@ -6,17 +6,17 @@
 //%% Arquivo xadreco.c
 //%% Tecnica: MiniMax
 //%% Autor: Ruben Carlo Benante
+//%% Contato: rcb@beco.cc
 //%% criacao: 10/06/1999
 //%% versao para XBoard/WinBoard: 26/09/04
-//%% versao 5.8, de 27/10/10
-//%% e-mail do autor: rcb@beco.cc
-//%% edicao: 2013-19-11
+//%% versao 6.1, 2026-04-15
+//%% edicao: 2026-04-15
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 //-----------------------------------------------------------------------------
 /***************************************************************************
- *   xadreco version 5.8. Chess engine compatible                          *
- *   with XBoard/WinBoard Protocol (C)                                     *
- *   Copyright (C) 1994-2018 by Ruben Carlo Benante <rcb@beco.cc>          *
+ *   xadreco version 6.1. Chess engine compatible                          *
+ *   with XBoard Protocol (C)                                              *
+ *   Copyright (C) 1994-2026 by Ruben Carlo Benante <rcb@beco.cc>          *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -66,7 +66,6 @@
 #endif
 
 //Versao do programa
-//program version
 #ifndef VERSION /* gcc -DVERSION="0.1" */
 #define VERSION "6.x" /**< Fallback version if makefile doesn't set it */
 #endif
@@ -108,41 +107,31 @@
 #define XDEBUGFOUT stderr
 #endif
 
-#define TOTAL_MOVIMENTOS 50
 //estimativa da duracao do jogo
-//estimate of game lenght
-#define MARGEM_PREGUICA 400
+#define TOTAL_MOVIMENTOS 50
 //margem para usar a estatica preguicosa
-//margin to use the lazy evaluation
-#define PORCENTO_MOVIMENTOS 0.85
+#define MARGEM_PREGUICA 400
 //a porcentagem de movimentos considerados, do total de opcoes
-//the percent of the total moves considered
-#define FIMTEMPO 106550
+#define PORCENTO_MOVIMENTOS 0.85
 //usada para indicar que o tempo acabou, na busca minimax
-//used to indicate that the time is over, under minimax search
-#define LIMITE 105000
+#define FIMTEMPO 106550
 //define o limite para a funcao de avaliacao estatica
-//define the min/max limite of the static valuation function
-#define XEQUEMATE 100000
+#define LIMITE 105000
 //define o valor do xequemate
-//defines the value of the checkmate
-//#define LINHASBOAS 483 (fix: trocado para valor dinamico / changed to count it dynamically)
+#define XEQUEMATE 100000
 //define a qtd de linhas no livro de abertura
-//define how much lines there are in the openning book
-#define MOVE_EMPATE1 52
+//#define LINHASBOAS 483 (fix: trocado para valor dinamico / changed to count it dynamically)
 //numero do movimento que a maquina pode pedir empate pela primeira vez
-//ply that engine can ask first draw
-#define MOVE_EMPATE2 88
+#define MOVE_EMPATE1 52
 //numero do movimento que a maquina pode pedir empate pela segunda vez
-//ply that engine can ask second draw
-#define QUANTO_EMPATE1 -200
+#define MOVE_EMPATE2 88
 // pede empate se tiver menos que 2 PEOES
-//ask for draw if he has less then 2 PAWNS
-#define QUANTO_EMPATE2 20
+#define QUANTO_EMPATE1 -200
 //pede empate se lances > MOVE_EMPATE2 e tem menos que 0.2 PEAO
-//ask for draw if ply > MOVE_EMPATE2 and he has less then 0.2 PAWN
-#define AFOGOU -2
+#define QUANTO_EMPATE2 20
 //flagvf de geramov, so para retornar rapido com um lance valido ou NULL
+#define AFOGOU -2
+
 // dados ----------------------
 
 /* ---------------------------------------------------------------------- */
@@ -150,327 +139,237 @@
 
 typedef struct stabuleiro
 {
-    int tab[8][8];
     //contem as pecas, sendo [coluna][linha], ou seja: e4
-    //the pieces. [column][line], example: e4
-    int vez;
+    int tab[8][8];
     //contem -1 ou 1 para 'branca' ou 'preta'
-    //the turn to play: -1 white, 1 black
-    int peao_pulou;
+    int vez;
     //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
-    //column pawn jump two squares. -1 used to say " cannot capture 'en passant' "
-    int roqueb, roquep;
+    int peao_pulou;
     //roque: 0:nao pode mais. 1:pode ambos. 2:mexeu Torre do Rei. Pode O-O-O. 3:mexeu Torre da Dama. Pode O-O.
-    //castle. 0: none. 1: can do both. 2:moved king's rook. Can do O-O-O. 3:moved queen's rook. Can do O-O.
-    float empate_50;
+    int roqueb, roquep;
     //contador: quando chega a 50, empate.
-    //counter: when equal 50, draw by 50 moves rule.
-    int situa;
+    float empate_50;
     //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: * sem resultado
-    //board situation: 0:nothing, 1:draw!, 2:check!, 3:white mated, 4:black mated, 5 and 6: time fell (white and black respec.) 7: * {Game was unfinished}
-    int lancex[4];
+    int situa;
     //lance executado originador deste tabuleiro.
-    //the move that originate this board. (integer notation)
-    int especial;
+    int lancex[4];
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu en passant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    //0:nothing. 1:king castle. 2:queen castle. 3:en passant capture.
-    //promotion: 4=queen, 5=knight, 6=rook, 7=bishop.
-    int numero;
+    int especial;
     //numero do movimento (nao lance!): 1-e2e4 2-e7e5 3-g1f3 4-b8c6
-    //ply number or half-moves
+    int numero;
 }
 tabuleiro;
 
 typedef struct smovimento
 {
-    int lance[4];
     //lance em notacao inteira
-    //move in integer notation
-    int peao_pulou;
+    int lance[4];
     //contem coluna do peao que andou duas neste lance
-    //column pawn jump two squares. -1 used to say " cannot capture 'en passant' "
-    int roque;
+    int peao_pulou;
     //roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-    //castle: 0:king moved. 1: can yet. 2:moved king's rook. 3:moved queen's rook.
-    int flag_50;
+    int roque;
     //Quando igual a:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
     //TODO 4=roque eh irreversivel e deveria recontar o empate_50, 5=promocao (incluida em 1?)
-    //when equal to: 0:nothing, 1:pawn moved, 2:capture, 3:pawn capture. Put zero to empate_50;
-    int especial;
+    int flag_50;
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    //0:nothing. 1:king castle. 2:queen castle. 3:en passant capture.
-    //promotion: 4=queen, 5=knight, 6=rook, 7=bishop.
-    int valor_estatico;
+    int especial;
     //dado um tabuleiro, este e o valor estatico deste tabuleiro apos a execucao deste movimento, no contexto da analise minimax
-    //given a board, this is the static value of the board position after this move, in the context of minimax analyzes
-    int ordena;
+    int valor_estatico;
     //flag para dizer se ja foi inserido esse elemento na lista ordenada;
-    //flag that says if this move was already inserted in the new ordered list
-    struct smovimento *prox;
+    int ordena;
     //ponteiro para o proximo movimento da lista
-    //pointer to the next move on the list
+    struct smovimento *prox;
 }
 movimento;
 
-typedef struct sresultado
 //resultado de uma analise de posicao
-//result of an analyzed position
+typedef struct sresultado
 {
-    int valor;
     //valor da variante
-    //variation value
-    movimento *plance;
+    int valor;
     //os movimentos da variante
-    //variation moves
+    movimento *plance;
 }
 resultado;
 
-typedef struct slistab
 //usado para armazenar o historico do jogo e comparar posicoes repetidas
-//used to store the history of the game and analyze the repeated positions
+typedef struct slistab
 {
-    int tab[8][8];
     //[coluna][linha], exemplo, lance: [e][2] para [e][4]
-    //the pieces. [column][line], example: e4
-    int vez;
+    int tab[8][8];
     //de quem e a vez
-    //the turn to play: -1 white, 1 black
-    int peao_pulou;
+    int vez;
     //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
-    //column pawn jump two squares. -1 used to say "cannot capture 'en passant'"
-    int roqueb, roquep;
+    int peao_pulou;
     //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-    //castle. 1: can do both. 0: none. 3:moved queen rook. 2:moved king rook.
-    float empate_50;
+    int roqueb, roquep;
     //contador:quando chega a 50, empate.
-    //counter: when equal 50, draw by 50 moves rule.
-    int situa;
+    float empate_50;
     //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: sem resultado
-    //board situation: 0:nothing, 1:draw!, 2:check!, 3:white mated, 4:black mated, 5 and 6: time fell (white and black respec.) 7: * {Game was unfinished}
-    int lancex[4];
+    int situa;
     //lance executado originador deste tabuleiro.
-    //the move that originate this board. (integer notation)
-    int especial;
+    int lancex[4];
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    //0:nothing. 1:king castle. 2:queen castle. 3:en passant capture.
-    //promotion: 4=queen, 5=knight, 6=rook, 7=bishop.
-    int numero;
+    int especial;
     //numero do movimento: 1-e2e4 2-e7e5 3-g1f3 4-b8c6
-    //move number (not ply)
-    int rep;
+    int numero;
     //quantidade de vezes que essa posicao ja repetiu comparada
-    //how many times this position repeated
-    struct slistab *prox;
+    int rep;
     //ponteiro para o proximo da lista
-    //pointer to next on list
-    struct slistab *ant;
+    struct slistab *prox;
     //ponteiro para o anterior da lista
-    //pointer to before on list
+    struct slistab *ant;
 }
 listab;
 
+//valor das pecas (positivo==pretas)
 enum piece_values
 {
     REI = 10000, DAMA = 900, TORRE = 500, BISPO = 325, CAVALO = 300, PEAO = 100, VAZIA = 0, NULA = -1
 };
-//valor das pecas (positivo==pretas)
-//pieces value (positive==black)
 
 /* ---------------------------------------------------------------------- */
 /* globals */
 
-int myrating, opprating;
 //my rating and opponent rating
-//meu rating e rating do oponente
-resultado result;
+int myrating, opprating;
 //a melhor variante achada
-//the best variation found
-listab *plcabeca;
+resultado result;
 //cabeca da lista encadeada de posicoes repetidas
-//pointer to the first position on list
-listab *plfinal;
+listab *plcabeca;
 //fim da lista encadeada
-//pointer to the last position on list
-movimento *succ_geral;
+listab *plfinal;
 //ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas;
-//pointer to the first list move that should be analyzed
-FILE *fmini; //log file for debug==2
-int USALIVRO;
+movimento *succ_geral;
+//log file for debug==2
+FILE *fmini;
 //1:consulta o livro de aberturas livro.txt. 0:nao consulta
-//1:use opening book. 0:do not use.
-int LINHASBOAS = 0;
+int USALIVRO;
 // numero de linhas a tentar. Abaixo de "#LINHASRUINS: ..." nao tentar
-// number of lines to try. Do not count bellow "#LINHASRUINS: ..."
-int ofereci;
+int LINHASBOAS = 0;
 //o computador pode oferecer empate (duas|uma) vezes.
-//the engine can offer draw twice: one as he got a bad position, other in the end of game
-char disc;
+int ofereci;
 //sem uso. variavel de descarte, para nao sujar o stdin, dic=pega()
-//not used. discard value from pega(), just to do not waring and trash stdin
-int mostrapensando = 0;
+char disc;
 //mostra as linhas que o computador esta escolhendo
-//show thinking option
-char primeiro = 'h', segundo = 'c';
+int mostrapensando = 0;
 //primeiro e segundo jogadores: h:humano, c:computador
-//first and second players: h:human, c:computer
-int analise = 0;
+char primeiro = 'h', segundo = 'c';
 //0 nao analise. 1 para analise. ("exit" coloca ela como 0 novamente)
-//0 do not analyze. 1 analyze game. ("exit" put it 0 again)
-int randomchess = 0;
+int analise = 0;
 // 0: pensa para jogar. 1: joga ao acaso.
-// 0: think to play. 1: play at random.
-int setboard = 0;
+int randomchess = 0;
 //-1 para primeira vez. 0 nao edita. 1 edita. Posicao FEN.
-//-1 first time. 0 do not edit. 1 edit game. FEN Position.
-char ultimo_resultado[80] = "";
+int setboard = 0;
 //armazena o ultimo resultado, ex: 1-0 {White mates}
-//stores the last result
-char pausa;
+char ultimo_resultado[80] = "";
 //pause entre lances (computador x computador)
-//pause between moves (computer x computer)
-int nivel = 3;
+char pausa;
 //nivel de profundidade (agora com aprofundamento iterativo, esta sem uso)
-//deep level (now with iterative search deep it is useless)
-int profflag = 1;
+int nivel = 3;
 //Flag de captura ou xeque para liberar mais um nivel em profsuf
-//when capturing or checking, let the search go one more level
-int totalnodo = 0;
+int profflag = 1;
 //total de nodos analisados para fazer um lance
-//total of nodes analyzed before one move
-int totalnodonivel = 0;
+int totalnodo = 0;
 //total de nodos analisados em um nivel da arvore
-//total of nodes analyzed per level of tree
+int totalnodonivel = 0;
 
+// controle de tempo
 time_t tinijogo, tinimov, tatual, tultimoinput;
 double tbrancasac, tpretasac; //tempo brancas/pretas acumulado
-double tdifs; // diferenca em segundos tdifs=difftime(t2,t1)
-//calcular o tempo gasto no minimax e outras
-//calculating time in minimax function and others
-double tempomovclock;	//em segundos
-double tempomovclockmax; // max allowed
+double tdifs; // diferenca em segundos tdifs=difftime(t2,t1), calcular o tempo gasto no minimax e outras
 //3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min por jogo (de 100 lances)
-//time per move. Examplo: 3000milisec = 3 sec per move = 300 sec per 100 moves = 5 min per game (of 100 moves)
-const int brancas = -1;
+double tempomovclock; //em segundos
+double tempomovclockmax; // max allowed
 //pecas brancas sao negativas
-//white pieces are negatives
-const int pretas = 1;
+const int brancas = -1;
 //pecas pretas sao positivas
-//black pieces are positives
-unsigned char gira = (unsigned char) 0;
+const int pretas = 1;
 //para mostrar um rostinho sorrindo (sem uso)
-//to show a smile face (useless)
-char flog[80] = "";
+unsigned char gira = (unsigned char) 0;
 //Nome do arquivo de log
-//log file name
-int ABANDONA = -2430;
+char flog[80] = "";
 //abandona a partida quando perder algo como DAMA, 2 TORRES, 1 BISPO e 1 PEAO; ou nunca, quando jogando contra outra engine
-//the engine will resign when loosing a QUEEN, 2 ROOKS, 1 BISHOP and 1 PAWN or something like that; it never resigns when playing against another engine
-int COMPUTER = 0;
+int ABANDONA = -2430;
 //flag que diz se esta jogando contra outra engine.
-//Flag that says it is playing against other engine
-//int teminterroga = 0;
+int COMPUTER = 0;
 //flag que diz que o comando "?" foi executado
-//flag to mark that command "?" run
+//int teminterroga = 0;
+
 int WHISPER = 0; /*0:nada, 1:v>200 :)), 2: v>100 :), 3: -100<v<100 :|, 4: v<-100 :(, 5: v<-200 :(( */
 enum e_server {none, fics, lichess} server; /* Am I connected to someone, or stand alone? */
 char bookfname[80] = "livro.txt"; /* book file name */
 /* int verb = 0; /1* verbose variable *1/ */
-int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
-//0:do not save file xadreco.log, 1:save file, 2:minimax debug
+int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
 int pong; /* what to ping back */
-int OFERECEREMPATE = 0;
 /* se decidir oferecer empate, primeiro manda o lance, depois a oferta */
+int OFERECEREMPATE = 0;
 
 /* ---------------------------------------------------------------------- */
 /* prototipos gerais */ /* general prototypes */
 //imprime o tabuleiro
-//print board
 void imptab(tabuleiro tabu);
 //mostra na tela informacoes do jogo e analises
-//show on screen game information and analyzes
 void mostra_lances(tabuleiro tabu);
 //transforma lances int 0077 em char tipo a1h8
-//change integer notation to algebric notation
 void lance2movi(char *m, int *l, int especial);
 //faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.
-//change algebric notation to integer notation. Return FALSE if it is not possible.
 int movi2lance(int *l, char *m);
 //retorna o adversario de quem esta na vez
-//return the other player to play
 inline int adv(int vez);
 //retorna 1, -1 ou 0. Sinal de x
-//return 1, -1 or 0: signal of x.
 inline int sinal(int x);
 //compara dois vetores de lance[4]. Se igual, retorna 1
-//return 1 if lance1==lance2
 int igual(int *lance1, int *lance2);
 //pegar caracter (linux e windows)
-//to solve getch, getche, getchar and whatever problems of portability
 char pega(char *no, char *msg);
 /* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
 float mudaintervalo(float min1, float max1, float min2, float max2, float x1);
 /* retorna valor inteiro aleatorio entre [min,max[ */
-//return a random value between [min,max[, not included the right side
 int irand_minmax(int min, int max);
 //termina o programa
-//exit the program
 void sai(int error);
 //para inicializar alguns valores no inicio do programa
-//to start some values in the beggining of the program
 void inicia(tabuleiro *tabu);
 //coloca as pecas na posicao inicial
-//put the pieces in the start position
 void coloca_pecas(tabuleiro *tabu);
 //testa posicao dada. devera ser melhorado.
-//test a determined position should be improved.
 void testapos(char *pieces, char *color, char *castle, char *enpassant, char *halfmove, char *fullmove);
 //retorna um lance do jogo de teste
-//returns a move in the test game
 void testajogo(char *movinito, int numero);
 //limpa algumas variaveis para iniciar a ponderacao
-//to clean some variables to start pondering
 void limpa_pensa(void);
 //preenche a estrutura movimento
-//fullfil movimento structure
 //pp peao_pulou: contem -1 ou coluna do peao que andou duas neste lance
 //rr roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
 //ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
 //ff flag_50: 0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
 void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff, int *nmovi);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
-//message before exit program (lack of memory, etc, or just exiting ok)
 void msgsai(char *msg, int error);
 //imprime uma sequencia de lances armazenada na lista movimento, numerados.
-//print a sequence of moves in movimento list, numbered.
 void imprime_linha(movimento *loop, int numero, int vez);
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
-// return true if there are some character in the buffer to be read
 int pollinput(void);
-// compiled time - build version
-// hora da compilacao - versao de construcao
-/* char *build(void);  NO NEED, use BUILD */
 //calcula diferenca de tempo em segundo do lance atual
-//calculates time difference in seconds for the current move, return tdifs = difftime(tatual, tinimov);
 double difclocks(void);
-//get tourney, resume, seek games...
+//pega torneios, inicia jogos adiados, configura convites...
 void inicia_fics(void);
 // joga aleatorio!
 char randommove(tabuleiro *tabu);
 /* imprime o help e termina */
-/* print some help */
 void help(void);
 /* imprime mensagem de copyright */
-/* print version and copyright information */
 void copyr(void);
-/* print fics commands */
+/* imprime comandos fics */
 void printfics(char *fmt, ...);
-/* print debug information  */
+/* imprime info debug */
 void printdbg(int dbg, ...);
-/* print debug information  */
+/* imprime outros debugs */
 void printf2(char *fmt, ...);
 /* le entrada padrao */
 void scanf2(char *movinito);
@@ -479,42 +378,30 @@ void controlc(int sig);
 
 // apoio xadrez -----------------------------------------------------
 //retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
-//return 1 if "color" atack square(col, lin) in board tabu
 int ataca(int cor, int col, int lin, tabuleiro tabu);
 //retorna o numero de ataques da "cor" na casa(col,lin) de tabu, *menor e a menor peca que ataca.
-//return the number of atacks of "color" at square(col,lin) in board tabu, *menor is the minor piece that atack
 int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor);
 //retorna 1 se o rei de cor "cor" esta em xeque
-//return 1 if "color" king is in check
 int xeque_rei_das(int cor, tabuleiro tabu);
 //para voltar um movimento. Use duas vezes para voltar um lance inteiro.
-//take back one ply. Use twice to take back one move
 void volta_lance(tabuleiro *tabu);
 //analisa uma posicao mas nao joga
-//analyze a position, but do not play it
 char analisa(tabuleiro *tabu);
 //procura nos movimentos de geramov se o lance em questao eh valido. Retorna o *movimento preenchido. Se nao, retorna NULL.
-//search on the list generated by geramov if the move lanc is valid. Return *movimento fullfiled. If not, return NULL.
 movimento *valido(tabuleiro tabu, int *lanc);
 //retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
-//return a char that indicate the situation of the board, as mate, draw, etc...
 char situacao(tabuleiro tabu);
 //ordena succ_geral
-//sort succ_geral
 void ordena_succ(int nmov);
 
 // livro --------------------------------------------------------------
 //retorna em result.plance uma variante do livro, baseado na posicao do tabuleiro tabu
-//put in result.plance a line found in the book, from the position on the board tabu
 void usalivro(tabuleiro tabu);
 //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
-//generate a string with all moves, like "e1e2 e7e5"
 void listab2string(char *strlance);
 //retorna uma (lista) linha de jogo como se fosse a resposta do minimax
-//return a variation on a list, like the minimax's return.
 movimento *string2pmovi(int numero, char *linha);
 //retorna verdadeiro se o jogo atual strlances casa com a linha do livro atual strlinha
-//return TRUE if the game strlances match with one line strlinha of the opening book
 int igual_strlances_strlinha(char *strlances, char *strlinha);
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
 int estatico_pmovi(tabuleiro tabu, movimento *cabeca);
@@ -527,54 +414,38 @@ void conta_linhas_livro(void);
 
 // computador joga ----------------------------------------------------------
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
-//return a list of possibles moves, ordered by check and capture. Should put a best order here.
 movimento *geramov(tabuleiro tabu, int *nmov);
 //coloca em result a melhor variante e seu valor.
-//put in result the better variation and its value
 void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
 //retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
-//return TRUE if (deep>level) or (deep==level and not capture or check) or (it is a draw)
 int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv);
 //retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
-//return the static value of a position. If cod==1, means that this position was here only because the time is over in the middle of the search. Niv: the distance between the real board and the virtual copy examined.
 int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
 //joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
-//do the move! Move movi on board tabu. Return the situation. Insert the new board in the listab *plfina list if cod==1
 char joga_em(tabuleiro *tabu, movimento movi, int cod);
 
 // listas dinamicas ----------------------------------------------------------------
 //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
-//return a new list adding (new single move pmovi)+(old list moves plance)
 movimento *copimel(movimento pmovi, movimento *plance);
 //copia os itens da estrutura movimento, mas nao copia ponteiro prox. dest=font
-//copy only the contents of the structure, but not the pointer. dest=font
 void copimov(movimento *dest, movimento *font);
 //mantem dest, e copia para dest->prox a lista encadeada font. Assim, a nova lista e (dest+font)
-//keep dest, and copy the list font to dest->prox. So, the new list is (dest+font)
 void copilistmovmel(movimento *dest, movimento *font);
 //copia uma lista encadeada para outra nova. Retorna cabeca da lista destino
-//copy one list to another new one. Return the new head.
 movimento *copilistmov(movimento *font);
 //Insere o tabuleiro tabu na lista listab. posiciona plcabeca, plfinal.   Para casos de empate de repeticao de lances, e para pegar o historico de lances
-//insert the board tabu in the list listab *plcabeca, positioning plcabeca and plfinal. Use to see draw, and to get history
 void insere_listab(tabuleiro tabu);
 //posiciona plfinal no *ant. ou seja: apaga o ultimo da lista. (usada para voltar de variantes ruins ou para voltar um lance a pedido do jogador)
-//delete the last board in the listab. (used to retract from worst variations, or to take back a move asked by player)
 void retira_listab(void);
 //copia font para dest. dest=font.
-//copy font to dest. dest=font
 void copitab(tabuleiro *dest, tabuleiro *font);
 //libera da memoria uma lista encadeada de movimentos
-//free memory of a list of moves
 void libera_lances(movimento **cabeca);
 //zera a lista de tabuleiros
-//free all listab list.
 void retira_tudo_listab(void);
 //humano joga. Aceita comandos XBoard/WinBoard.
-//human play. Accept XBoard/WinBoard commands.
 char humajoga(tabuleiro *tabu);
 //computador joga. Chama o livro de aberturas ou o minimax.
-//computer play. Call the opening book or the minimax functions.
 char compjoga(tabuleiro *tabu);
 
 /* ---------------------------------------------------------------------- */
