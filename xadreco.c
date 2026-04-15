@@ -728,7 +728,7 @@ int main(int argc, char *argv[])
     waits(1);
 
     /* Xadreco 5.8 accepts Xboard Protocol V2 */
-    sprintf(feature, "%s", "feature ping=0 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
+    sprintf(feature, "%s", "feature ping=1 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
 
     /* feature ics=1 */
     /* fics 1591 >first : ics freechess.org */
@@ -781,6 +781,9 @@ int main(int argc, char *argv[])
                     }
                     else
                         if(!strcmp(movinito, "force")) /* lichess don't send 'accept', goes by 'force' */
+                            break;
+                        else
+                        if(!strcmp(movinito, "new")) /* python-chess sends new without done */
                             break;
                         else
                             if(!strcmp(movinito, "ics")) /* Am I at a server? */
@@ -2095,6 +2098,17 @@ char humajoga(tabuleiro *tabu)
             printdbg(debug, "# xboard: sd. Xadreco is set deep %d\n", nivel);
             continue;
         }
+        if(!strcmp(movinito, "st"))   //set time: seconds per move
+        {
+            scanf2(movinito);
+            tempomovclock = atof(movinito);
+            if(tempomovclock < 0.5)
+                tempomovclock = 0.5;
+            tempomovclockmax = tempomovclock;
+            printdbg(debug, "# xboard: st. Xadreco is set time %f s per move\n", tempomovclock);
+            tente = 1;
+            continue;
+        }
         if(!strcmp(movinito, "go"))   //troca de lado e joga. (o mesmo que "adv")
         {
             if(tabu->vez == brancas)
@@ -2256,13 +2270,18 @@ char humajoga(tabuleiro *tabu)
             continue;
         }
 
+        if(!strcmp(movinito, "otim"))   /* opponent time: can arrive before or after "time" */
+        {
+            scanf2(movinito);
+            osecs = atof(movinito) / 100.0; /* seconds opponent has left */
+            printdbg(debug, "# xboard: otim. Opponent has %.1fs\n", osecs);
+            tente = 1;
+            continue;
+        }
         if(!strcmp(movinito, "time"))
         {
             scanf2(movinito);
             secs = atof(movinito) / 100.0; /* seconds I have left */
-            scanf2(movinito); /* otim */
-            scanf2(movinito);
-            osecs = atof(movinito) / 100.0; /* opponent time left */
 
             moves = TOTAL_MOVIMENTOS - tabu->numero / 2;
             if(moves <= 0)
@@ -2510,6 +2529,7 @@ char humajoga(tabuleiro *tabu)
         {
             scanf2(movinito);
             pong = atoi(movinito);
+            printf2("pong %d\n", pong);
             printdbg(debug, "# xboard ping %d : xadreco pong %d\n", pong, pong);
             tente = 1;
             continue;
