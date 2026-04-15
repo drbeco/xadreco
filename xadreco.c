@@ -1053,11 +1053,11 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                         else
                         {
                             //roque de brancas
-                            if(tabu.roqueb != 2 && tabu.tab[7][0] == -TORRE)
+                            if(tabu.roqueb != 2 && tabu.tab[SQ(7,0)] == -TORRE)
                             {
                                 //Nao mexeu TR (e ela esta la Adv poderia ter comido antes de mexer)
                                 // roque pequeno
-                                if(tabu.tab[5][0] == VAZIA && tabu.tab[6][0] == VAZIA)  //f1,g1
+                                if(tabu.tab[SQ(5,0)] == VAZIA && tabu.tab[SQ(6,0)] == VAZIA)  //f1,g1
                                 {
                                     flag = 0;
                                     for(k = 4; k < 7; k++)  //colunas e,f,g
@@ -1084,9 +1084,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     }
                                 } // roque grande
                             } //mexeu TR
-                            if(tabu.roqueb != 3 && tabu.tab[0][0] == -TORRE)  //Nao mexeu TD (e a torre existe!)
+                            if(tabu.roqueb != 3 && tabu.tab[SQ(0,0)] == -TORRE)  //Nao mexeu TD (e a torre existe!)
                             {
-                                if(tabu.tab[1][0] == VAZIA && tabu.tab[2][0] == VAZIA && tabu.tab[3][0] == VAZIA)  //b1,c1,d1
+                                if(tabu.tab[SQ(1,0)] == VAZIA && tabu.tab[SQ(2,0)] == VAZIA && tabu.tab[SQ(3,0)] == VAZIA)  //b1,c1,d1
                                 {
                                     flag = 0;
                                     for(k = 2; k < 5; k++)  //colunas c,d,e
@@ -1112,10 +1112,10 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                             break;
                         else //roque de pretas
                         {
-                            if(tabu.roquep != 2 && tabu.tab[7][7] == TORRE)  //Nao mexeu TR (e a torre nao foi capturada)
+                            if(tabu.roquep != 2 && tabu.tab[SQ(7,7)] == TORRE)  //Nao mexeu TR (e a torre nao foi capturada)
                             {
                                 // roque pequeno
-                                if(tabu.tab[5][7] == VAZIA && tabu.tab[6][7] == VAZIA)  //f8,g8
+                                if(tabu.tab[SQ(5,7)] == VAZIA && tabu.tab[SQ(6,7)] == VAZIA)  //f8,g8
                                 {
                                     flag = 0;
                                     for(k = 4; k < 7; k++)  //colunas e,f,g
@@ -1135,9 +1135,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     }
                                 } // roque grande.
                             } //mexeu TR
-                            if(tabu.roquep != 3 && tabu.tab[0][7] == TORRE)  //Nao mexeu TD (e a torre esta la)
+                            if(tabu.roquep != 3 && tabu.tab[SQ(0,7)] == TORRE)  //Nao mexeu TD (e a torre esta la)
                             {
-                                if(tabu.tab[1][7] == VAZIA && tabu.tab[2][7] == VAZIA && tabu.tab[3][7] == VAZIA)  //b8,c8,d8
+                                if(tabu.tab[SQ(1,7)] == VAZIA && tabu.tab[SQ(2,7)] == VAZIA && tabu.tab[SQ(3,7)] == VAZIA)  //b8,c8,d8
                                 {
                                     flag = 0;
                                     for(k = 2; k < 5; k++)  //colunas c,d,e
@@ -3863,53 +3863,53 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //TODO usar flag para lembrar se ja mexeu, senao vai e volta
     if(tabu.numero < 32 && setboard != 1)
     {
-        if(tabu.tab[3][0] == -DAMA)
+        if(tabu.tab[SQ(3,0)] == -DAMA)
             totb += 50;
-        if(tabu.tab[3][7] == DAMA)
+        if(tabu.tab[SQ(3,7)] == DAMA)
             totp += 50;
     }
     //bonificacao para quem fez roque na abertura
     //TODO usar flag para saber se fez roque mesmo
     if(tabu.numero < 32 && setboard != 1)
     {
-        if(tabu.tab[6][0] == -REI && tabu.tab[5][0] == -TORRE)  //brancas com roque pequeno
+        if(tabu.tab[SQ(6,0)] == -REI && tabu.tab[SQ(5,0)] == -TORRE)  //brancas com roque pequeno
             totb += 70;
-        if(tabu.tab[2][0] == -REI && tabu.tab[3][0] == -TORRE)  //brancas com roque grande
+        if(tabu.tab[SQ(2,0)] == -REI && tabu.tab[SQ(3,0)] == -TORRE)  //brancas com roque grande
             totb += 50;
-        if(tabu.tab[6][7] == REI && tabu.tab[5][7] == TORRE)  //pretas com roque pequeno
+        if(tabu.tab[SQ(6,7)] == REI && tabu.tab[SQ(5,7)] == TORRE)  //pretas com roque pequeno
             totp += 70;
-        if(tabu.tab[2][7] == REI && tabu.tab[3][7] == TORRE)  //pretas com roque grande
+        if(tabu.tab[SQ(2,7)] == REI && tabu.tab[SQ(3,7)] == TORRE)  //pretas com roque grande
             totp += 50;
     }
     //bonificacao para rei protegido na abertura com os peoes do Escudo Real
     if(tabu.numero < 60 && setboard != 1)
     {
-        if(tabu.tab[6][0] == -REI &&
+        if(tabu.tab[SQ(6,0)] == -REI &&
                 //brancas com roque pequeno
-                tabu.tab[6][1] == -PEAO &&
-                tabu.tab[7][1] == -PEAO && tabu.tab[7][0] == VAZIA)
+                tabu.tab[SQ(6,1)] == -PEAO &&
+                tabu.tab[SQ(7,1)] == -PEAO && tabu.tab[SQ(7,0)] == VAZIA)
             //apenas peoes g e h
             totb += 60;
-        if(tabu.tab[2][0] == -REI &&
+        if(tabu.tab[SQ(2,0)] == -REI &&
                 //brancas com roque grande
-                tabu.tab[0][1] == -PEAO &&
-                tabu.tab[1][1] == -PEAO &&
-                tabu.tab[2][1] == -PEAO &&
-                tabu.tab[0][0] == VAZIA && tabu.tab[1][0] == VAZIA)
+                tabu.tab[SQ(0,1)] == -PEAO &&
+                tabu.tab[SQ(1,1)] == -PEAO &&
+                tabu.tab[SQ(2,1)] == -PEAO &&
+                tabu.tab[SQ(0,0)] == VAZIA && tabu.tab[SQ(1,0)] == VAZIA)
             //peoes a, b e c
             totb += 50;
-        if(tabu.tab[6][7] == REI &&
+        if(tabu.tab[SQ(6,7)] == REI &&
                 //pretas com roque pequeno
-                tabu.tab[6][6] == PEAO &&
-                tabu.tab[7][6] == PEAO && tabu.tab[7][7] == VAZIA)
+                tabu.tab[SQ(6,6)] == PEAO &&
+                tabu.tab[SQ(7,6)] == PEAO && tabu.tab[SQ(7,7)] == VAZIA)
             //apenas peoes g e h
             totp += 60;
-        if(tabu.tab[2][7] == REI &&
+        if(tabu.tab[SQ(2,7)] == REI &&
                 //pretas com roque grande
-                tabu.tab[0][6] == PEAO &&
-                tabu.tab[1][6] == PEAO &&
-                tabu.tab[2][6] == PEAO &&
-                tabu.tab[0][7] == VAZIA && tabu.tab[1][7] == VAZIA)
+                tabu.tab[SQ(0,6)] == PEAO &&
+                tabu.tab[SQ(1,6)] == PEAO &&
+                tabu.tab[SQ(2,6)] == PEAO &&
+                tabu.tab[SQ(0,7)] == VAZIA && tabu.tab[SQ(1,7)] == VAZIA)
             //peoes a, b e c
             totp += 50;
     }
@@ -3917,38 +3917,38 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     if(tabu.numero < 16 && setboard != 1)
     {
         //caso das brancas------------------
-        if(tabu.tab[5][1] != -PEAO)
+        if(tabu.tab[SQ(5,1)] != -PEAO)
             //PBR
             totb -= 50;
-        if(tabu.tab[6][1] != -PEAO)
+        if(tabu.tab[SQ(6,1)] != -PEAO)
             //PCR
             totb -= 40;
-        if(tabu.tab[7][1] != -PEAO)
+        if(tabu.tab[SQ(7,1)] != -PEAO)
             //PTR
             totb -= 30;
-        if(tabu.tab[0][1] != -PEAO)
+        if(tabu.tab[SQ(0,1)] != -PEAO)
             //PTD
             totb -= 30;
-        if(tabu.tab[1][1] != -PEAO)
+        if(tabu.tab[SQ(1,1)] != -PEAO)
             //PCD
             totb -= 40;
-        //              if(tabu.tab[2][1]==VAZIA)
+        //              if(tabu.tab[SQ(2,1)]==VAZIA)
         //PBD   nao eh penalizado!
         //                      totb-=10;
         //caso das pretas-------------------
-        if(tabu.tab[5][6] != PEAO)
+        if(tabu.tab[SQ(5,6)] != PEAO)
             //PBR
             totp -= 50;
-        if(tabu.tab[6][6] != PEAO)
+        if(tabu.tab[SQ(6,6)] != PEAO)
             //PCR
             totp -= 40;
-        if(tabu.tab[7][6] != PEAO)
+        if(tabu.tab[SQ(7,6)] != PEAO)
             //PTR
             totp -= 30;
-        if(tabu.tab[0][6] != PEAO)
+        if(tabu.tab[SQ(0,6)] != PEAO)
             //PTD
             totp -= 30;
-        if(tabu.tab[1][6] != PEAO)
+        if(tabu.tab[SQ(1,6)] != PEAO)
             //PCD
             totp -= 40;
         //PBD   nao eh penalizado!
@@ -4875,16 +4875,16 @@ void  coloca_pecas(tabuleiro *tabu)
         tabu->tab[i][1] = -PEAO;
         tabu->tab[i][6] = PEAO;
     }
-    tabu->tab[0][0] = tabu->tab[7][0] = -TORRE;
-    tabu->tab[0][7] = tabu->tab[7][7] = TORRE;
-    tabu->tab[1][0] = tabu->tab[6][0] = -CAVALO;
-    tabu->tab[1][7] = tabu->tab[6][7] = CAVALO;
-    tabu->tab[2][0] = tabu->tab[5][0] = -BISPO;
-    tabu->tab[2][7] = tabu->tab[5][7] = BISPO;
-    tabu->tab[3][0] = -DAMA;
-    tabu->tab[4][0] = -REI;
-    tabu->tab[3][7] = DAMA;
-    tabu->tab[4][7] = REI;
+    tabu->tab[SQ(0,0)] = tabu->tab[SQ(7,0)] = -TORRE;
+    tabu->tab[SQ(0,7)] = tabu->tab[SQ(7,7)] = TORRE;
+    tabu->tab[SQ(1,0)] = tabu->tab[SQ(6,0)] = -CAVALO;
+    tabu->tab[SQ(1,7)] = tabu->tab[SQ(6,7)] = CAVALO;
+    tabu->tab[SQ(2,0)] = tabu->tab[SQ(5,0)] = -BISPO;
+    tabu->tab[SQ(2,7)] = tabu->tab[SQ(5,7)] = BISPO;
+    tabu->tab[SQ(3,0)] = -DAMA;
+    tabu->tab[SQ(4,0)] = -REI;
+    tabu->tab[SQ(3,7)] = DAMA;
+    tabu->tab[SQ(4,7)] = REI;
 }
 
 //limpa algumas variaveis para iniciar ponderacao
