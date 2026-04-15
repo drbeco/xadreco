@@ -60,12 +60,6 @@
 #define COL(sq)   ((sq) & 7)
 #define ROW(sq)   ((sq) >> 3)
 
-#ifdef __arm__
-#warning Linux ARM detected
-#else
-#warning Linux x86_64 detected
-#endif
-
 //Versao do programa
 #ifndef VERSION /* gcc -DVERSION="0.1" */
 #define VERSION "6.x" /**< Fallback version if makefile doesn't set it */
