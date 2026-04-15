@@ -4913,6 +4913,8 @@ void ordena_succ(int nmov)  //ordena succ_geral
 {
     movimento *loop, *pior, *insere, *aux;
     int peguei, pior_valor;
+    if(nmov <= 1)
+        return;
     insere = NULL;
     pior = NULL;
     loop = succ_geral;
