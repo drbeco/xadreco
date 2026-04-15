@@ -573,7 +573,7 @@ int main(int argc, char *argv[])
         msgsai("# xadreco : xboard command missing.\n", 36);
     }
     printf2("\n"); /* output a newline when xboard comes in */
-    waits(1);
+    sleep(1);
 
     /* Xadreco 5.8 accepts Xboard Protocol V2 */
     sprintf(feature, "%s", "feature ping=1 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=1 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
@@ -840,7 +840,7 @@ int main(int argc, char *argv[])
 
 void inicia_fics(void)
 {
-    waits(1); /* was waits(10): reduced to avoid time forfeit at fast time controls */
+    sleep(1); /* was waits(10): reduced to avoid time forfeit at fast time controls */
     printfics("tellicsnoalias tell mamer gettourney blitz\n");
     printfics("tellicsnoalias resume\n");
     printfics("tellicsnoalias seek 2 1 f m\n");
