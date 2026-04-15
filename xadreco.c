@@ -3026,7 +3026,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         }
         //implementar o NULL-MOVE
         if(novo_valor >= beta)
-            //corte alfa-beta! Isso esta certo? Nao e alfa<=beta? Conferir. (alfa==passo, beta==uso, para brancas)
+            //corte alfa-beta! Conferido 2026-04-15 (alfa==passo, beta==uso, para brancas)
         {
             alfa = beta; //Aha! Retorna beta como o melhor possivel desta arvore
             if(debug == 2)
@@ -3602,23 +3602,21 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     if(tabu.vez == pretas)
         material = (-material);
 
-    //se estou melhor que a opcao do oponente, retorna a opcao do oponente
-    /*    if (material - MARGEM_PREGUICA >= -beta)
-        {
-            //      if(debug == 2)
-            //      fprintf (fmini, "material>=beta (%+.2f >= %+.2f)\n", material / 100.0,
-            //               beta / 100.0);
-            return (material - MARGEM_PREGUICA);
-        }
-        //se o que ganhei e menor que minha outra opcao, retorna minha outra opcao
-        if (material + MARGEM_PREGUICA <= -alfa)
-        {
-            //      if(debug == 2)
-            //      fprintf (fmini, "material<=alfa (%+.2f >= %+.2f)\n", material / 100.0,
-            //               alfa / 100.0);
-            return (material + MARGEM_PREGUICA);
-        }
-    */
+    //lazy: material even with best positional bonus can't beat alfa
+    if(material + MARGEM_PREGUICA <= alfa)
+    {
+        if(debug == 2)
+            fprintf(fmini, "lazy: material+margin <= alfa (%+.2f <= %+.2f)\n", (material + MARGEM_PREGUICA) / 100.0, alfa / 100.0);
+        return (material + MARGEM_PREGUICA);
+    }
+    //lazy: material even with worst positional penalty still beats beta
+    if(material - MARGEM_PREGUICA >= beta)
+    {
+        if(debug == 2)
+            fprintf(fmini, "lazy: material-margin >= beta (%+.2f >= %+.2f)\n", (material - MARGEM_PREGUICA) / 100.0, beta / 100.0);
+        return (material - MARGEM_PREGUICA);
+    }
+
     //usar o 'material'
     //totb+=pecab;
     //totp+=pecap;
