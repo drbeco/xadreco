@@ -52,7 +52,6 @@
 #include <stdlib.h>
 #include <getopt.h> /* get options from system argc/argv */
 #include <stdarg.h> /* function with multiple arguments */
-#include <signal.h> /* capture control-c to gracely abort */
 
 /* ---------------------------------------------------------------------- */
 /* definitions */
@@ -94,10 +93,6 @@
 /* Command line defaults */
 #ifndef RANDOM
 #define RANDOM -1
-#endif
-/* if CONNECT<3 && CONNECT>=0, defined at compiler time: 0=none, 1=fics, 2=lichess */
-#ifndef CONNECT
-#define CONNECT 3
 #endif
 #ifndef NOWAIT
 #define NOWAIT 0
@@ -301,8 +296,6 @@ int COMPUTER = 0;
 //flag que diz que o comando "?" foi executado
 //int teminterroga = 0;
 
-int WHISPER = 0; /*0:nada, 1:v>200 :)), 2: v>100 :), 3: -100<v<100 :|, 4: v<-100 :(, 5: v<-200 :(( */
-enum e_server {none, fics, lichess} server; /* Am I connected to someone, or stand alone? */
 char bookfname[80] = "livro.txt"; /* book file name */
 /* int verb = 0; /1* verbose variable *1/ */
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
@@ -359,24 +352,18 @@ void imprime_linha(movimento *loop, int numero, int vez);
 int pollinput(void);
 //calcula diferenca de tempo em segundo do lance atual
 double difclocks(void);
-//pega torneios, inicia jogos adiados, configura convites...
-void inicia_fics(void);
 // joga aleatorio!
 char randommove(tabuleiro *tabu);
 /* imprime o help e termina */
 void help(void);
 /* imprime mensagem de copyright */
 void copyr(void);
-/* imprime comandos fics */
-void printfics(char *fmt, ...);
 /* imprime info debug */
 void printdbg(int dbg, ...);
 /* imprime outros debugs */
 void printf2(char *fmt, ...);
 /* le entrada padrao */
 void scanf2(char *movinito);
-// cuida do control-c para interrupcao de teclado sair graciosamente
-void controlc(int sig);
 
 // apoio xadrez -----------------------------------------------------
 //retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
@@ -465,10 +452,7 @@ int main(int argc, char *argv[])
     char hora[] = "2013-12-03 00:28:21";
     int seed = 0;
 
-    server = none;
     srand(time(NULL) + getpid());
-    signal(SIGINT, controlc);
-
     IFDEBUG("Starting optarg loop...");
 
     /* getopt() configured options:
@@ -476,13 +460,12 @@ int main(int argc, char *argv[])
      *        -V  version
      *        -v  verbose
      */
-    /* Usage: xadreco [-h|-v] [-c{none,fics,lichess}] [-r] [-x] [-b path/bookfile.txt] */
+    /* Usage: xadreco [-h|-v] [-r] [-x] [-b path/bookfile.txt] */
     /* -r seed,  --random seed        Xadreco plays random moves. Initializes seed. If seed=0, 'true' random */
-    /* -c,  --connection              none: no connection; fics: freeches.org; lichess: lichess.org*/
-    /* -x,  --xboard                  Gives 'xboard' keyword immediattely (protocol is xboard with or withour -x) */
-    /* -b path/bookfile.txt, --book   Sets the path for book file (not implemented) */
+    /* -x,  --xboard                  Gives 'xboard' keyword immediately */
+    /* -b path/bookfile.txt, --book   Sets the path for book file */
     opterr = 0;
-    while((opt = getopt(argc, argv, "vhVr:c:xb:")) != EOF)
+    while((opt = getopt(argc, argv, "vhVr:xb:")) != EOF)
         switch(opt)
         {
             case 'h':
@@ -499,15 +482,6 @@ int main(int argc, char *argv[])
                 if(seed)
                     srand(seed);
                 randomchess = 1;
-                break;
-            case 'c': /* kind of connection: none, fics, lichess */
-                if(!strcmp("fics", optarg))
-                    server = fics;
-                else
-                    if(!strcmp("lichess", optarg))
-                        server = lichess;
-                    else
-                        server = none;
                 break;
             case 'x': /* no wait for first xboard keyword */
                 strcpy(movinito, "xboard");
@@ -534,11 +508,6 @@ int main(int argc, char *argv[])
     randomchess = 0;
 #endif
 
-    /* if CONNECT<3 && CONNECT>=0, defined at compiler time: 0=none, 1=fics, 2=lichess */
-#if CONNECT < 3 && CONNECT >=0
-    server = CONNECT;
-#endif
-
     /* if NOWAIT == 1, defined to NOT wait at compiler time */
 #if NOWAIT == 1
     strcpy(movinito, "xboard");
@@ -553,7 +522,6 @@ int main(int argc, char *argv[])
     printdbg(debug, "# DEBUG MACRO compiled value: %d\n", DEBUG);
     printdbg(debug, "# Debug verbose level set at: %d\n", debug);
     printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
-    printdbg(debug, "# connection: -c %s\n", !server ? "none" : server == 1 ? "fics" : "lichess");
     printdbg(debug, "# wait: -x %s\n", movinito);
     printdbg(debug, "# book: -b %s\n", bookfname);
 
@@ -581,13 +549,6 @@ int main(int argc, char *argv[])
     /* Xadreco 5.8 accepts Xboard Protocol V2 */
     sprintf(feature, "%s", "feature ping=1 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=1 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
 
-    /* feature ics=1 */
-    /* fics 1591 >first : ics freechess.org */
-    /* none 1591 >first : ics - */
-
-    /* 31519 >first : rating 1407 1130 */
-    /* 31523 <first : # xboard: myrating: 1407 opprating: 1130 */
-    /* bug accepted ping gives back pong */
 
     printf2("feature done=0\n");
     printf2("feature myname=\"Xadreco %s\"\n", VERSION);
@@ -637,20 +598,7 @@ int main(int argc, char *argv[])
                             if(!strcmp(movinito, "new")) /* python-chess sends new without done */
                                 break;
                             else
-                                if(!strcmp(movinito, "ics")) /* Am I at a server? */
-                                {
-                                    scanf2(movinito); /* get server name */
-                                    if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
-                                        server = fics; /* FICS */
-                                    else
-                                        if(!strcmp(movinito, "-")) /* Is it stand-alone? */
-                                            server = none; /* no server */
-                                        else
-                                            server = lichess; /* LICHESS */
-                                    printdbg(debug, "# xboard: (main) connected to server: %s (%d)\n", movinito, server);
-                                }
-                                else
-                                    printdbg(debug, "# xboard: ignoring %s\n", movinito);
+                                printdbg(debug, "# xboard: ignoring %s\n", movinito);
     } /* main while starting xboard protocol */
     printdbg(debug, "# xboard: main while done\n");
 
@@ -663,8 +611,6 @@ int main(int argc, char *argv[])
     coloca_pecas(&tabu);  //coloca pecas na posicao inicial
     insere_listab(tabu);
     assert(plcabeca != NULL && "board history null");
-    if(server == fics)
-        inicia_fics();
     //------------------------------------------------------------------------------
     //joga_novamente: (play another move)
 
@@ -716,8 +662,6 @@ int main(int argc, char *argv[])
                 inicia(&tabu);  // zera variaveis
                 coloca_pecas(&tabu);  //coloca pecas na posicao inicial
                 insere_listab(tabu);
-                if(server == fics)
-                    inicia_fics();
                 break;
             //            continue;
             case '*':
@@ -840,16 +784,6 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-
-void inicia_fics(void)
-{
-    sleep(1); /* was waits(10): reduced to avoid time forfeit at fast time controls */
-    printfics("tellicsnoalias tell mamer gettourney blitz\n");
-    printfics("tellicsnoalias resume\n");
-    printfics("tellicsnoalias seek 2 1 f m\n");
-    printfics("tellicsnoalias seek 5 5 f m\n");
-    printfics("tellicsnoalias seek 10 10 f m\n");
-}
 
 // mostra a lista de lances da tela, a melhor variante, e responde ao comando "hint"
 void mostra_lances(tabuleiro tabu)
@@ -1934,10 +1868,7 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "version"))
         {
-            /* printdbg(debug, "tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD); */
-            printfics("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD);
-            printfics("tellicsnoalias tell beco Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD);
-            /* post("Xadreco v%s build %s, XBoard protocol, based on Minimax Algorithm, by Ruben C. Benante (drbeco), 1994-2026.\n", VERSION, BUILD); */
+            printdbg(debug, "# Xadreco v%s build %s, XBoard protocol, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD);
             tente = 1;
             continue;
         }
@@ -2006,20 +1937,6 @@ char humajoga(tabuleiro *tabu)
         {
             printdbg(debug, "# xboard: new. Xadreco sets the board in initial position.\n");
             return ('w');
-        }
-        if(!strcmp(movinito, "ics")) /* Am I at a server? */
-        {
-            scanf2(movinito); /* get server name */
-            if(!strcmp(movinito, "freechess.org")) /* Is it FICS? */
-                server = fics; /* FICS */
-            else
-                if(!strcmp(movinito, "-")) /* Is it stand-alone? */
-                    server = none; /* no server */
-                else
-                    server = lichess; /* LICHESS */
-            printdbg(debug, "# xboard: (humajoga) connected to server: %s (%d)\n", movinito, server);
-            tente = 1;
-            continue;
         }
         if(!strcmp(movinito, "resign"))
         {
@@ -2772,57 +2689,6 @@ char compjoga(tabuleiro *tabu)
         printdbg(debug, "# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
     }
     res = joga_em(tabu, *result.plance, 1);  // computador joga
-    //vez da outra cor jogar. retorna a situacao(*tabu)
-
-//     if(ics) //conectado ou stand alone
-    {
-        if(tabu->numero > 4) /* nao mostra nos primeiros lances */
-        {
-            /*WHISPER = 0:nada, 1:v>200 :)), 2: v>100 :), 3: -100<v<100 :|, 4: v<-100 :(, 5: v<-200 :(( */
-            if(result.valor > 200)
-            {
-                if(WHISPER != 1)
-                {
-                    printfics("tellicsnoalias whisper :))\n");
-                    WHISPER = 1;
-                }
-            }
-            else
-                if(result.valor < -200)
-                {
-                    if(WHISPER != 5)
-                    {
-                        printfics("tellicsnoalias whisper :((\n");
-                        WHISPER = 5;
-                    }
-                }
-                else
-                    if(result.valor > 100)
-                    {
-                        if(WHISPER != 2)
-                        {
-                            printfics("tellicsnoalias whisper :)\n");
-                            WHISPER = 2;
-                        }
-                    }
-                    else
-                        if(result.valor < -100)
-                        {
-                            if(WHISPER != 4)
-                            {
-                                printfics("tellicsnoalias whisper :(\n");
-                                WHISPER = 4;
-                            }
-                        }
-                        else
-                            if(WHISPER != 3)
-                            {
-                                printfics("tellicsnoalias whisper :|\n");
-                                WHISPER = 3;
-                            }
-        }
-    }
-
     return (res);
 } //fim da compjoga
 
@@ -4803,8 +4669,6 @@ void sai(int error)
     result.plance = NULL;
     libera_lances(&succ_geral);
     retira_tudo_listab();     //zera a lista de tabuleiros
-    if(error != 36) // faltou comando xboard
-        printfics("tellicsnoalias exit\n");
     exit(error);
 }
 
@@ -4861,7 +4725,6 @@ void inicia(tabuleiro *tabu)
     totalnodo = 0;
     totalnodonivel = 0;
     OFERECEREMPATE = 0;
-    WHISPER = 0; /* carinha feliz */
 }
 
 //coloca as peoes na posicao inicial
@@ -4930,8 +4793,6 @@ void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, 
 void msgsai(char *msg, int error)  //aborta programa por falta de memoria
 {
     printdbg(debug, "# xadreco : %s\n", msg);
-    if(debug)
-        printfics("tellicsnoalias tell beco %s\n", msg);
     sai(error);
 }
 
@@ -5222,16 +5083,14 @@ void help(void)
 {
     IFDEBUG("help()");
     printf("Xadreco - %s, by Dr. Beco\n", VERSION);
-    printf("\nUsage: xadreco [-h|-v] [-c{none,fics,lichess}] [-r] [-x] [-b path/bookfile.txt]\n");
+    printf("\nUsage: xadreco [-h|-v] [-r] [-x] [-b path/bookfile.txt]\n");
     printf("\nOptions:\n");
     printf("\t-h,  --help\n\t\tShow this help.\n");
     printf("\t-V,  --version\n\t\tShow version and copyright information.\n");
     printf("\t-v,  --verbose\n\t\tSet verbose level (cumulative).\n");
-    /* add more options here */
     printf("\t-r seed,  --random seed\n\t\tXadreco plays random moves. Initializes seed. If seed=0, 'true' random.\n");
-    printf("\t-c,  --connection\n\t\tnone: no connection; fics: freeches.org; lichess: lichess.org\n");
-    printf("\t-x,  --xboard\n\t\tGives 'xboard' keyword immediattely (protocol is xboard with or withour -x)\n");
-    printf("\t-b path/bookfile.txt,  --book\n\t\tSets the path for book file (not implemented)\n");
+    printf("\t-x,  --xboard\n\t\tGives 'xboard' keyword immediately\n");
+    printf("\t-b path/bookfile.txt,  --book\n\t\tSets the path for book file\n");
     printf("\nExit status:\n\t0 if ok.\n\t1 some error occurred.\n");
     printf("\nTodo:\n\tLong options not implemented yet.\n");
     printf("\nAuthor:\n\tWritten by %s <%s>\n\n", "Ruben Carlo Benante", "rcb@beco.cc");
@@ -5256,19 +5115,6 @@ void copyr(void)
     printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2018, "Ruben Carlo Benante", "rcb@beco.cc");
     if(debug > 3) printf("copyr(): Verbose: %d\n", debug); /* -vvvv */
     exit(EXIT_FAILURE);
-}
-
-/* print fics commands */
-void printfics(char *fmt, ...)
-{
-    va_list args;
-
-    if(server != fics)
-        return;
-
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
 }
 
 /* print debug information  */
@@ -5309,12 +5155,6 @@ void scanf2(char *movinito)
 {
     scanf("%s", movinito);
     printdbg(debug, "# scanf: %s\n", movinito);
-}
-
-/* cuida do control-c para interrupcao de teclado sair graciosamente */
-void controlc(int sig)
-{
-    msgsai("control-c", 15);
 }
 
 /* ---------------------------------------------------------------------- */

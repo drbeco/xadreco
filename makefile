@@ -3,10 +3,7 @@
 # GNU License v2
 #
 # Compilar para lichess
-# 	make CONNECT=2 XDEBUG=1 DEBUG=1
-#
-# Compilar para fics
-#   make CONNECT=1
+# 	make XDEBUG=1 DEBUG=1
 #
 # TODO:
 #   random just for first move
@@ -16,7 +13,7 @@
 SHELL=/bin/bash -o pipefail
 
 MAJOR ?= 6
-MINOR ?= 1
+MINOR ?= 2
 DEBUG ?= 0
 BUILD = $(shell date +"%g%m%d.%H%M%S")
 DEFSYM = $(subst .,_,$(BUILD))
@@ -27,13 +24,11 @@ CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99
 #CFLAGS = -Ofast -ansi -pedantic-errors
 #RANDOM=-1:command line. RANDOM=-2:no random. RANDOM>=0: yes, seed N, 0=seed by time
 RANDOM ?= -1
-#CONNECT=0, 1 or 2: none, fics, lichess. CONNECT=3: command line decides
-CONNECT ?= 3
 #NOWAIT=1: no wait for xboard command. NOWAIT=0: command line decides
 NOWAIT ?= 0
 #XDEBUG==0: command line. XDEBUG>0, fixed value
 XDEBUG ?= 0
-CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG) -DRANDOM=$(RANDOM) -DCONNECT=$(CONNECT) -DNOWAIT=$(NOWAIT) -DXDEBUG=$(XDEBUG)
+CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG) -DRANDOM=$(RANDOM) -DNOWAIT=$(NOWAIT) -DXDEBUG=$(XDEBUG)
 LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm
 #LDLIBS += -lgmp
 #OBJ = libeco-ux64.o
