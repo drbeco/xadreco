@@ -68,7 +68,7 @@
 //Versao do programa
 //program version
 #ifndef VERSION /* gcc -DVERSION="0.1" */
-    #define VERSION "5.84" /**< Version Number (string) */
+    #define VERSION "6.x" /**< Fallback version if makefile doesn't set it */
 #endif
 
 #ifndef BUILD
@@ -687,7 +687,7 @@ int main(int argc, char *argv[])
     //turn off buffers. Immediate input/output.
     setbuf(stdout, NULL);
     setbuf(stdin, NULL);
-    printdbg(debug, "# Xadreco version %s build %s (C) 1994-2018, by Dr. Beco\n"
+    printdbg(debug, "# Xadreco version %s build %s (C) 1994-2026, by Dr. Beco\n"
              "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
              "# This is free software, and you are welcome to redistribute it\n"
              "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
@@ -2061,10 +2061,10 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "version"))
         {
-            /* printdbg(debug, "tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD); */
-            printfics("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
-            printfics("tellicsnoalias tell beco Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2018.\n", VERSION, BUILD);
-            /* post("Xadreco v%s build %s, XBoard protocol, based on Minimax Algorithm, by Ruben C. Benante (drbeco), 1994-2018.\n", VERSION, BUILD); */
+            /* printdbg(debug, "tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD); */
+            printfics("tellopponent Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD);
+            printfics("tellicsnoalias tell beco Xadreco v%s build %s for XBoard/WinBoard, based on Minimax Algorithm, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD);
+            /* post("Xadreco v%s build %s, XBoard protocol, based on Minimax Algorithm, by Ruben C. Benante (drbeco), 1994-2026.\n", VERSION, BUILD); */
             tente = 1;
             continue;
         }
@@ -5349,7 +5349,7 @@ char randommove(tabuleiro *tabu)
 void help(void)
 {
     IFDEBUG("help()");
-    printf("%s - %s\n", "Xadreco", "5.84, by Dr. Beco");
+    printf("Xadreco - %s, by Dr. Beco\n", VERSION);
     printf("\nUsage: xadreco [-h|-v] [-c{none,fics,lichess}] [-r] [-x] [-b path/bookfile.txt]\n");
     printf("\nOptions:\n");
     printf("\t-h,  --help\n\t\tShow this help.\n");
