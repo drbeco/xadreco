@@ -3220,9 +3220,9 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
                 break;
         }
     tabu->peao_pulou = movi.peao_pulou;
-    tabu->tab[movi.lance[2]][movi.lance[3]] =
-        tabu->tab[movi.lance[0]][movi.lance[1]];
-    tabu->tab[movi.lance[0]][movi.lance[1]] = VAZIA;
+    tabu->tab[SQ(movi.lance[2],movi.lance[3])] =
+        tabu->tab[SQ(movi.lance[0],movi.lance[1])];
+    tabu->tab[SQ(movi.lance[0],movi.lance[1])] = VAZIA;
     for(i = 0; i < 4; i++)
         tabu->lancex[i] = movi.lance[i];
     tabu->numero++;
