@@ -142,7 +142,7 @@
 typedef struct stabuleiro
 {
     //contem as pecas, sendo [coluna][linha], ou seja: e4
-    int tab[8][8];
+    int tab[64];
     //contem -1 ou 1 para 'branca' ou 'preta'
     int vez;
     //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
@@ -200,7 +200,7 @@ resultado;
 typedef struct slistab
 {
     //[coluna][linha], exemplo, lance: [e][2] para [e][4]
-    int tab[8][8];
+    int tab[64];
     //de quem e a vez
     int vez;
     //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
