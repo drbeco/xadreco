@@ -22,8 +22,7 @@ BUILD = $(shell date +"%g%m%d.%H%M%S")
 DEFSYM = $(subst .,_,$(BUILD))
 VERSION = $(MAJOR).$(MINOR)
 CC = gcc
-CCW = i686-w64-mingw32-gcc 
-CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99 
+CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99
 # -Wno-unused-variable -Wno-unused-function
 #CFLAGS = -Ofast -ansi -pedantic-errors
 #RANDOM=-1:command line. RANDOM=-2:no random. RANDOM>=0: yes, seed N, 0=seed by time
@@ -53,14 +52,6 @@ o = xadreco
 $(o) : % : %.o $(OBJ)
 	$(CC) $(LDLIBS) $^ -o $@ |& tee errors.err
 	echo $(o) version \"$(VERSION).$(BUILD)\" > VERSION
-
-#binary EXE (Windows)
-%.exe : %.obj
-	$(CCW) $(LDLIBS) $(CPPFLAGS) $^ -o $@ |& tee errors.err
-
-#object (Windows)
-%.obj : %.c
-	$(CCW) $(CFLAGS) $(CPPFLAGS) $^ -o $@ |& tee errors.err
 
 #library
 libeco-ux64.o : libeco.c

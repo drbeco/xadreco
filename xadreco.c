@@ -42,23 +42,9 @@
 
 /* ---------------------------------------------------------------------- */
 /* includes */
-#ifdef __linux
-    #warning Linux detected
-    #include <sys/select.h>
-    #include <sys/time.h>
-    #include <unistd.h>
-#else
-    #warning Not Linux detected (assuming Win32)
-    #include <conio.h>
-    #include <windows.h>
-    #include <winbase.h>
-    #include <wincon.h>
-    #include <io.h>
-#endif
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <sys/select.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #include <time.h>
 #include <string.h>
@@ -71,16 +57,12 @@
 /* ---------------------------------------------------------------------- */
 /* definitions */
 
-#ifdef __linux
-    #define waits(s) sleep(s)
-#else
-    #define waits(s) Sleep(s*1000)
-#endif
+#define waits(s) sleep(s)
 
 #ifdef __arm__
-    #warning raspberry pi detected
+    #warning Linux ARM detected
 #else
-    #warning not a raspberry pi, are you?
+    #warning Linux x86_64 detected
 #endif
 
 //Versao do programa
@@ -611,11 +593,7 @@ int main(int argc, char *argv[])
     int seed = 0;
 
     server = none;
-#ifdef __linux
     srand(time(NULL) + getpid());
-#else
-    srand(time(NULL));
-#endif
     signal(SIGINT, controlc);
 
     IFDEBUG("Starting optarg loop...");
@@ -728,7 +706,7 @@ int main(int argc, char *argv[])
     waits(1);
 
     /* Xadreco 5.8 accepts Xboard Protocol V2 */
-    sprintf(feature, "%s", "feature ping=1 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=0 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
+    sprintf(feature, "%s", "feature ping=1 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=1 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
 
     /* feature ics=1 */
     /* fics 1591 >first : ics freechess.org */
@@ -1942,7 +1920,7 @@ char humajoga(tabuleiro *tabu)
     //     char peca;
     int tente;
     int lanc[4], moves, minutes;
-    double secs, osecs, incre = 0.0;
+    double secs, osecs = 0.0, incre = 0.0;
     int i, j, k;
     //     int casacor;
     //nao precisa se tem textbackground
@@ -4964,6 +4942,8 @@ void inicia(tabuleiro *tabu)
     result.valor = 0;
     libera_lances(&result.plance);
     result.plance = NULL;
+    libera_lances(&succ_geral);
+    succ_geral = NULL;
     retira_tudo_listab();
     plcabeca = NULL; //cabeca da lista de repeteco
     ofereci = 1; //computador pode oferecer 1 empate
@@ -4993,13 +4973,20 @@ void inicia(tabuleiro *tabu)
     nivel = 3; // sem uso depois de colocar busca em amplitude (uso no debug apenas)
     ABANDONA = -2430; // volta o abandona para jogar contra humanos...
     COMPUTER = 0; // jogando contra outra engine?
-    //mostrapensando = 0; //post and nopost commands
+    mostrapensando = 0; //post and nopost commands
     analise = 0; //analyze and exit commands
     tempomovclock = 3.0;	//em segundos
     tempomovclockmax = 120.0; // max allowed - no correpondence bot
     tbrancasac = 0.0; //tempo acumulado
     tpretasac = 0.0; //acumulated time
+    tinijogo = 0;
+    tinimov = 0;
+    tatual = time(NULL);
+    tdifs = 0.0;
     tultimoinput = time(NULL); //pausa para nao fazer muito poll seguido
+    totalnodo = 0;
+    totalnodonivel = 0;
+    OFERECEREMPATE = 0;
     WHISPER = 0; /* carinha feliz */
 }
 
@@ -5284,7 +5271,6 @@ int estatico_pmovi(tabuleiro tabu, movimento *cabeca)
 // return true if there are some character in the buffer to be read
 int pollinput(void)
 {
-#ifndef _WIN32
     static fd_set readfds;
     struct timeval tv;
     int ret;
@@ -5296,38 +5282,6 @@ int pollinput(void)
     select(16, &readfds, NULL, NULL, &tv);
     ret = FD_ISSET(fileno(stdin), &readfds);
     return (ret);
-#else
-
-    static int init = 0;
-    static int pipe;
-    static HANDLE inh;
-    /* static INPUT_RECORD Buffer[256]; */
-
-    DWORD dw = 0;
-    if(!init)
-    {
-        init = 1;
-        inh = GetStdHandle(STD_INPUT_HANDLE);
-        pipe = !GetConsoleMode(inh, &dw);
-        if(!pipe)
-        {
-            SetConsoleMode(inh,
-                           dw & ~(ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT));
-            FlushConsoleInputBuffer(inh);
-        }
-    }
-    if(pipe)
-    {
-        if(!PeekNamedPipe(inh, NULL, 0, NULL, &dw, NULL))
-            return 1;
-        return dw;
-    }
-    else
-    {
-        GetNumberOfConsoleInputEvents(inh, &dw);
-        return (dw <= 1 ? 0 : dw);
-    }
-#endif
 }
 
 //retorna verdadeiro se leu o comando "?" para mover agora
