@@ -108,7 +108,7 @@
     #define XDEBUGFOUT stderr
 #endif
 
-#define TOTAL_MOVIMENTOS 60
+#define TOTAL_MOVIMENTOS 50
 //estimativa da duracao do jogo
 //estimate of game lenght
 #define MARGEM_PREGUICA 400
@@ -2273,13 +2273,15 @@ char humajoga(tabuleiro *tabu)
             tempomovclockmax = secs / 4.0; /* never spend more than 25% of remaining time */
             if(tempomovclockmax < 1.0)
                 tempomovclockmax = 1.0;
-            tempomovclock = secs / (float)moves; //em segundos
+            tempomovclock = secs / (float)moves; //base time per move
+            if(osecs > 0.0) //ratio: think longer when ahead on time, faster when behind
+                tempomovclock *= (secs / osecs);
             if(tempomovclock > tempomovclockmax)
-                tempomovclock = tempomovclockmax; //maximo tempomovclockmax
-            if(tempomovclock < 0.5) //minimo meio segundo
+                tempomovclock = tempomovclockmax; //upper cap
+            if(tempomovclock < 0.5) //lower cap
                 tempomovclock = 0.5;
 
-            printdbg(debug, "# xadreco time: meu: %.1fs opo:%.1fs, para %d lances: ajustado para st %f s por lance (max %f)\n", secs, osecs, moves, tempomovclock, tempomovclockmax);
+            printdbg(debug, "# xadreco time: meu: %.1fs opo:%.1fs ratio:%.2f para %d lances: st %f s (max %f)\n", secs, osecs, osecs > 0.0 ? secs / osecs : 0.0, moves, tempomovclock, tempomovclockmax);
             tente = 1;
             continue;
         }
