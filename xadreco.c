@@ -137,6 +137,25 @@ typedef struct sarena
 }
 arena;
 
+// nodo generico para listas
+typedef struct sno
+{
+    void *info; // conteudo do nodo
+    struct sno *prox;
+    struct sno *ant;
+}
+no;
+
+// lista generica encadeamento simples/duplo
+typedef struct slista
+{
+    no *cabeca;
+    no *cauda;
+    int qtd;
+    arena *a;
+}
+lista;
+
 typedef struct stabuleiro
 {
     //contem as pecas, sendo [coluna][linha], ou seja: e4
