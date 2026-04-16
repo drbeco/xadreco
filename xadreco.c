@@ -141,8 +141,9 @@ arena;
 typedef struct sno
 {
     void *info; // conteudo do nodo
-    struct sno *prox;
-    struct sno *ant;
+    size_t tam; // tamanho do nodo apontado por info
+    struct sno *prox; // ponteiro para o proximo (dentro da arena)
+    struct sno *ant; // ponteiro para o anterior (dentro da arena)
 }
 no;
 
