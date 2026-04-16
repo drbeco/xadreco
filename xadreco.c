@@ -128,6 +128,15 @@
 /* ---------------------------------------------------------------------- */
 /* typedefs, enums and structures */
 
+// arena ----------------------
+typedef struct sarena
+{
+    char *ptr; // ponteiro para area alocada
+    size_t usado; // quantidade de bytes
+    size_t total; // total alocado
+}
+arena;
+
 typedef struct stabuleiro
 {
     //contem as pecas, sendo [coluna][linha], ou seja: e4
@@ -225,9 +234,8 @@ enum piece_values
 /* ---------------------------------------------------------------------- */
 /* globals */
 
-//my rating and opponent rating
-int myrating, opprating;
-//a melhor variante achada
+// listas --------------------------------------------
+//a melhor variante achada (lista movimento)
 resultado result;
 //cabeca da lista encadeada de posicoes repetidas
 listab *plcabeca;
@@ -235,6 +243,10 @@ listab *plcabeca;
 listab *plfinal;
 //ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas;
 movimento *succ_geral;
+
+// outros globais ------------------------------------
+//my rating and opponent rating
+int myrating, opprating;
 //log file for debug==2
 FILE *fmini;
 //1:consulta o livro de aberturas livro.txt. 0:nao consulta
@@ -332,7 +344,8 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
 void testajogo(char *movinito, int mnum);
 //limpa algumas variaveis para iniciar a ponderacao
 void limpa_pensa(void);
-//preenche a estrutura movimento
+// lista tipo movimento enche_pmovi, op malloc+append, usada por geramov()
+//preenche a estrutura da lista de movimento
 //pp peao_pulou: contem -1 ou coluna do peao que andou duas neste lance
 //rr roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
 //ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
@@ -396,6 +409,7 @@ void pegaNmoves(char *linha2, char *linha, char *strlance);
 void conta_linhas_livro(void);
 
 // computador joga ----------------------------------------------------------
+// lista tipo movimento geramov, op cria lista via ench_pmovi
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 movimento *geramov(tabuleiro tabu, int *nmov);
 //coloca em result a melhor variante e seu valor.
@@ -407,7 +421,13 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
 //joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
 char joga_em(tabuleiro *tabu, movimento movi, int cod);
 
-// listas dinamicas ----------------------------------------------------------------
+// listas dinamicas com arena ------------------------------------------------------------
+void arena_inicia(arena *a, size_t capa); // inicializa uma arena de alocacao de memoria
+char *arena_aloca(arena *a, size_t tam); // reserva um espaco na area da arena
+void arena_libera(arena *a); // libera area reservada na arena
+void arena_destroi(arena *a); // desaloca area de memoria da arena
+
+// prototipos listas dinamicas -----------------------------------------------------------
 //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
 movimento *copimel(movimento pmovi, movimento *plance);
 //copia os itens da estrutura movimento, mas nao copia ponteiro prox. dest=font
@@ -422,10 +442,12 @@ void insere_listab(tabuleiro tabu);
 void retira_listab(void);
 //copia font para dest. dest=font.
 void copitab(tabuleiro *dest, tabuleiro *font);
-//libera da memoria uma lista encadeada de movimentos
+// lista tipo movimento, libera da memoria uma lista encadeada de movimentos
 void libera_lances(movimento **cabeca);
 //zera a lista de tabuleiros
 void retira_tudo_listab(void);
+
+// turnos -----------------------------------------------------------
 //humano joga. Aceita comandos XBoard/WinBoard.
 char humajoga(tabuleiro *tabu);
 //computador joga. Chama o livro de aberturas ou o minimax.
@@ -435,6 +457,10 @@ char compjoga(tabuleiro *tabu);
 /* codigo principal - main code */
 int main(int argc, char *argv[])
 {
+    // gerenciamento de memoria com arenas
+    arena ahist; // historico de posicoes de tabuleiro do jogo
+    arena_inicia(&ahist, 1024 * 1024); // inicializa arena com 1Mb para historico de tabuleiros
+
     int opt; /* return from getopt() */
     tabuleiro tabu;
     char feature[256];
@@ -5148,6 +5174,45 @@ void scanf2(char *movinito)
 {
     scanf("%s", movinito);
     printdbg(debug, "# scanf: %s\n", movinito);
+}
+
+/* arena gerenciamento de memoria --------------------------------------- */
+
+/* arena_inicia : unica chamada para malloc() */
+void arena_inicia(arena *a, size_t capa)
+{
+    a->usado = 0;
+    a->ptr = malloc(capa);
+    if(!a->ptr)
+        a->total = 0;
+    else
+        a->total = capa;
+}
+
+/* arena_destroi : unica chamada de free() */
+void arena_destroi(arena *a)
+{
+    if(a->ptr)
+        free(a->ptr);
+    a->usado = 0;
+    a->total = 0;
+}
+
+/* arena_aloca : reserva tam bytes da arena (simula malloc) */
+char *arena_aloca(arena *a, size_t tam)
+{
+    char *alocado;
+    if(a->usado + tam > a->total)
+        return NULL; // arena cheia
+    alocado = a->ptr + a->usado;
+    a->usado += tam;
+    return alocado;
+}
+
+/* arena_libera : libera area reservada na arena (simula free) */
+void arena_libera(arena *a)
+{
+    a->usado = 0; // basta apontar para o inicio do bloco
 }
 
 /* ---------------------------------------------------------------------- */
