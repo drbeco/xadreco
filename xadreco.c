@@ -5236,10 +5236,17 @@ char *arena_aloca(arena *a, size_t tam)
     return alocado;
 }
 
-/* arena_libera : libera area reservada na arena (simula free) */
-void arena_libera(arena *a)
+/* arena_zera : libera toda area reservada na arena (simula loop free all) */
+void arena_zera(arena *a)
 {
     a->usado = 0; // basta apontar para o inicio do bloco
+}
+
+/* arena_libera : libera apenas um item, o ultimo item, alocado (simula 1 free) */
+void arena_libera(arena *a, size_t tam)
+{
+    if(a->usado >= tam)
+        a->usado -= tam;
 }
 
 /* lista generica usando arena --------------------------------------- */
@@ -5258,21 +5265,53 @@ lista *lst_cria(arena *a)
 }
 
 // libera reserva de uma lista alocada em uma arena
-void lst_libera(lista *l)
-{ ; }
+void lst_zera(lista *l)
+{
+    l->cabeca = NULL; // sem free, a vantagem da arena
+    l->cauda = NULL; // assim, duma vez
+    l->qtd = 0; // zerou numero de items
+}
 
 // insere um item ao final de uma lista (append)
-void lst_insere(lista *l, void *info)
-{ ; }
+void lst_insere(lista *l, void *i, size_t tam)
+{
+    no *n = (no *)arena_aloca(l->a, sizeof(no));
+
+    if(!n)
+        return;
+
+    n->info = i;
+    n->tam = tam;
+    n->prox = NULL;
+    n->ant = l->cauda;
+    if(l->cauda)
+        l->cauda->prox = n;
+    else
+        l->cabeca = n;
+    l->cauda = n;
+    l->qtd++;
+}
 
 // remove o ultimo item da lista
-void *lst_remove(lista *l)
-{ ; }
+void lst_remove(lista *l)
+{
+    no *n = l->cauda;
+    if(!n)
+        return;
+    l->cauda = n->ant;
+    if(l->cauda)
+        l->cauda->prox = NULL;
+    else
+        l->cabeca = NULL;
+    l->qtd--;
+    arena_libera(l->a, sizeof(no) + n->tam);
+}
 
 // conta o numero de elementos em uma lista
 int lst_conta(lista *l)
-{ ; }
-
+{
+    return l->qtd;
+}
 
 /* ---------------------------------------------------------------------- */
 /* vi: set ai et ts=4 sw=4 tw=0 wm=0 fo=coql  : C config for Vim modeline */
