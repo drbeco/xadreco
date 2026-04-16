@@ -2536,6 +2536,15 @@ char compjoga(tabuleiro *tabu)
         libera_lances(&succ_geral);
         succ_geral = geramov(*tabu, &nmov);  //gera os sucessores
         totalnodo = 0;
+        //primeiro lance: joga rapido, metade do tempo, maximo 10s
+        if(tabu->meionum <= 1)
+        {
+            tempomovclock /= 2.0;
+            if(tempomovclock > 8.0)
+                tempomovclock = 8.0;
+            if(tempomovclock < 0.5)
+                tempomovclock = 0.5;
+        }
         //funcao COMPJOGA (CONFERIR)
         if(randomchess)
         {
