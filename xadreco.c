@@ -443,14 +443,15 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod);
 
 // listas dinamicas com arena ------------------------------------------------------------
 void arena_inicia(arena *a, size_t capa); // inicializa uma arena de alocacao de memoria
-char *arena_aloca(arena *a, size_t tam); // reserva um espaco na area da arena
-void arena_libera(arena *a); // libera area reservada na arena
 void arena_destroi(arena *a); // desaloca area de memoria da arena
+char *arena_aloca(arena *a, size_t tam); // reserva um espaco na area da arena
+void arena_libera(arena *a, size_t tam); // libera apenas o ultimo item da area reservada na arena
+void arena_zera(arena *a); // libera toda area reservada na arena (simula loop free all)
 
 lista *lst_cria(arena *a); // cria uma lista alocada em uma arena
-void lst_libera(lista *l); // libera reserva de uma lista alocada em uma arena
-void lst_insere(lista *l, void *info); // insere um item ao final de uma lista (append)
-void *lst_remove(lista *l); // remove o ultimo item da lista
+void lst_zera(lista *l); // libera reserva de uma lista alocada em uma arena
+void lst_insere(lista *l, void *info, size_t tam); // insere um item ao final de uma lista (append)
+void lst_remove(lista *l); // remove o ultimo item da lista
 int lst_conta(lista *l); // conta o numero de elementos em uma lista
 
 // prototipos listas dinamicas -----------------------------------------------------------
