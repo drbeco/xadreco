@@ -446,6 +446,12 @@ char *arena_aloca(arena *a, size_t tam); // reserva um espaco na area da arena
 void arena_libera(arena *a); // libera area reservada na arena
 void arena_destroi(arena *a); // desaloca area de memoria da arena
 
+lista *lst_cria(arena *a); // cria uma lista alocada em uma arena
+void lst_libera(lista *l); // libera reserva de uma lista alocada em uma arena
+void lst_insere(lista *l, void *info); // insere um item ao final de uma lista (append)
+void *lst_remove(lista *l); // remove o ultimo item da lista
+int lst_conta(lista *l); // conta o numero de elementos em uma lista
+
 // prototipos listas dinamicas -----------------------------------------------------------
 //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
 movimento *copimel(movimento pmovi, movimento *plance);
