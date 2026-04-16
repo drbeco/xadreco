@@ -5241,6 +5241,6 @@ void arena_libera(arena *a)
 }
 
 /* ---------------------------------------------------------------------- */
-/* vi: set ai et ts=4 sw=4 tw=0 wm=0 fo=croql : C config for Vim modeline */
+/* vi: set ai et ts=4 sw=4 tw=0 wm=0 fo=coql  : C config for Vim modeline */
 /* Template by Dr. Beco <rcb at beco dot cc>      Version 20250309.153530 */
 
