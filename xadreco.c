@@ -147,8 +147,8 @@ typedef struct stabuleiro
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu en passant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
     int especial;
-    //numero do movimento (nao lance!): 1-e2e4 2-e7e5 3-g1f3 4-b8c6
-    int numero;
+    //meionum: meio-numero (ply/half-move): 0=inicio, 1=e2e4, 2=e7e5, 3=g1f3, 4=b8c6
+    int meionum;
 }
 tabuleiro;
 
@@ -205,8 +205,8 @@ typedef struct slistab
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
     int especial;
-    //numero do movimento: 1-e2e4 2-e7e5 3-g1f3 4-b8c6
-    int numero;
+    //meionum: meio-numero (ply/half-move): 0=inicio, 1=e2e4, 2=e7e5, 3=g1f3, 4=b8c6
+    int meionum;
     //quantidade de vezes que essa posicao ja repetiu comparada
     int rep;
     //ponteiro para o proximo da lista
@@ -329,7 +329,7 @@ void coloca_pecas(tabuleiro *tabu);
 //testa posicao dada. devera ser melhorado.
 void testapos(char *pieces, char *color, char *castle, char *enpassant, char *halfmove, char *fullmove);
 //retorna um lance do jogo de teste
-void testajogo(char *movinito, int numero);
+void testajogo(char *movinito, int mnum);
 //limpa algumas variaveis para iniciar a ponderacao
 void limpa_pensa(void);
 //preenche a estrutura movimento
@@ -341,7 +341,7 @@ void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, 
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
 //imprime uma sequencia de lances armazenada na lista movimento, numerados.
-void imprime_linha(movimento *loop, int numero, int vez);
+void imprime_linha(movimento *loop, int mnum, int vez);
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 int pollinput(void);
 //calcula diferenca de tempo em segundo do lance atual
@@ -383,7 +383,7 @@ void usalivro(tabuleiro tabu);
 //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
 void listab2string(char *strlance);
 //retorna uma (lista) linha de jogo como se fosse a resposta do minimax
-movimento *string2pmovi(int numero, char *linha);
+movimento *string2pmovi(int mnum, char *linha);
 //retorna verdadeiro se o jogo atual strlances casa com a linha do livro atual strlinha
 int igual_strlances_strlinha(char *strlances, char *strlinha);
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
@@ -615,23 +615,23 @@ int main(int argc, char *argv[])
         tmatual = localtime(&tatual); // convert time_t to struct tm
         /* strftime(hora, sizeof(hora), "%F %T", tmatual); */ /* not accepted in that other operating xystem */
         strftime(hora, sizeof(hora), "%Y-%m-%d %H:%M:%S", tmatual);
-        if(tabu.numero == 2) //pretas jogou o primeiro. Relogios iniciam
+        if(tabu.meionum == 2) //pretas jogou o primeiro. Relogios iniciam
         {
             tinijogo = tinimov = tatual;
             printdbg(debug, "# xadreco : N.2. Relogio ligado em %s\n", hora);  //ctime(&tinijogo));
         }
-        if(tabu.numero > 2)
+        if(tabu.meionum > 2)
         {
             tdifs = difftime(tatual, tinimov);
             if(tabu.vez == brancas) //iniciando vez das brancas
             {
                 tpretasac += tdifs; //acumulou lance anterior, das pretas
-                printdbg(debug, "# xadreco : N.%d. Pretas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.numero, tdifs, tpretasac, hora);
+                printdbg(debug, "# xadreco : N.%d. Pretas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.meionum, tdifs, tpretasac, hora);
             }
             else
             {
                 tbrancasac += tdifs;
-                printdbg(debug, "# xadreco : N.%d. Brancas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.numero, tdifs, tbrancasac, hora);
+                printdbg(debug, "# xadreco : N.%d. Brancas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.meionum, tdifs, tbrancasac, hora);
             }
             tinimov = tatual; //ancora para proximo tempo acumulado
         }
@@ -793,7 +793,7 @@ void mostra_lances(tabuleiro tabu)
     //result.valor*10 o xboard divide por 100. centi-peao
 //    if (debug) printf ("# xadreco : %d %+.2f %d %d ", nivel, result.valor / 100.0, (int)difclocks(), totalnodo);
     //result.valor/100 para a Dama ficar com valor 9
-    imprime_linha(result.plance, tabu.numero, tabu.vez);
+    imprime_linha(result.plance, tabu.meionum, tabu.vez);
 //    fflush(stdout);
 }
 
@@ -911,7 +911,7 @@ void copitab(tabuleiro *dest, tabuleiro *font)
     dest->empate_50 = font->empate_50;
     for(i = 0; i < 4; i++)
         dest->lancex[i] = font->lancex[i];
-    dest->numero = font->numero;
+    dest->meionum = font->meionum;
     dest->especial = font->especial;
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
@@ -2045,7 +2045,7 @@ char humajoga(tabuleiro *tabu)
             scanf2(movinito);
             secs = atof(movinito) / 100.0; /* seconds I have left */
 
-            moves = TOTAL_MOVIMENTOS - tabu->numero / 2;
+            moves = TOTAL_MOVIMENTOS - tabu->meionum / 2;
             if(moves <= 0)
                 moves = 5;
             if(incre >= 0.0)
@@ -2217,12 +2217,12 @@ char humajoga(tabuleiro *tabu)
             else
                 scanf2(movinito);  //Num. de lances
             printdbg(debug, "# xboard: %s\n", movinito);
-            /* tabu->numero = 0; //mudou para ply. */
-            /* tabu->numero = (atoi(movinito)-1)+0.3; */
+            /* tabu->meionum = 0; //mudou para ply. */
+            /* tabu->meionum = (atoi(movinito)-1)+0.3; */
 
-            /* tabu->numero => 0, 1, 2, 3, 4, 5
+            /* tabu->meionum => 0, 1, 2, 3, 4, 5
              * FEN          => 1, 1, 2, 2, 3, 3 */
-            tabu->numero = (atoi(movinito) -1) * 2 + (tabu->vez == pretas ? 1 : 0);
+            tabu->meionum = (atoi(movinito) -1) * 2 + (tabu->vez == pretas ? 1 : 0);
             //inicia no 0.3 para indicar 0
             /* ultimo resultado: - tudo certo, y troca vez */
             /* ultimo_resultado[0] = 'y'; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) */
@@ -2320,7 +2320,7 @@ char humajoga(tabuleiro *tabu)
             continue;
         }
         if(!strcmp(movinito, "t"))
-            testajogo(movinito, tabu->numero);
+            testajogo(movinito, tabu->meionum);
         //retorna um lance do jogo de teste (em movinito)
         //e vai la embaixo jogar ele
         if(!movi2lance(lanc, movinito))   //se nao existe este lance
@@ -2519,7 +2519,7 @@ char compjoga(tabuleiro *tabu)
         if(fmini == NULL)
             debug = 1;
     }
-    if(USALIVRO && tabu->numero < 52 && setboard != 1 && !randomchess)
+    if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usalivro(*tabu);
         if(result.plance == NULL)
@@ -2598,8 +2598,8 @@ char compjoga(tabuleiro *tabu)
                     fprintf(fmini, "#\n# result.valor: %+.2f totalnodo: %d\n# result.plance: ", result.valor / 100.0, totalnodo);
                     if(!mostrapensando || abs(result.valor) == FIMTEMPO || abs(result.valor) == LIMITE)
                         imprime_linha(result.plance, 1, 2);
-                    //1=numero do lance, 2=vez: pular impressao na tela.
-                    //tabu->numero+1, -tabu->vez);
+                    //1=mnum do lance, 2=vez: pular impressao na tela.
+                    //tabu->meionum+1, -tabu->vez);
                 }
                 //nivel pontuacao tempo totalnodo variacao === usado!
                 //nivel tempo valor lances no arena. (nao usado aqui. testar)
@@ -2607,7 +2607,7 @@ char compjoga(tabuleiro *tabu)
                 {
 //                    printf ("# xadreco : ply score time nodes pv\n");
                     printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
-                    imprime_linha(result.plance, tabu->numero + 1, -tabu->vez);
+                    imprime_linha(result.plance, tabu->meionum + 1, -tabu->vez);
 //                    printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
                 }
                 // termino do laco infinito baseado no tempo
@@ -2642,11 +2642,11 @@ char compjoga(tabuleiro *tabu)
     //pode oferecer empate duas vezes (caso !randomchess). Uma assim que perder 2 peoes. Outra apos 60 lances e com menos de 2 peoes
 //    if(!randomchess)
 //    {
-//        if (tabu->numero >= MOVE_EMPATE2 && ofereci == 0)
+//        if (tabu->meionum >= MOVE_EMPATE2 && ofereci == 0)
 //            ofereci = 1;
 //    }
 //    else // randomchess
-    if(tabu->numero > MOVE_EMPATE1 && ofereci > 0 && randomchess) //posso oferecer empates
+    if(tabu->meionum > MOVE_EMPATE1 && ofereci > 0 && randomchess) //posso oferecer empates
     {
         if((int)(rand() % 2)) //sorteio 50% de chances
         {
@@ -2657,7 +2657,7 @@ char compjoga(tabuleiro *tabu)
     }
 
     //oferecer empate: result.valor esta invertido na vez.
-    if(result.valor < QUANTO_EMPATE1 && (tabu->numero > MOVE_EMPATE1 && tabu->numero < MOVE_EMPATE2) && ofereci > 0)
+    if(result.valor < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
     {
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
         printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", result.valor / 100.0);
@@ -2666,7 +2666,7 @@ char compjoga(tabuleiro *tabu)
         --ofereci;
     }
     //oferecer empate: result.valor esta invertido na vez.
-    if(result.valor < QUANTO_EMPATE2 && tabu->numero >= MOVE_EMPATE2 && ofereci > 0)
+    if(result.valor < QUANTO_EMPATE2 && tabu->meionum >= MOVE_EMPATE2 && ofereci > 0)
     {
         printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", result.valor / 100.0);
         /* printf2("offer draw\n"); */
@@ -2702,7 +2702,7 @@ char analisa(tabuleiro *tabu)
             debug = 1;
     }
     //mudou para busca em amplitude: variavel nivel obsoleta!
-    if(USALIVRO && tabu->numero < 50 && setboard != 1)
+    if(USALIVRO && tabu->meionum < 50 && setboard != 1)
         usalivro(*tabu);
     if(result.plance != NULL)
     {
@@ -2713,7 +2713,7 @@ char analisa(tabuleiro *tabu)
         //nivel pontuacao tempo totalnodo variacao === usado!
 //        printf ("# xadreco : ply score time nodes pv\n");
         printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
-        imprime_linha(result.plance, tabu->numero + 1, -tabu->vez);
+        imprime_linha(result.plance, tabu->meionum + 1, -tabu->vez);
 //        printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d\n", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
 //        printdbg(debug, "# \n");
     }
@@ -2744,8 +2744,8 @@ char analisa(tabuleiro *tabu)
 //                printf ("# xadreco : ply score time nodes pv\n");
                 printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
 //                printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds nodos=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
-                imprime_linha(result.plance, tabu->numero + 1, -tabu->vez);
-                //1=numero do lance, 2=vez: pular impressao na tela
+                imprime_linha(result.plance, tabu->meionum + 1, -tabu->vez);
+                //1=mnum do lance, 2=vez: pular impressao na tela
 //                if(debug)
 //                {
 //                    if (result.plance == NULL)
@@ -2758,8 +2758,8 @@ char analisa(tabuleiro *tabu)
             {
                 fprintf(fmini, "#\n# result.valor: %+.2f totalnodo: %d\nresult.plance: ", result.valor / 100.0, totalnodo);
                 imprime_linha(result.plance, 1, 2);
-                //1=numero do lance, 2=vez: pular impressao na tela.
-                // tabu->numero+1, -tabu->vez);
+                //1=mnum do lance, 2=vez: pular impressao na tela.
+                // tabu->meionum+1, -tabu->vez);
             }
             if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))  // termino do laco infinito baseado no tempo
                 break;
@@ -2823,7 +2823,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     //if(debug == 2) {
     //fprintf(fmini, "\nsucc=geramov(): ");
     //imprime_linha(succ, 1, 2);
-    //1=numero do lance, 2=vez: pular impressao na tela
+    //1=mnum do lance, 2=vez: pular impressao na tela
     //}
     if(cabeca_succ == NULL)
     {
@@ -2881,7 +2881,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             {
                 fprintf(fmini, "#\n# melhor_caminho=");
                 imprime_linha(melhor_caminho, 1, 2);
-                //1=numero do lance, 2=vez: pular impressao na tela
+                //1=mnum do lance, 2=vez: pular impressao na tela
             }
         }
         //implementar o NULL-MOVE
@@ -3085,7 +3085,7 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     tabu->tab[SQ(movi.lance[0],movi.lance[1])] = VAZIA;
     for(i = 0; i < 4; i++)
         tabu->lancex[i] = movi.lance[i];
-    tabu->numero++;
+    tabu->meionum++;
     //conta os movimentos de cada peao (e chamado de dentro de funcao recursiva!)
     tabu->vez = adv(tabu->vez);
     tabu->especial = movi.especial;
@@ -3247,7 +3247,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         //valor de uma posicao empatada.
         case 2: //A posicao eh de XEQUE!
             //analisada abaixo. nao precisa mais desse.
-            //        if (tabu.numero > 40)
+            //        if (tabu.meionum > 40)
             //xeque no meio-jogo e final vale mais que na abertura
             if(tabu.vez == brancas)
                 //                totp += 30;
@@ -3315,14 +3315,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 //pretas ganham 5 pontos por ataque nela
                 totp += ordem[k][5] * 20;
                 //dama branca no ataque ganha bonus
-                if(j > 4 && tabu.numero > 30)
+                if(j > 4 && tabu.meionum > 30)
                     totb += 90;
                 pecab += peca;
             }
             else
             {
                 totb += ordem[k][3] * 20;
-                if(j < 3 && tabu.numero > 30)
+                if(j < 3 && tabu.meionum > 30)
                     totp += 90;
                 pecap += peca;
             }
@@ -3707,7 +3707,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 }
     //bonificacao para quem nao mexeu a dama na abertura
     //TODO usar flag para lembrar se ja mexeu, senao vai e volta
-    if(tabu.numero < 32 && setboard != 1)
+    if(tabu.meionum < 32 && setboard != 1)
     {
         if(tabu.tab[SQ(3,0)] == -DAMA)
             totb += 50;
@@ -3716,7 +3716,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     }
     //bonificacao para quem fez roque na abertura
     //TODO usar flag para saber se fez roque mesmo
-    if(tabu.numero < 32 && setboard != 1)
+    if(tabu.meionum < 32 && setboard != 1)
     {
         if(tabu.tab[SQ(6,0)] == -REI && tabu.tab[SQ(5,0)] == -TORRE)  //brancas com roque pequeno
             totb += 70;
@@ -3728,7 +3728,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             totp += 50;
     }
     //bonificacao para rei protegido na abertura com os peoes do Escudo Real
-    if(tabu.numero < 60 && setboard != 1)
+    if(tabu.meionum < 60 && setboard != 1)
     {
         if(tabu.tab[SQ(6,0)] == -REI &&
                 //brancas com roque pequeno
@@ -3760,7 +3760,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             totp += 50;
     }
     //penalidade se mexer o peao do bispo, cavalo ou da torre no comeco da abertura!
-    if(tabu.numero < 16 && setboard != 1)
+    if(tabu.meionum < 16 && setboard != 1)
     {
         //caso das brancas------------------
         if(tabu.tab[SQ(5,1)] != -PEAO)
@@ -3838,7 +3838,7 @@ void insere_listab(tabuleiro tabu)
         //lance executado originador deste tabuleiro.
         for(i = 0; i < 4; i++)
             plfinal->lancex[i] = tabu.lancex[i];
-        plfinal->numero = tabu.numero; //numero do lance (ply)
+        plfinal->meionum = tabu.meionum; //meionum (ply)
         plfinal->especial = tabu.especial;
     }
     else
@@ -3863,7 +3863,7 @@ void insere_listab(tabuleiro tabu)
         //lance executado originador deste tabuleiro.
         for(i = 0; i < 4; i++)
             plfinal->lancex[i] = tabu.lancex[i];
-        plfinal->numero = tabu.numero; //numero do lance
+        plfinal->meionum = tabu.meionum; //meionum (ply)
         plfinal->especial = tabu.especial;
         //compara o inserido agora com todos os anteriores...
         plaux = plfinal->ant;
@@ -3941,12 +3941,12 @@ void volta_lance(tabuleiro *tabu)
     //lance executado originador deste tabuleiro.
     for(i = 0; i < 4; i++)
         tabu->lancex[i] = plfinal->lancex[i];
-    tabu->numero = plfinal->numero; //numero do lance
+    tabu->meionum = plfinal->meionum; //meionum (ply)
     //tabu->especial
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
     tabu->especial = plfinal->especial;
-    if(tabu->numero < 50 && setboard < 1)
+    if(tabu->meionum < 50 && setboard < 1)
         USALIVRO = 1; //nao usar abertura em posicoes de setboard
 }
 
@@ -4235,7 +4235,7 @@ void listab2string(char *strlance)
 
 //retorna uma linha de jogo como se fosse a resposta do minimax
 //com inicio no lance da vez.
-movimento *string2pmovi(int numero, char *linha)
+movimento *string2pmovi(int mnum, char *linha)
 {
     char m[8];
     int n = 0, lanc[4], i, conta = 0;
@@ -4279,7 +4279,7 @@ movimento *string2pmovi(int numero, char *linha)
         //chamar joga_em() apenas para atualizar esse tabuleiro local, para usar a funcao valido()
         disc = (char) joga_em(&tab, *pmovi, 0);
         //a funcao joga_em deve inserir no listab, cod: 1:insere, 0:nao insere
-        if(n / 5 >= numero)
+        if(n / 5 >= mnum)
             //chegou na posicao atual! comeca inserir na lista
         {
             if(cabeca == NULL)
@@ -4366,7 +4366,7 @@ void usalivro(tabuleiro tabu)
         return;
     }
 
-    if(tabu.numero == 0)  // No primeiro lance de brancas, sorteia uma abertura
+    if(tabu.meionum == 0)  // No primeiro lance de brancas, sorteia uma abertura
     {
         if(LINHASBOAS < 1)
         {
@@ -4398,13 +4398,13 @@ void usalivro(tabuleiro tabu)
         printdbg(debug, "# move 0 - sorteado= %d, linha: '%s'", sorteio, linha);
 
         //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
-        cabeca = string2pmovi(tabu.numero, linha);
+        cabeca = string2pmovi(tabu.meionum, linha);
         result.valor = estatico_pmovi(tabu, cabeca);
         libera_lances(&result.plance);
         result.plance = copilistmov(cabeca);
     }
     else
-        if(tabu.numero == 1)  // No primeiro lance de pretas, sorteia uma possivel resposta
+        if(tabu.meionum == 1)  // No primeiro lance de pretas, sorteia uma possivel resposta
         {
             sjoga[0] = '\0';
             listab2string(strlance); /* um lance de brancas 'e2e4 ' */
@@ -4468,12 +4468,12 @@ void usalivro(tabuleiro tabu)
             }
             printdbg(debug, "# xboard move 1 - sorteado= %d, linha: '%s'", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
-            cabeca = string2pmovi(tabu.numero, linha);
+            cabeca = string2pmovi(tabu.meionum, linha);
             result.valor = estatico_pmovi(tabu, cabeca);
             libera_lances(&result.plance);
             result.plance = copilistmov(cabeca);
         }
-        else /* tab.numero>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
+        else /* tab.meionum>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
         {
             sjoga[0] = '\0';
             listab2string(strlance); /* N lances jogados ate entao 'e2e4 e7e5 b1c3 ... ' */
@@ -4498,7 +4498,7 @@ void usalivro(tabuleiro tabu)
                 strcpy(sjoga, linha2);
                 nlinha++;
             }
-            printf("# tab.numero>1, Num de linhas diferentes para %s eh %d\n", strlance, nlinha);
+            printf("# tab.meionum>1, Num de linhas diferentes para %s eh %d\n", strlance, nlinha);
             if(nlinha < 1)
             {
                 fclose(flivro);
@@ -4537,14 +4537,14 @@ void usalivro(tabuleiro tabu)
             }
             printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: '%s'", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
-            cabeca = string2pmovi(tabu.numero, linha);
+            cabeca = string2pmovi(tabu.meionum, linha);
             result.valor = estatico_pmovi(tabu, cabeca);
             libera_lances(&result.plance);
             result.plance = copilistmov(cabeca);
 
             /* if(cabeca == NULL) */
             /* { */
-            /*     cabeca = string2pmovi(tabu.numero, linha); */
+            /*     cabeca = string2pmovi(tabu.meionum, linha); */
             /*     result.valor = estatico_pmovi(tabu, cabeca); */
             /*     libera_lances(&result.plance); */
             /*     result.plance = copilistmov(cabeca); */
@@ -4552,7 +4552,7 @@ void usalivro(tabuleiro tabu)
             /* else */
             /* { */
             /*     libera_lances(&cabeca); */
-            /*     cabeca = string2pmovi(tabu.numero, linha); */
+            /*     cabeca = string2pmovi(tabu.meionum, linha); */
             /*     //eh a primeira linha que casou */
             /*     novovalor = estatico_pmovi(tabu, cabeca); */
             /*     if(novovalor > result.valor) */
@@ -4679,7 +4679,7 @@ void inicia(tabuleiro *tabu)
     tabu->peao_pulou = -1; //-1:o adversario nao andou duas com peao. //0-7:coluna do peao que andou duas.
     tabu->vez = brancas;
     tabu->empate_50 = 0.0;
-    tabu->numero = 0;
+    tabu->meionum = 0;
     ultimo_resultado[0] = '\0';
     tabu->situa = 0;
     tabu->especial = 0;
@@ -4781,7 +4781,7 @@ void msgsai(char *msg, int error)  //aborta programa por falta de memoria
 //cuidado para nao estourar o limite da cadeia, teclando muito <t>
 //be carefull to do not overflow the string limit, pressing to much <t>
 //retorna um lance do jogo de teste
-void testajogo(char *movinito, int numero)
+void testajogo(char *movinito, int mnum)
 {
     //      char *jogo1="e2e4 e7e5 g1f3 b8c6 b1c3 g8f6 f1b5 a7a6 b5c6 d7c6 d2d4 e5d4 f3d4 f8c5 c1e3 d8e7 e1g1 f6e4 d1f3 c5d4 e3d4 e4d2 f3g3 d2f1 g3g7 h8f8 a1f1 c8f5 d4f6 e7c5 f6d4 c5d6 d4e5 d6b4 a2a3 b4b6 f1c1 f7f6 g7c7 b6c5 e5d6 f8f7 c1e1 c5e5 e1e5 f6e5 c7b6 f5c2 d6c7 a8c8 c7e5 f7e7 b6d4 c8d8";
     //      char *jogo1="e2e4 e7e5 f1c4 b8c6 d1h5 g8f6 h5f7";
@@ -4802,11 +4802,11 @@ void testajogo(char *movinito, int numero)
 
     move[0] = '\0';
     for(i = 0; i < 4; i++)
-        //int(numero)*5; i<int(numero)*5+4; i++)
+        //int(mnum)*5; i<int(mnum)*5+4; i++)
         // 0.3 0.8 1.3 1.8
-        move[i] = jogo1[numero * 5 + i];
+        move[i] = jogo1[mnum * 5 + i];
     strcpy(movinito, move);
-    printf("%d:%s\n", (numero + 2) / 2, move);
+    printf("%d:%s\n", (mnum + 2) / 2, move);
 }
 
 //testa posicao
@@ -4852,12 +4852,12 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
 
 //imprime uma sequencia de lances armazenada na lista movimento
 //tabuvez==2 para pular numeracao em debug==2
-void imprime_linha(movimento *loop, int numero, int tabuvez)
+void imprime_linha(movimento *loop, int mnum, int tabuvez)
 {
     int num, vez;
     char m[80];
 //    FILE *fimprime;
-    num = (int)((numero + 1.0) / 2.0);
+    num = (int)((mnum + 1.0) / 2.0);
     vez = tabuvez;
 //    fimprime = NULL;
 //    if(debug == 2)
@@ -4870,7 +4870,7 @@ void imprime_linha(movimento *loop, int numero, int tabuvez)
         lance2movi(m, loop->lance, loop->especial);
         if(vez == brancas)  //jogou anterior as pretas
         {
-            if(tabuvez == brancas && num == (int)((numero + 1.0) / 2.0))
+            if(tabuvez == brancas && num == (int)((mnum + 1.0) / 2.0))
             {
                 printf("%d. ... %s ", num, m);  //primeiro lance da variante
                 if(debug == 2) fprintf(fmini, "%d. ... %s ", num, m);
