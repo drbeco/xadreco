@@ -216,37 +216,6 @@ typedef struct sresultado
 }
 resultado;
 
-//usado para armazenar o historico do jogo e comparar posicoes repetidas
-typedef struct slistab
-{
-    //[coluna][linha], exemplo, lance: [e][2] para [e][4]
-    int tab[64];
-    //de quem e a vez
-    int vez;
-    //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
-    int peao_pulou;
-    //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-    int roqueb, roquep;
-    //contador:quando chega a 50, empate.
-    float empate_50;
-    //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: sem resultado
-    int situa;
-    //lance executado originador deste tabuleiro.
-    int lancex[4];
-    //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
-    //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    int especial;
-    //meionum: meio-numero (ply/half-move): 0=inicio, 1=e2e4, 2=e7e5, 3=g1f3, 4=b8c6
-    int meionum;
-    //quantidade de vezes que essa posicao ja repetiu comparada
-    int rep;
-    //ponteiro para o proximo da lista
-    struct slistab *prox;
-    //ponteiro para o anterior da lista
-    struct slistab *ant;
-}
-listab;
-
 //valor das pecas (positivo==pretas)
 enum piece_values
 {
@@ -262,10 +231,6 @@ lista *pltab=NULL; // ponteiro para lista de tabuleiros
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
 resultado result;
-//cabeca da lista encadeada de posicoes repetidas
-listab *plcabeca;
-//fim da lista encadeada
-listab *plfinal;
 //ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas;
 movimento *succ_geral;
 
@@ -470,16 +435,12 @@ void copimov(movimento *dest, movimento *font);
 void copilistmovmel(movimento *dest, movimento *font);
 //copia uma lista encadeada para outra nova. Retorna cabeca da lista destino
 movimento *copilistmov(movimento *font);
-//Insere o tabuleiro tabu na lista listab. posiciona plcabeca, plfinal.   Para casos de empate de repeticao de lances, e para pegar o historico de lances
-void insere_listab(tabuleiro tabu);
-//posiciona plfinal no *ant. ou seja: apaga o ultimo da lista. (usada para voltar de variantes ruins ou para voltar um lance a pedido do jogador)
-void retira_listab(void);
+//insere tabuleiro na arena pltab. Retorna contagem de repeticao (>=3 empate)
+int tab_insere(tabuleiro tabu);
 //copia font para dest. dest=font.
 void copitab(tabuleiro *dest, tabuleiro *font);
 // lista tipo movimento, libera da memoria uma lista encadeada de movimentos
 void libera_lances(movimento **cabeca);
-//zera a lista de tabuleiros
-void retira_tudo_listab(void);
 
 // turnos -----------------------------------------------------------
 //humano joga. Aceita comandos XBoard/WinBoard.
@@ -665,8 +626,8 @@ int main(int argc, char *argv[])
     inicia(&tabu);  // zera variaveis
     assert(tabu.vez == brancas && "board not initialized");
     coloca_pecas(&tabu);  //coloca pecas na posicao inicial
-    insere_listab(tabu);
-    assert(plcabeca != NULL && "board history null");
+    tab_insere(tabu);
+    assert(pltab != NULL && pltab->cabeca != NULL && "board history null");
     //------------------------------------------------------------------------------
     //joga_novamente: (play another move)
 
@@ -717,7 +678,7 @@ int main(int argc, char *argv[])
                 // novo jogo
                 inicia(&tabu);  // zera variaveis
                 coloca_pecas(&tabu);  //coloca pecas na posicao inicial
-                insere_listab(tabu);
+                tab_insere(tabu);
                 break;
             //            continue;
             case '*':
@@ -2323,7 +2284,7 @@ char humajoga(tabuleiro *tabu)
             USALIVRO = 0; // TODO: UCI usa setboard para mover Baseado somente nos movimentos, nao na posicao.
             primeiro = 'h';
             segundo = 'h';
-            insere_listab(*tabu);
+            tab_insere(*tabu);
             imptab(*tabu);
             tente = 1;
             continue;
@@ -2497,7 +2458,6 @@ char situacao(tabuleiro tabu)
     movimento *cabeca;
     int insuf_branca = 0, insuf_preta = 0, nmov;
     int i, j;
-    listab *plaux;
     if(tabu.empate_50 >= 50.0)  //empate apos 50 lances sem captura ou movimento de peao
         return ('5');
     for(i = 0; i < 8; i++)  //insuficiencia de material
@@ -2533,13 +2493,7 @@ char situacao(tabuleiro tabu)
         }
     if(insuf_branca < 3 && insuf_preta < 3)  //os dois estao com insuficiencia de material
         return ('i');
-    plaux = plfinal; //posicao repetiu 3 vezes
-    while(plaux != NULL)
-    {
-        if(plaux->rep == 3)
-            return ('r');
-        plaux = plaux->ant;
-    }
+    //repeticao: detectada em tab_insere(), chamada por joga_em()
     nmov = AFOGOU; //somente achar UM LANCE e retornar rapido
     cabeca = geramov(tabu, &nmov);  //TODO criar funcao gera1mov() retorna verdadeiro ou falso: quando nmov == -1, geramov retorna no primeiro valido
     if(cabeca == NULL)  //Sem lances: Mate ou Afogamento.
@@ -2936,7 +2890,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
         }
         minimax(tab, prof + 1, -beta, -alfa, niv);  //analisa o novo tabuleiro
-        retira_listab();  //retira o ultimo tabuleiro da lista
+        lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         novo_valor = -result.valor; //implementar o "random"
         if(novo_valor > alfa)  // || (novo_valor==alfa && rand()%10>7))
         {
@@ -3161,7 +3115,14 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     tabu->vez = adv(tabu->vez);
     tabu->especial = movi.especial;
     if(cod)
-        insere_listab(*tabu);  //insere o lance no listab cod==1
+    {
+        int rep = tab_insere(*tabu);
+        if(rep >= 3)
+        {
+            tabu->situa = 1;
+            return 'r';
+        }
+    }
     res = situacao(*tabu);
     switch(res)
     {
@@ -3881,150 +3842,18 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     // retorna positivo se as pretas estao ganhando (ou negativo c.c.)
 }
 
-//insere o tabuleiro tabu na lista de tabuleiros
-void insere_listab(tabuleiro tabu)
-{
-    int i, j, flag = 0;
-    listab *plaux;
-    if(plcabeca == NULL)  //lista vazia?
-    {
-        plcabeca = (listab *) malloc(sizeof(listab));
-        if(plcabeca == NULL)
-            msgsai("# Erro ao alocar memoria em insere_listab 1", 32);
-        plfinal = plcabeca;
-        plcabeca->ant = NULL;
-        plfinal->prox = NULL;
-        for(i = 0; i < 8; i++)
-            for(j = 0; j < 8; j++)
-                plfinal->tab[SQ(i,j)] = tabu.tab[SQ(i,j)];
-        //posicao das pecas
-        plfinal->vez = tabu.vez; //de quem e a vez
-        plfinal->rep = 1; //primeira vez que aparece
-        plfinal->peao_pulou = tabu.peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
-        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-        plfinal->roqueb = tabu.roqueb;
-        plfinal->roquep = tabu.roquep;
-        plfinal->empate_50 = tabu.empate_50; //contador:quando chega a 50, empate.
-        plfinal->situa = tabu.situa; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
-        //lance executado originador deste tabuleiro.
-        for(i = 0; i < 4; i++)
-            plfinal->lancex[i] = tabu.lancex[i];
-        plfinal->meionum = tabu.meionum; //meionum (ply)
-        plfinal->especial = tabu.especial;
-    }
-    else
-    {
-        plfinal->prox = (listab *) malloc(sizeof(listab));
-        if(plfinal->prox == NULL)
-            msgsai("# Erro ao alocar memoria em insere_listab 2", 33);
-        plaux = plfinal;
-        plfinal = plfinal->prox;
-        plfinal->ant = plaux;
-        plfinal->prox = NULL;
-        for(i = 0; i < 8; i++)
-            for(j = 0; j < 8; j++)
-                plfinal->tab[SQ(i,j)] = tabu.tab[SQ(i,j)];
-        plfinal->vez = tabu.vez;
-        plfinal->peao_pulou = tabu.peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
-        //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-        plfinal->roqueb = tabu.roqueb;
-        plfinal->roquep = tabu.roquep;
-        plfinal->empate_50 = tabu.empate_50; //contador:quando chega a 50, empate.
-        plfinal->situa = tabu.situa; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
-        //lance executado originador deste tabuleiro.
-        for(i = 0; i < 4; i++)
-            plfinal->lancex[i] = tabu.lancex[i];
-        plfinal->meionum = tabu.meionum; //meionum (ply)
-        plfinal->especial = tabu.especial;
-        //compara o inserido agora com todos os anteriores...
-        plaux = plfinal->ant;
-        while(plaux != NULL)
-        {
-            flag = 0;
-            for(i = 0; i < 8; i++)
-            {
-                for(j = 0; j < 8; j++)
-                {
-                    if(plfinal->tab[SQ(i,j)] != plaux->tab[SQ(i,j)])
-                    {
-                        //para ser diferente tem que mudar as pecas e a vez
-                        flag = 1;
-                        break;
-                    }
-                    //flag==1:tabuleiro diferente nao eh posicao repetida.
-                }
-                if(flag)
-                    break;
-            }
-            if(plfinal->vez != plaux->vez)
-                flag = 1;
-            //flag==1: vez diferente nao eh posicao repetida
-            if(!flag)  //flag == 0?
-            {
-                plfinal->rep = plaux->rep + 1;
-                break;
-            }
-            plaux = plaux->ant;
-        }
-        if(flag)  //flag == 1?
-            plfinal->rep = 1;
-    }
-}
-
-//retira o plfinal: o ultimo tabuleiro da lista
-void retira_listab(void)
-{
-    listab *plaux;
-    if(plfinal == NULL)
-        return;
-    plaux = plfinal->ant;
-    free(plfinal);
-    if(plaux == NULL)
-    {
-        plcabeca = NULL;
-        plfinal = NULL;
-        return;
-    }
-    plfinal = plaux;
-    plfinal->prox = NULL;
-}
-
 //para voltar um lance
 void volta_lance(tabuleiro *tabu)
 {
-    int i, j;
-    if(plcabeca == NULL || plfinal == NULL)  //nao tem ninguem... erro.
+    if(!pltab || !pltab->cabeca || !pltab->cauda)
         return;
-    if(plcabeca == plfinal)  //ja esta na posicao inicial
+    if(pltab->cabeca == pltab->cauda)  //ja esta na posicao inicial
         return;
-    retira_listab();
-    //posicao das peoes
-    for(i = 0; i < 8; i++)
-        for(j = 0; j < 8; j++)
-            tabu->tab[SQ(i,j)] = plfinal->tab[SQ(i,j)];
-    tabu->vez = plfinal->vez; //de quem e a vez
-    tabu->peao_pulou = plfinal->peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para nenhuma
-    //1:pode para os 2 lados. 0:nao pode mais. 3:mexeu TD. 2:mexeu TR.
-    tabu->roqueb = plfinal->roqueb;
-    tabu->roquep = plfinal->roquep;
-    tabu->empate_50 = plfinal->empate_50; //contador:quando chega a 50, empate.
-    tabu->situa = plfinal->situa; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
-    //lance executado originador deste tabuleiro.
-    for(i = 0; i < 4; i++)
-        tabu->lancex[i] = plfinal->lancex[i];
-    tabu->meionum = plfinal->meionum; //meionum (ply)
-    //tabu->especial
-    //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
-    //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    tabu->especial = plfinal->especial;
+    lst_remove(pltab);
+    tabuleiro *t = (tabuleiro *)pltab->cauda->info;
+    *tabu = *t;
     if(tabu->meionum < 50 && setboard < 1)
         USALIVRO = 1; //nao usar abertura em posicoes de setboard
-}
-
-void retira_tudo_listab(void)  //zera a lista de tabuleiros
-{
-    while(plcabeca != NULL)
-        retira_listab();
 }
 
 int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
@@ -4277,28 +4106,28 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
 //pega a lista de tabuleiros e cria uma string de movimentos
 void listab2string(char *strlance)
 {
-    listab *plaux;
+    no *nd;
+    tabuleiro *t;
     char m[8];
     int n = 0, i;
-    if(plcabeca == NULL)
+    if(!pltab || !pltab->cabeca)
     {
-        strlance = NULL;
+        strlance[0] = '\0';
         return;
     }
-    plaux = plcabeca->prox;
+    nd = pltab->cabeca->prox;
     //o primeiro tabuleiro nao tem lancex
-    while(plaux != NULL)
+    while(nd)
     {
-        lance2movi(m, plaux->lancex, plaux->especial);
-        //flag_50 nao esta sendo usada!
+        t = (tabuleiro *)nd->info;
+        lance2movi(m, t->lancex, t->especial);
         m[4] = '\0';
         for(i = 0; i < 4; i++)
             strlance[n + i] = m[i];
         n += 4;
         strlance[n] = ' ';
         n++;
-        plaux = plaux->prox;
-        //gira o laco
+        nd = nd->prox;
     }
     strlance[n] = '\0';
     return;
@@ -4721,7 +4550,8 @@ void sai(int error)
     libera_lances(&result.plance);
     result.plance = NULL;
     libera_lances(&succ_geral);
-    retira_tudo_listab();     //zera a lista de tabuleiros
+    if(pltab)
+        arena_destroi(pltab->a);  //libera arena de tabuleiros
     exit(error);
 }
 
@@ -4735,8 +4565,12 @@ void inicia(tabuleiro *tabu)
     result.plance = NULL;
     libera_lances(&succ_geral);
     succ_geral = NULL;
-    retira_tudo_listab();
-    plcabeca = NULL; //cabeca da lista de repeteco
+    if(pltab)
+    {
+        arena *a = pltab->a;
+        arena_zera(a);
+        lst_cria(a, &pltab);
+    }
     ofereci = 1; //computador pode oferecer 1 empate
     USALIVRO = 0;
     if(LINHASBOAS > 0)
@@ -5346,6 +5180,39 @@ void lst_limpa(arena *a)
 int lst_conta(lista *l)
 {
     return l->qtd;
+}
+
+/* historico de tabuleiros usando arena ------------------------------- */
+
+//insere tabuleiro na arena pltab. Retorna contagem de repeticao (>=3 empate)
+int tab_insere(tabuleiro tabu)
+{
+    tabuleiro *t = (tabuleiro *)arena_aloca(pltab->a, sizeof(tabuleiro));
+    if(!t)
+    {
+        msgsai("# Erro arena cheia em tab_insere", 34);
+        return 0;
+    }
+    *t = tabu;
+    lst_insere(pltab, t, sizeof(tabuleiro));
+
+    int count = 1;
+    no *n = pltab->cauda->ant;
+    while(n)
+    {
+        tabuleiro *t2 = (tabuleiro *)n->info;
+        if(t2->vez == t->vez
+           && t2->roqueb == t->roqueb
+           && t2->roquep == t->roquep
+           && memcmp(t2->tab, t->tab, 64 * sizeof(int)) == 0)
+        {
+            count++;
+            if(count >= 3)
+                break;
+        }
+        n = n->ant;
+    }
+    return count;
 }
 
 /* ---------------------------------------------------------------------- */
