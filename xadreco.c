@@ -4148,16 +4148,21 @@ movimento *string2pmovi(int mnum, char *linha)
             m[i] = linha[n + i];
         m[4] = '\0';
         movi2lance(lanc, m);
-        pmovi = valido(tab, lanc);
-        //lanc eh int lanc[4]; cria pval com tudo preenchido
-        if(pmovi == NULL)
+        {
+        movimento mval;
+        if(!valido(tab, lanc, &mval))
             break;
         //chamar joga_em() apenas para atualizar esse tabuleiro local, para usar a funcao valido()
-        disc = (char) joga_em(&tab, *pmovi, 0);
+        disc = (char) joga_em(&tab, mval, 0);
         //a funcao joga_em deve inserir no listab, cod: 1:insere, 0:nao insere
         if(n / 5 >= mnum)
             //chegou na posicao atual! comeca inserir na lista
         {
+            pmovi = (movimento *) malloc(sizeof(movimento));
+            if(pmovi == NULL)
+                msgsai("# Erro ao alocar memoria em string2pmovi", 38);
+            copimov(pmovi, &mval);
+            pmovi->prox = NULL;
             if(cabeca == NULL)
             {
                 cabeca = pmovi;
@@ -4167,10 +4172,9 @@ movimento *string2pmovi(int mnum, char *linha)
             {
                 pmoviant->prox = pmovi;
                 pmoviant = pmoviant->prox;
-                pmoviant->prox = NULL;
             }
         }
-        pmovi = NULL;
+        }
         n += 5;
     }
     return cabeca;
