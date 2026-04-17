@@ -381,7 +381,7 @@ void volta_lance(tabuleiro *tabu);
 //analisa uma posicao mas nao joga
 char analisa(tabuleiro *tabu);
 //procura nos movimentos de geramov se o lance em questao eh valido. Retorna o *movimento preenchido. Se nao, retorna NULL.
-movimento *valido(tabuleiro tabu, int *lanc);
+int valido(tabuleiro tabu, int *lanc, movimento *result);
 //retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
 char situacao(tabuleiro tabu);
 //ordena succ_geral
@@ -1725,7 +1725,8 @@ char humajoga(tabuleiro *tabu)
 {
     char movinito[80];
     //movimento ou comando entrado pelo usuario ou XBoard/WinBoard
-    movimento *pval = 0;
+    movimento mval;
+    movimento *pval = &mval; //TODO remover pval, usar mval diretamente
     char res;
     //    char aux;
     //     char peca;
@@ -2340,8 +2341,7 @@ char humajoga(tabuleiro *tabu)
             tente = 1;
             continue;
         }
-        pval = valido(*tabu, lanc);  //lanc eh int lanc[4]; cria pval com tudo preenchido
-        if(pval == NULL)
+        if(!valido(*tabu, lanc, &mval))  //lanc eh int lanc[4]; preenche mval
         {
 //            printdbg(debug, "# xadreco : Illegal move: %s\n", movinito);
             printf2("Illegal move: %s\n", movinito);
@@ -2376,46 +2376,37 @@ char humajoga(tabuleiro *tabu)
     res = joga_em(tabu, *pval, 1);
 
     //a funcao joga_em deve inserir no listab cod==1
-    free(pval);
     if(analise == 1)  // analise outro movimento
         disc = analisa(tabu);
     return (res);
     //vez da outra cor jogar. retorna a situacao.
 } //fim do huma_joga---------------
 
-movimento *valido(tabuleiro tabu, int *lanc)
+int valido(tabuleiro tabu, int *lanc, movimento *result)
 {
-    int nmov;
-    movimento *pmovi, *loop, *auxloop;
-    nmov = 0; //gerar todos
-    pmovi = geramov(tabu, &nmov);  // gerou e sobrou um
-    auxloop = NULL;
+    arena aval;
+    lista *llval = NULL;
+    no *n;
+    movimento *m;
 
-    loop = pmovi;
-    while(pmovi != NULL)  //vai comparando e...
-    {
-        if(igual(pmovi->lance, lanc))   //o lance valido eh o cabeca da lista que restou
-            break;
-        pmovi = pmovi->prox;
-        free(loop);  //...liberando os diferentes
-        loop = pmovi;
-    }
-    //apagar a lista que restou da memoria
-    if(pmovi != NULL)  //o lance esta na lista, logo eh valido,
-    {
-        loop = pmovi->prox; //apaga o restante da lista.
-        pmovi->prox = NULL; // pmovi vira lista de um so lance
-    }
+    arena_inicia(&aval, 64 * 1024);
+    lst_cria(&aval, &llval);
+    geramov(tabu, llval, GERA_TUDO);
 
-    //ou loop==pmovi==NULL e o lance nao vale
-    //ou loop==pmovi->prox e apaga o restante
-    while(loop != NULL)
+    n = llval->cabeca;
+    while(n)
     {
-        auxloop = loop->prox;
-        free(loop);
-        loop = auxloop;
+        m = (movimento *)n->info;
+        if(igual(m->lance, lanc))
+        {
+            *result = *m;
+            arena_destroi(&aval);
+            return 1;
+        }
+        n = n->prox;
     }
-    return (pmovi);
+    arena_destroi(&aval);
+    return 0;
 } //fim da valido
 
 //dois lances[4] sao iguais
