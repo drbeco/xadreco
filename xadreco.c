@@ -1726,7 +1726,6 @@ char humajoga(tabuleiro *tabu)
     char movinito[80];
     //movimento ou comando entrado pelo usuario ou XBoard/WinBoard
     movimento mval;
-    movimento *pval = &mval; //TODO remover pval, usar mval diretamente
     char res;
     //    char aux;
     //     char peca;
@@ -2351,29 +2350,29 @@ char humajoga(tabuleiro *tabu)
     }
     while(tente);    // BUG checar tempo dentro do laco e dar abort se demorar, ou flag...
 
-    if(pval->especial > 3)  //promocao do peao 4,5,6,7: Dama, Cavalo, Torre, Bispo
+    if(mval.especial > 3)  //promocao do peao 4,5,6,7: Dama, Cavalo, Torre, Bispo
     {
         switch(movinito[4])  //exemplo: e7e8q
         {
             case 'q': //dama
-                pval->especial = 4;
+                mval.especial = 4;
                 break;
             case 'n': //cavalo
-                pval->especial = 5;
+                mval.especial = 5;
                 break;
             case 'r': //torre
-                pval->especial = 6;
+                mval.especial = 6;
                 break;
             case 'b': //bispo
-                pval->especial = 7;
+                mval.especial = 7;
                 break;
             default: //se erro, vira dama
-                pval->especial = 4;
+                mval.especial = 4;
                 break;
         }
     }
     //joga_em e calcula tempo //humano joga
-    res = joga_em(tabu, *pval, 1);
+    res = joga_em(tabu, mval, 1);
 
     //a funcao joga_em deve inserir no listab cod==1
     if(analise == 1)  // analise outro movimento
