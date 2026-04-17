@@ -451,12 +451,14 @@ void arena_destroi(arena *a); // desaloca area de memoria da arena
 char *arena_aloca(arena *a, size_t tam); // reserva um espaco na area da arena
 void arena_libera(arena *a, size_t tam); // libera apenas o ultimo item da area reservada na arena
 void arena_zera(arena *a); // libera toda area reservada na arena (simula loop free all)
+void arena_destrutor(arena *a, void (*destrutor)(arena *)); // callback para limpar pltab
 
-lista *lst_cria(arena *a); // cria uma lista alocada em uma arena
+void lst_cria(arena *a, lista **pl); // cria uma lista alocada em uma arena
 void lst_zera(lista *l); // libera reserva de uma lista alocada em uma arena
 void lst_insere(lista *l, void *info, size_t tam); // insere um item ao final de uma lista (append)
 void lst_remove(lista *l); // remove o ultimo item da lista
 int lst_conta(lista *l); // conta o numero de elementos em uma lista
+void lst_limpa(arena *a); // limpa pointeiro externo da lista
 
 // prototipos listas dinamicas -----------------------------------------------------------
 //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
@@ -489,8 +491,10 @@ char compjoga(tabuleiro *tabu);
 int main(int argc, char *argv[])
 {
     // gerenciamento de memoria com arenas
-    arena ahist; // historico de posicoes de tabuleiro do jogo
-    arena_inicia(&ahist, 1024 * 1024); // inicializa arena com 1Mb para historico de tabuleiros
+    arena atab; // historico de posicoes de tabuleiro do jogo
+    arena_inicia(&atab, 1024 * 1024); // inicializa arena com 1Mb para historico de tabuleiros
+    arena_destrutor(&atab, lst_limpa); // callback para limpar pltab
+    lst_cria(&atab, &pltab); // lista de tabuleiros para historico
 
     int opt; /* return from getopt() */
     tabuleiro tabu;
@@ -5321,6 +5325,13 @@ void lst_remove(lista *l)
         l->cabeca = NULL;
     l->qtd--;
     arena_libera(l->a, sizeof(no) + n->tam);
+}
+
+// limpa pointeiro externo da lista
+void lst_limpa(arena *a)
+{
+    lista *l = (lista *)a->ptr;
+    *(l->pl) = NULL; // limpa ponteiro externo
 }
 
 // conta o numero de elementos em uma lista
