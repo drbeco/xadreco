@@ -2813,20 +2813,21 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         //fprintf(fmini, "\nalfa= %d     beta= %d", alfa, beta);
     }
     if(prof == 0)
-        cabeca_succ = succ_geral; //copilistmov(succ_geral);
+        n = plmov->cabeca;
     else
     {
-        nmov = 0; //gerar todos
-        cabeca_succ = geramov(atual, &nmov);  //nmov==0, retorna todos validos
+        saved = plmov->a->usado;  //bookmark
+        lst_cria(plmov->a, &llmov);
+        geramov(atual, llmov, GERA_TUDO);
+        n = llmov->cabeca;
     }
-    assert(cabeca_succ != NULL && "cabeca_succ null when trying minimax");
     //succ==NULL se alguem ganhou ou empatou
     //if(debug == 2) {
     //fprintf(fmini, "\nsucc=geramov(): ");
     //imprime_linha(succ, 1, 2);
     //1=mnum do lance, 2=vez: pular impressao na tela
     //}
-    if(cabeca_succ == NULL)
+    if(!n)
     {
         //entao o estatico refletira isso: afogamento
         //libera_lances(&result.plance); //bugbug
@@ -2839,9 +2840,9 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             fprintf(fmini, "#NULL ");	//result.valor=%+.2f", result.valor);
         return;
     }
-    succ = cabeca_succ; //laco para analisar todos sucessores (ou corta no porcento)
-    while(succ != NULL)
+    while(n)
     {
+        succ = (movimento *)n->info;
         copitab(&tab, &atual);
         disc = (char) joga_em(&tab, *succ, 1);
         //joga o lance atual, a funcao joga_em deve inserir no listab
@@ -2899,9 +2900,9 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         }
         if(prof == 0)
             succ->valor_estatico = novo_valor;
-        succ = succ->prox;
+        n = n->prox;
         contamov++;
-        if(contamov > nmov * PORCENTO_MOVIMENTOS + 1 && prof != 0)	//tentando com 60%
+        if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)	//tentando com 60%
             break;
     } //while(succ!=NULL)
     result.valor = alfa;
@@ -2910,8 +2911,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     //funcao retorna uma cabeca nova
     libera_lances(&melhor_caminho);
     if(prof != 0)
-        libera_lances(&cabeca_succ);
-    //caso contrario, cabeca_succ esta apontando para succ_geral
+        plmov->a->usado = saved;  //rewind arena
     if(debug == 2)
         fprintf(fmini, "#\n#------------------------------------------END Minimax prof: %d", prof);
 }
