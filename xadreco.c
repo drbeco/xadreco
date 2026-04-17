@@ -134,6 +134,7 @@ typedef struct sarena
     char *ptr; // ponteiro para area alocada
     size_t usado; // quantidade de bytes
     size_t total; // total alocado
+    void (*destrutor)(struct sarena *); // funcao destrutora (opcional)
 }
 arena;
 
@@ -5209,6 +5210,7 @@ void scanf2(char *movinito)
 void arena_inicia(arena *a, size_t capa)
 {
     a->usado = 0;
+    a->destrutor = NULL;
     a->ptr = malloc(capa);
     if(!a->ptr)
         a->total = 0;
@@ -5216,11 +5218,22 @@ void arena_inicia(arena *a, size_t capa)
         a->total = capa;
 }
 
+/* callback para limpar pltab */
+void arena_destrutor(arena *a, void (*destrutor)(arena *))
+{
+    a->destrutor = destrutor;
+}
+
 /* arena_destroi : unica chamada de free() */
 void arena_destroi(arena *a)
 {
+    if(a->destrutor)
+        a->destrutor(a);
     if(a->ptr)
+    {
         free(a->ptr);
+        a->ptr = NULL;
+    }
     a->usado = 0;
     a->total = 0;
 }
