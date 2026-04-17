@@ -255,6 +255,9 @@ enum piece_values
 /* ---------------------------------------------------------------------- */
 /* globals */
 
+// listas em arenas ----------------------------------
+lista *pltab=NULL; // ponteiro para lista de tabuleiros
+
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
 resultado result;
