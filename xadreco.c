@@ -403,7 +403,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo);
 //coloca em result a melhor variante e seu valor.
 void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
 //retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv);
+int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, movimento **pv);
 //retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
 //joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
@@ -2916,7 +2916,7 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         fprintf(fmini, "#\n#------------------------------------------END Minimax prof: %d", prof);
 }
 
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv)
+int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, movimento **pv)
 {
     char input;
 
@@ -2928,16 +2928,16 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv)
     //se ja passou do nivel estipulado, pare a busca incondicionalmente
     if(prof > niv)
     {
-        result.plance = NULL;
-        result.valor = estatico(atual, 0, prof, alfa, beta);
+        *pv = NULL;
+        *valor = estatico(atual, 0, prof, alfa, beta);
         //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
         return 1;
     }
     //retorna sem analisar... Deve desconsiderar o lance
     if(difclocks() >= tempomovclock && debug != 2)
     {
-        result.plance = NULL;
-        result.valor = estatico(atual, 1, prof, alfa, beta);	//-FIMTEMPO;//
+        *pv = NULL;
+        *valor = estatico(atual, 1, prof, alfa, beta);	//-FIMTEMPO;//
         return 1;
     }
     //retorna sem analisar... Deve desconsiderar o lance. Usuario clicou em "move now" (?)
@@ -2968,8 +2968,8 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv)
             //		ungetc (input, stdin);
             if(input == '?')
             {
-                result.plance = NULL;
-                result.valor = estatico(atual, 1, prof, alfa, beta);  //-FIMTEMPO;//
+                *pv = NULL;
+                *valor = estatico(atual, 1, prof, alfa, beta);  //-FIMTEMPO;//
                 ungetc(input, stdin);
                 //				teminterroga=1;
                 //				printf("teminterroga: %d",teminterroga);
@@ -2995,8 +2995,8 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv)
     if(!profflag)
         //nao liberou profflag==0 retorna
     {
-        result.plance = NULL;
-        result.valor = estatico(atual, 0, prof, alfa, beta);
+        *pv = NULL;
+        *valor = estatico(atual, 0, prof, alfa, beta);
         //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
         return 1;
         //a profundidade ja eh sufuciente
