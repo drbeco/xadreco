@@ -151,10 +151,11 @@ no;
 // lista generica encadeamento simples/duplo
 typedef struct slista
 {
-    no *cabeca;
-    no *cauda;
-    int qtd;
-    arena *a;
+    no *cabeca; // primeiro no ou cabeca=cauda=null
+    no *cauda; // ultimo no ou cabeca=cauda=null
+    int qtd; // quantidade de nos na lista, ou zero se cabeca=cauda=null
+    arena *a; // auto-referencia ao armazenamento da lista
+    struct slista **pl; //auto-referencia para a propria lista
 }
 lista;
 
@@ -5272,16 +5273,23 @@ void arena_libera(arena *a, size_t tam)
 /* lista generica usando arena --------------------------------------- */
 
 // cria uma lista alocada em uma arena
-lista *lst_cria(arena *a)
+void lst_cria(arena *a, lista **pl)
 {
+    if(!pl)
+        return;
     lista *l = (lista *)arena_aloca(a, sizeof(lista));
     if(!l)
-        return NULL;
+    {
+        *pl = NULL; // endereco da lista global armazenada
+        return;
+    }
+    l->pl = pl; // a lista sabe o endereco de onde ela mesma esta
+    *pl = l; // endereco da lista global armazenada
     l->cabeca = NULL;
     l->cauda = NULL;
     l->qtd = 0;
     l->a = a;
-    return l;
+    return;
 }
 
 // libera reserva de uma lista alocada em uma arena
