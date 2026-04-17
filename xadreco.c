@@ -2819,14 +2819,15 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         //fprintf(fmini, "\nalfa= %d     beta= %d", alfa, beta);
     }
     if(prof == 0)
-        n = plmov->cabeca;
+        n = plmov->cabeca; // lista de lances do tabuleiro real
     else
     {
         saved = plmov->a->usado;  //bookmark
         lst_cria(plmov->a, &llmov);
-        geramov(atual, llmov, GERA_TUDO);
+        geramov(atual, llmov, GERA_TUDO); // gerar lista de lances para tabuleiro imaginario
         n = llmov->cabeca;
     }
+
     //succ==NULL se alguem ganhou ou empatou
     //if(debug == 2) {
     //fprintf(fmini, "\nsucc=geramov(): ");
@@ -2843,7 +2844,9 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         result.valor = estatico(atual, 0, prof, alfa, beta);
         //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. prof: qual nivel estao analisando?)
         if(debug == 2)
-            fprintf(fmini, "#NULL ");	//result.valor=%+.2f", result.valor);
+            fprintf(fmini, "#NULL "); //result.valor=%+.2f", result.valor);
+        if(prof != 0)
+            plmov->a->usado = saved;  //rewind arena
         return;
     }
     while(n)
