@@ -400,8 +400,8 @@ void conta_linhas_livro(void);
 // lista tipo movimento geramov, modos tudo, um, este; cria lista via enche_pmovi
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
-//coloca em result a melhor variante e seu valor.
-void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
+//retorna valor e pv da melhor variante. Caller owns *pv.
+int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **pv);
 //retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
 int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, movimento **pv);
 //retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
@@ -2783,11 +2783,12 @@ char analisa(tabuleiro *tabu)
 //If there had been no fish in the bag, determining that the six-pack of pop
 //bag was better than the sandwich bag would have been like exceeding alpha (one ply back).
 //source: http://www.seanet.com/~brucemo/topics/alphabeta.htm
-void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
+int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **pv)
 {
-    movimento *melhor_caminho = NULL;  //PV, stays malloc (PLAN7)
+    movimento *melhor_caminho = NULL;
     movimento *succ;
-    int novo_valor, contamov = 0;
+    movimento *child_pv = NULL;
+    int novo_valor, child_val, contamov = 0;
     tabuleiro tab;
     char m[8];
     no *n;
@@ -2795,14 +2796,10 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     size_t saved;
 
     assert(prof >= 0 && alfa <= beta && "Invalid minimax parameters");
-    if(profsuf(atual, prof, alfa, beta, niv))   // profundidade suficiente ==1 ou ==-1:tempo estourou
+    if(profsuf(atual, prof, alfa, beta, niv, &child_val, pv))
     {
-        //coloque um nulo no ponteiro plance
-        //nao eh necessario libera_lance, pois plance eh temporario apesar de global.
-        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
-        //if (debug == 2)
-        //fprintf(fmini, "\nprofsuf! ");
-        return;
+        //profsuf preencheu *pv e child_val
+        return child_val;
     }
     if(debug == 2)
     {
@@ -2828,17 +2825,13 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     if(!n)
     {
         //entao o estatico refletira isso: afogamento
-        //libera_lances(&result.plance); //bugbug
-        result.plance = NULL;
-        //coloque um nulo no ponteiro plance
-        //nao eh necessario libera_lance, pois plance eh temporario apesar de global.
-        result.valor = estatico(atual, 0, prof, alfa, beta);
-        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. prof: qual nivel estao analisando?)
+        *pv = NULL;
+        child_val = estatico(atual, 0, prof, alfa, beta);
         if(debug == 2)
-            fprintf(fmini, "#NULL "); //result.valor=%+.2f", result.valor);
+            fprintf(fmini, "#NULL ");
         if(prof != 0)
             plmov->a->usado = saved;  //rewind arena
-        return;
+        return child_val;
     }
     while(n)
     {
@@ -2866,15 +2859,16 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             lance2movi(m, succ->lance, succ->especial);
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
         }
-        minimax(tab, prof + 1, -beta, -alfa, niv);  //analisa o novo tabuleiro
+        child_val = minimax(tab, prof + 1, -beta, -alfa, niv, &child_pv);
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
-        novo_valor = -result.valor; //implementar o "random"
-        if(novo_valor > alfa)  // || (novo_valor==alfa && rand()%10>7))
+        novo_valor = -child_val;
+        if(novo_valor > alfa)
         {
             alfa = novo_valor;
             libera_lances(&melhor_caminho);
-            melhor_caminho = copimel(*succ, result.plance);  //cria nova cabeca
+            melhor_caminho = copimel(*succ, child_pv);
         }
+        libera_lances(&child_pv);  //sempre libera PV do filho
         if(debug == 2 && prof == 0)
         {
             lance2movi(m, succ->lance, succ->especial);
@@ -2905,15 +2899,12 @@ void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)	//tentando com 60%
             break;
     } //while(n)
-    result.valor = alfa;
-    libera_lances(&result.plance);
-    result.plance = copilistmov(melhor_caminho);
-    //funcao retorna uma cabeca nova
-    libera_lances(&melhor_caminho);
+    *pv = melhor_caminho;  //transfere ownership, sem copia
     if(prof != 0)
         plmov->a->usado = saved;  //rewind arena
     if(debug == 2)
         fprintf(fmini, "#\n#------------------------------------------END Minimax prof: %d", prof);
+    return alfa;
 }
 
 int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, movimento **pv)
