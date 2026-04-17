@@ -346,6 +346,8 @@ void limpa_pensa(void);
 //ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
 //ff flag_50: 0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
 void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff, int *nmovi);
+//preenche a estrutura movimento usando arena e lst_insere (substitui enche_pmovi)
+void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int p, int r, int e, int f);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
 //imprime uma sequencia de lances armazenada na lista movimento, numerados.
@@ -430,6 +432,10 @@ void lst_insere(lista *l, void *info, size_t tam); // insere um item ao final de
 void lst_remove(lista *l); // remove o ultimo item da lista
 int lst_conta(lista *l); // conta o numero de elementos em uma lista
 void lst_limpa(arena *a); // limpa pointeiro externo da lista
+void lst_furafila(lista *l, no *n); // desencaixa no e reinsere na cabeca da lista
+void lst_recria(lista **pl); // zera arena e recria lista do inicio
+void lst_parte(lista *l); // particiona: capturas e especiais primeiro
+void lst_ordem(lista *l); // ordena por valor_estatico decrescente
 
 // prototipos listas dinamicas -----------------------------------------------------------
 //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
@@ -4687,6 +4693,27 @@ void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, 
     (*nmovi)++;
 }
 
+//preenche a estrutura movimento usando arena e lst_insere (substitui enche_pmovi)
+void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int p, int r, int e, int f)
+{
+    if(!lmov)
+        return;
+    movimento *m = (movimento *)arena_aloca(lmov->a, sizeof(movimento));
+    if(!m)
+        msgsai("# Erro arena cheia em enche_lmovi", 37);
+    m->lance[0] = c0;
+    m->lance[1] = c1;
+    m->lance[2] = c2;
+    m->lance[3] = c3;
+    m->peao_pulou = p;
+    m->roque = r;
+    m->especial = e;
+    m->flag_50 = f;
+    m->ordena = 0;
+    m->valor_estatico = 0;
+    lst_insere(lmov, m, sizeof(movimento));
+}
+
 void msgsai(char *msg, int error)  //aborta programa por falta de memoria
 {
     printdbg(debug, "# xadreco : %s\n", msg);
@@ -5189,6 +5216,77 @@ void lst_limpa(arena *a)
 int lst_conta(lista *l)
 {
     return l->qtd;
+}
+
+// desencaixa no e reinsere na cabeca da lista (fura a fila)
+void lst_furafila(lista *l, no *n)
+{
+    if(n == l->cabeca)
+        return;
+    n->ant->prox = n->prox;
+    if(n->prox)
+        n->prox->ant = n->ant;
+    else
+        l->cauda = n->ant;
+    n->prox = l->cabeca;
+    n->ant = NULL;
+    l->cabeca->ant = n;
+    l->cabeca = n;
+}
+
+// zera arena e recria lista do inicio
+void lst_recria(lista **pl)
+{
+    if(!*pl)
+        return;
+    arena *a = (*pl)->a;
+    arena_zera(a);
+    lst_cria(a, pl);
+}
+
+// particiona: capturas e especiais primeiro
+void lst_parte(lista *l)
+{
+    no *n = l->cabeca;
+    no *next;
+    while(n)
+    {
+        next = n->prox;
+        movimento *m = (movimento *)n->info;
+        if(m->flag_50 > 1 || m->especial)
+            lst_furafila(l, n);
+        n = next;
+    }
+}
+
+// ordena por valor_estatico decrescente (melhor primeiro)
+void lst_ordem(lista *l)
+{
+    if(!l->cabeca || !l->cabeca->prox)
+        return;
+    int total = l->qtd;
+    int sorted, i;
+    for(sorted = 0; sorted < total - 1; sorted++)
+    {
+        no *n = l->cabeca;
+        for(i = 0; i < sorted; i++)
+            n = n->prox;
+        no *worst = n;
+        int worst_val = ((movimento *)worst->info)->valor_estatico;
+        no *scan = n->prox;
+        while(scan)
+        {
+            int val = ((movimento *)scan->info)->valor_estatico;
+            if(val < worst_val)
+            {
+                worst = scan;
+                worst_val = val;
+            }
+            scan = scan->prox;
+        }
+        if(worst != n)
+            lst_furafila(l, worst);
+    }
 }
 
 /* historico de tabuleiros usando arena ------------------------------- */
