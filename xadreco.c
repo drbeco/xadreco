@@ -2721,9 +2721,8 @@ char analisa(tabuleiro *tabu)
     else
     {
         nv = 1;
-        nmov = 0; //nmove==0, retorna todos validos.
-        libera_lances(&succ_geral);
-        succ_geral = geramov(*tabu, &nmov);  //gera os sucessores
+        lst_recria(&plmov);
+        geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
         totalnodo = 0;
         while(result.valor < XEQUEMATE)
             //for(nv=1; nv<=7; nv++)
@@ -2738,7 +2737,7 @@ char analisa(tabuleiro *tabu)
             //tclock2 = time(NULL);
             //diftclock = difftime(tclock2 , tclock1);
 //            difclock = clock2 - clock1;
-            ordena_succ(nmov);
+            lst_ordem(plmov);
             //nivel pontuacao tempo totalnodo variacao === usado!
             if(abs(result.valor) != FIMTEMPO && abs(result.valor) != LIMITE)
             {
@@ -2789,13 +2788,14 @@ char analisa(tabuleiro *tabu)
 //source: http://www.seanet.com/~brucemo/topics/alphabeta.htm
 void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
 {
-    movimento *succ, *melhor_caminho, *cabeca_succ;
-    int novo_valor, nmov, contamov = 0;
+    movimento *melhor_caminho = NULL;  //PV, stays malloc (PLAN7)
+    movimento *succ;
+    int novo_valor, contamov = 0;
     tabuleiro tab;
     char m[8];
-    succ = NULL;
-    melhor_caminho = NULL;
-    cabeca_succ = NULL;
+    no *n;
+    lista *llmov = NULL;
+    size_t saved;
 
     assert(prof >= 0 && alfa <= beta && "Invalid minimax parameters");
     if(profsuf(atual, prof, alfa, beta, niv))   // profundidade suficiente ==1 ou ==-1:tempo estourou
