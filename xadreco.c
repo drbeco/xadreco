@@ -233,7 +233,7 @@ lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequ
 
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
-resultado result;
+resultado resulta;
 // outros globais ------------------------------------
 //my rating and opponent rating
 int myrating, opprating;
@@ -379,7 +379,7 @@ int valido(tabuleiro tabu, int *lanc, movimento *result);
 //retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
 char situacao(tabuleiro tabu);
 // livro --------------------------------------------------------------
-//retorna em result.plance uma variante do livro, baseado na posicao do tabuleiro tabu
+//retorna em resulta.plance uma variante do livro, baseado na posicao do tabuleiro tabu
 void usalivro(tabuleiro tabu);
 //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
 void listab2string(char *strlance);
@@ -819,11 +819,11 @@ void mostra_lances(tabuleiro tabu)
     //nivel pontuacao tempo totalnodo variante
     //nivel esta errado!
 //    printf ("# xadreco : ply score time nodes pv\n");
-    printf2("%3d %+6d %3d %7d ", nivel, result.valor, (int)difclocks(), totalnodo);
-    //result.valor*10 o xboard divide por 100. centi-peao
-//    if (debug) printf ("# xadreco : %d %+.2f %d %d ", nivel, result.valor / 100.0, (int)difclocks(), totalnodo);
-    //result.valor/100 para a Dama ficar com valor 9
-    imprime_linha(result.plance, tabu.meionum, tabu.vez);
+    printf2("%3d %+6d %3d %7d ", nivel, resulta.valor, (int)difclocks(), totalnodo);
+    //resulta.valor*10 o xboard divide por 100. centi-peao
+//    if (debug) printf ("# xadreco : %d %+.2f %d %d ", nivel, resulta.valor / 100.0, (int)difclocks(), totalnodo);
+    //resulta.valor/100 para a Dama ficar com valor 9
+    imprime_linha(resulta.plance, tabu.meionum, tabu.vez);
 //    fflush(stdout);
 }
 
@@ -2509,15 +2509,15 @@ char compjoga(tabuleiro *tabu)
     if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usalivro(*tabu);
-        if(result.plance == NULL)
+        if(resulta.plance == NULL)
             USALIVRO = 0;
         libera_lances(&melhorcaminho1);
-        melhorcaminho1 = copilistmov(result.plance);
-        melhorvalor1 = result.valor;
+        melhorcaminho1 = copilistmov(resulta.plance);
+        melhorvalor1 = resulta.valor;
     }
 
     // se nao livro, random ou minimax -------------------------------------
-    if(result.plance == NULL)
+    if(resulta.plance == NULL)
     {
         //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
         nv = 1;
@@ -2537,8 +2537,8 @@ char compjoga(tabuleiro *tabu)
         if(randomchess)
         {
             n = plmov->cabeca;
-            result.plance = NULL;
-            result.valor = 0;
+            resulta.plance = NULL;
+            resulta.valor = 0;
             moveto = (int)(rand() % plmov->qtd);  //sorteia um lance possivel da lista de lances
             for(i = 0; i < moveto; ++i)
                 if(n != NULL)
@@ -2547,18 +2547,18 @@ char compjoga(tabuleiro *tabu)
             if(n != NULL)
             {
                 succ = (movimento *)n->info;
-                melhor_caminho = copimel(*succ, result.plance);
+                melhor_caminho = copimel(*succ, resulta.plance);
                 succ->valor_estatico = 0;
-                result.valor = 0;
-                libera_lances(&result.plance);
-                result.plance = copilistmov(melhor_caminho);
+                resulta.valor = 0;
+                libera_lances(&resulta.plance);
+                resulta.plance = copilistmov(melhor_caminho);
                 libera_lances(&melhor_caminho);
-                melhorcaminho1 = copilistmov(result.plance);
-                melhorvalor1 = result.valor;
+                melhorcaminho1 = copilistmov(resulta.plance);
+                melhorvalor1 = resulta.valor;
             } //if n
         } //if randomchess
         else
-            while(result.valor < XEQUEMATE)
+            while(resulta.valor < XEQUEMATE)
             {
                 limpa_pensa();
                 if(debug == 2)  //nivel extra de debug
@@ -2571,9 +2571,9 @@ char compjoga(tabuleiro *tabu)
                 //profflag=1; //pode analisar.
                 minimax(*tabu, 0, -LIMITE, +LIMITE, nv);
                 //retorna o melhor caminho a partir de tab...
-                if(result.plance == NULL)
+                if(resulta.plance == NULL)
                 {
-//                    printf ("# Error compjoga 2857: Sem lances; result.plance==NULL; break; \n");
+//                    printf ("# Error compjoga 2857: Sem lances; resulta.plance==NULL; break; \n");
                     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
                     //20131202 NULL nao implica nao ter lance. Pode ter no nivel anterior
                     break;
@@ -2583,8 +2583,8 @@ char compjoga(tabuleiro *tabu)
                 if(difclocks() < tempomovclock)
                 {
                     libera_lances(&melhorcaminho1);
-                    melhorcaminho1 = copilistmov(result.plance);
-                    melhorvalor1 = result.valor;
+                    melhorcaminho1 = copilistmov(resulta.plance);
+                    melhorvalor1 = resulta.valor;
                 }
                 else
                     if(melhorcaminho1 != NULL) /* time exceeded and we have a move: stop now */
@@ -2593,27 +2593,27 @@ char compjoga(tabuleiro *tabu)
                 lst_ordem(plmov);  //ordena lista de movimentos
                 if(debug == 2)
                 {
-                    fprintf(fmini, "#\n# result.valor: %+.2f totalnodo: %d\n# result.plance: ", result.valor / 100.0, totalnodo);
-                    if(!mostrapensando || abs(result.valor) == FIMTEMPO || abs(result.valor) == LIMITE)
-                        imprime_linha(result.plance, 1, 2);
+                    fprintf(fmini, "#\n# resulta.valor: %+.2f totalnodo: %d\n# resulta.plance: ", resulta.valor / 100.0, totalnodo);
+                    if(!mostrapensando || abs(resulta.valor) == FIMTEMPO || abs(resulta.valor) == LIMITE)
+                        imprime_linha(resulta.plance, 1, 2);
                     //1=mnum do lance, 2=vez: pular impressao na tela.
                     //tabu->meionum+1, -tabu->vez);
                 }
                 //nivel pontuacao tempo totalnodo variacao === usado!
                 //nivel tempo valor lances no arena. (nao usado aqui. testar)
-                if(mostrapensando && abs(result.valor) != FIMTEMPO && abs(result.valor) != LIMITE)
+                if(mostrapensando && abs(resulta.valor) != FIMTEMPO && abs(resulta.valor) != LIMITE)
                 {
 //                    printf ("# xadreco : ply score time nodes pv\n");
-                    printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
-                    imprime_linha(result.plance, tabu->meionum + 1, -tabu->vez);
-//                    printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
+                    printf("%3d %+6d %3d %7d ", nv, resulta.valor, (int)difclocks(), totalnodo);
+                    imprime_linha(resulta.plance, tabu->meionum + 1, -tabu->vez);
+//                    printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d ", nv, (float) resulta.valor / 100.0, (int)difclocks(), totalnodo);
                 }
                 // termino do laco infinito baseado no tempo
                 if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))   // termino do laco infinito baseado no tempo
                 {
-                    if(result.plance == NULL)
+                    if(resulta.plance == NULL)
                     {
-                        printdbg(debug, "# compjoga 2898: Sem lances; difclocks()>tempomovclock; result.plance==NULL; (!break);\n");
+                        printdbg(debug, "# compjoga 2898: Sem lances; difclocks()>tempomovclock; resulta.plance==NULL; (!break);\n");
                         // nv--; /* testar se pode rodar de novo o mesmo nivel e ter lance */
                         // antigo: if(dif) break! retirar o else.
                     }
@@ -2621,19 +2621,19 @@ char compjoga(tabuleiro *tabu)
                         break;
                 }
                 nv++; // busca em amplitude: aumenta um nivel.
-            } //while result.plance < XEQUEMATE
+            } //while resulta.plance < XEQUEMATE
     } // fim do se nao usou livro
-    libera_lances(&result.plance);
-    result.plance = copilistmov(melhorcaminho1);
+    libera_lances(&resulta.plance);
+    resulta.plance = copilistmov(melhorcaminho1);
     libera_lances(&melhorcaminho1);
-    result.valor = melhorvalor1;
+    resulta.valor = melhorvalor1;
     //nivel extra de debug
     if(debug == 2)
         fclose(fmini);
     //Utilizado: ABANDONA==-2730, alterado quando contra outra engine
-    if(result.valor < ABANDONA && ofereci <= 0)
+    if(resulta.valor < ABANDONA && ofereci <= 0)
     {
-        printdbg(debug, "# xadreco : resign. value: %+.2f\n", result.valor / 100.0);
+        printdbg(debug, "# xadreco : resign. value: %+.2f\n", resulta.valor / 100.0);
         --ofereci;
         printf2("resign\n");
     }
@@ -2654,33 +2654,33 @@ char compjoga(tabuleiro *tabu)
         }
     }
 
-    //oferecer empate: result.valor esta invertido na vez.
-    if(result.valor < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
+    //oferecer empate: resulta.valor esta invertido na vez.
+    if(resulta.valor < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
     {
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
-        printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", result.valor / 100.0);
+        printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", resulta.valor / 100.0);
         /* printf2("offer draw\n"); */
         OFERECEREMPATE = 1;
         --ofereci;
     }
-    //oferecer empate: result.valor esta invertido na vez.
-    if(result.valor < QUANTO_EMPATE2 && tabu->meionum >= MOVE_EMPATE2 && ofereci > 0)
+    //oferecer empate: resulta.valor esta invertido na vez.
+    if(resulta.valor < QUANTO_EMPATE2 && tabu->meionum >= MOVE_EMPATE2 && ofereci > 0)
     {
-        printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", result.valor / 100.0);
+        printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", resulta.valor / 100.0);
         /* printf2("offer draw\n"); */
         OFERECEREMPATE = 1;
         --ofereci;
     }
     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
     //algum problema ocorreu que esta sem lances
-    if(result.plance == NULL)
+    if(resulta.plance == NULL)
     {
         res = randommove(tabu);
         if(res == 'e')
             return res; //vazio mesmo! Nem aleatorio foi!
         printdbg(debug, "# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
     }
-    res = joga_em(tabu, *result.plance, 1);  // computador joga
+    res = joga_em(tabu, *resulta.plance, 1);  // computador joga
     return (res);
 } //fim da compjoga
 
@@ -2702,7 +2702,7 @@ char analisa(tabuleiro *tabu)
     //mudou para busca em amplitude: variavel nivel obsoleta!
     if(USALIVRO && tabu->meionum < 50 && setboard != 1)
         usalivro(*tabu);
-    if(result.plance != NULL)
+    if(resulta.plance != NULL)
     {
         //tclock2 = time(NULL);
 //        clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
@@ -2710,9 +2710,9 @@ char analisa(tabuleiro *tabu)
 //        difclock = clock2 - clock1;
         //nivel pontuacao tempo totalnodo variacao === usado!
 //        printf ("# xadreco : ply score time nodes pv\n");
-        printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
-        imprime_linha(result.plance, tabu->meionum + 1, -tabu->vez);
-//        printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d\n", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
+        printf("%3d %+6d %3d %7d ", nv, resulta.valor, (int)difclocks(), totalnodo);
+        imprime_linha(resulta.plance, tabu->meionum + 1, -tabu->vez);
+//        printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d\n", nv, (float) resulta.valor / 100.0, (int)difclocks(), totalnodo);
 //        printdbg(debug, "# \n");
     }
     else
@@ -2721,7 +2721,7 @@ char analisa(tabuleiro *tabu)
         lst_recria(&plmov);
         geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
         totalnodo = 0;
-        while(result.valor < XEQUEMATE)
+        while(resulta.valor < XEQUEMATE)
             //for(nv=1; nv<=7; nv++)
             //funcao ANALISA (CONFERIR)
         {
@@ -2736,16 +2736,16 @@ char analisa(tabuleiro *tabu)
 //            difclock = clock2 - clock1;
             lst_ordem(plmov);
             //nivel pontuacao tempo totalnodo variacao === usado!
-            if(abs(result.valor) != FIMTEMPO && abs(result.valor) != LIMITE)
+            if(abs(resulta.valor) != FIMTEMPO && abs(resulta.valor) != LIMITE)
             {
 //                printf ("# xadreco : ply score time nodes pv\n");
-                printf("%3d %+6d %3d %7d ", nv, result.valor, (int)difclocks(), totalnodo);
-//                printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds nodos=%d ", nv, (float) result.valor / 100.0, (int)difclocks(), totalnodo);
-                imprime_linha(result.plance, tabu->meionum + 1, -tabu->vez);
+                printf("%3d %+6d %3d %7d ", nv, resulta.valor, (int)difclocks(), totalnodo);
+//                printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds nodos=%d ", nv, (float) resulta.valor / 100.0, (int)difclocks(), totalnodo);
+                imprime_linha(resulta.plance, tabu->meionum + 1, -tabu->vez);
                 //1=mnum do lance, 2=vez: pular impressao na tela
 //                if(debug)
 //                {
-//                    if (result.plance == NULL)
+//                    if (resulta.plance == NULL)
 //                        printf ("# no moves\n");
 //                    else
 //                        printf ("# \n");
@@ -2753,21 +2753,21 @@ char analisa(tabuleiro *tabu)
             }
             if(debug == 2)
             {
-                fprintf(fmini, "#\n# result.valor: %+.2f totalnodo: %d\nresult.plance: ", result.valor / 100.0, totalnodo);
-                imprime_linha(result.plance, 1, 2);
+                fprintf(fmini, "#\n# resulta.valor: %+.2f totalnodo: %d\nresulta.plance: ", resulta.valor / 100.0, totalnodo);
+                imprime_linha(resulta.plance, 1, 2);
                 //1=mnum do lance, 2=vez: pular impressao na tela.
                 // tabu->meionum+1, -tabu->vez);
             }
             if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))  // termino do laco infinito baseado no tempo
                 break;
-            if(result.plance == NULL)  //Nova definicao: sem lances, pode ser que queira avancar apos mate.
+            if(resulta.plance == NULL)  //Nova definicao: sem lances, pode ser que queira avancar apos mate.
                 break;
             nv++;
         }
     }
     if(debug == 2)          //nivel extra de debug
         fclose(fmini);
-    if(result.plance == NULL)
+    if(resulta.plance == NULL)
         //...apos o termino da partida, so pode-se usar edicao, undo, etc.
         //              msgsai("# Computador sem lances validos 3", 35);
         //algum problema ocorreu que esta sem lances
@@ -2936,8 +2936,8 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, 
     //{
     //  if(moveagora())
     //  {
-    //	result.plance = NULL;
-    //	result.valor = estatico (atual, 1, prof, alfa, beta); //-FIMTEMPO;//
+    //	resulta.plance = NULL;
+    //	resulta.valor = estatico (atual, 1, prof, alfa, beta); //-FIMTEMPO;//
     //	ungetc (input, stdin);
     //	return 1;
     //  }
@@ -2978,8 +2978,8 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, 
 
     //  if(teminterroga)
     //  {
-    //	result.plance = NULL;
-    //	result.valor = estatico (atual, 1, prof, alfa, beta); //-FIMTEMPO;//
+    //	resulta.plance = NULL;
+    //	resulta.valor = estatico (atual, 1, prof, alfa, beta); //-FIMTEMPO;//
     //	return 1;
     //  }
 
@@ -3188,7 +3188,7 @@ movimento *copilistmov(movimento *font)
     movimento *cabeca, *pmovi;
     if(font == NULL)
         return NULL;
-    cabeca = (movimento *) malloc(sizeof(movimento));   //valor novo que sera do result.plance # BUG valgrind memory leak
+    cabeca = (movimento *) malloc(sizeof(movimento));   //valor novo que sera do resulta.plance # BUG valgrind memory leak
     if(cabeca == NULL)
         msgsai("# Erro ao alocar memoria em copilistmov 1", 30);
     pmovi = cabeca;
@@ -4214,7 +4214,7 @@ void pegaNmoves(char *linha2, char *linha, char *strlance)
     linha2[ll] = '\0';
 }
 
-//retorna em result.plance uma variante do livro
+//retorna em resulta.plance uma variante do livro
 void usalivro(tabuleiro tabu)
 {
     movimento *cabeca;
@@ -4229,8 +4229,8 @@ void usalivro(tabuleiro tabu)
     if(!flivro)
     {
         /* chamada por compjoga() e analisa() */
-        libera_lances(&result.plance);
-        result.plance = NULL;
+        libera_lances(&resulta.plance);
+        resulta.plance = NULL;
         return;
     }
 
@@ -4239,8 +4239,8 @@ void usalivro(tabuleiro tabu)
         if(LINHASBOAS < 1)
         {
             fclose(flivro);
-            libera_lances(&result.plance);
-            result.plance = NULL;
+            libera_lances(&resulta.plance);
+            resulta.plance = NULL;
             return;
         }
 
@@ -4267,9 +4267,9 @@ void usalivro(tabuleiro tabu)
 
         //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
         cabeca = string2pmovi(tabu.meionum, linha);
-        result.valor = estatico_pmovi(tabu, cabeca);
-        libera_lances(&result.plance);
-        result.plance = copilistmov(cabeca);
+        resulta.valor = estatico_pmovi(tabu, cabeca);
+        libera_lances(&resulta.plance);
+        resulta.plance = copilistmov(cabeca);
     }
     else
         if(tabu.meionum == 1)  // No primeiro lance de pretas, sorteia uma possivel resposta
@@ -4301,8 +4301,8 @@ void usalivro(tabuleiro tabu)
             if(nlinha < 1)
             {
                 fclose(flivro);
-                libera_lances(&result.plance);
-                result.plance = NULL;
+                libera_lances(&resulta.plance);
+                resulta.plance = NULL;
                 return;
             }
 
@@ -4337,9 +4337,9 @@ void usalivro(tabuleiro tabu)
             printdbg(debug, "# xboard move 1 - sorteado= %d, linha: '%s'", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.meionum, linha);
-            result.valor = estatico_pmovi(tabu, cabeca);
-            libera_lances(&result.plance);
-            result.plance = copilistmov(cabeca);
+            resulta.valor = estatico_pmovi(tabu, cabeca);
+            libera_lances(&resulta.plance);
+            resulta.plance = copilistmov(cabeca);
         }
         else /* tab.meionum>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
         {
@@ -4370,8 +4370,8 @@ void usalivro(tabuleiro tabu)
             if(nlinha < 1)
             {
                 fclose(flivro);
-                libera_lances(&result.plance);
-                result.plance = NULL;
+                libera_lances(&resulta.plance);
+                resulta.plance = NULL;
                 return;
             }
 
@@ -4406,16 +4406,16 @@ void usalivro(tabuleiro tabu)
             printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: '%s'", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.meionum, linha);
-            result.valor = estatico_pmovi(tabu, cabeca);
-            libera_lances(&result.plance);
-            result.plance = copilistmov(cabeca);
+            resulta.valor = estatico_pmovi(tabu, cabeca);
+            libera_lances(&resulta.plance);
+            resulta.plance = copilistmov(cabeca);
 
             /* if(cabeca == NULL) */
             /* { */
             /*     cabeca = string2pmovi(tabu.meionum, linha); */
-            /*     result.valor = estatico_pmovi(tabu, cabeca); */
-            /*     libera_lances(&result.plance); */
-            /*     result.plance = copilistmov(cabeca); */
+            /*     resulta.valor = estatico_pmovi(tabu, cabeca); */
+            /*     libera_lances(&resulta.plance); */
+            /*     resulta.plance = copilistmov(cabeca); */
             /* } */
             /* else */
             /* { */
@@ -4423,11 +4423,11 @@ void usalivro(tabuleiro tabu)
             /*     cabeca = string2pmovi(tabu.meionum, linha); */
             /*     //eh a primeira linha que casou */
             /*     novovalor = estatico_pmovi(tabu, cabeca); */
-            /*     if(novovalor > result.valor) */
+            /*     if(novovalor > resulta.valor) */
             /*     { */
-            /*         result.valor = novovalor; */
-            /*         libera_lances(&result.plance); */
-            /*         result.plance = copilistmov(cabeca); */
+            /*         resulta.valor = novovalor; */
+            /*         libera_lances(&resulta.plance); */
+            /*         resulta.plance = copilistmov(cabeca); */
             /*     } */
             /* } */
         } //else nao e o primeiro lance nem de brancas, nem de pretas
@@ -4515,8 +4515,8 @@ int irand_minmax(int min, int max)
 void sai(int error)
 {
     printdbg(debug, "# xadreco : sai ( %d )\n", error);
-    libera_lances(&result.plance);
-    result.plance = NULL;
+    libera_lances(&resulta.plance);
+    resulta.plance = NULL;
     if(plmov)
         arena_destroi(plmov->a);  //libera arena de movimentos
     if(pltab)
@@ -4529,9 +4529,9 @@ void inicia(tabuleiro *tabu)
 {
     int i, j;
     pausa = 'n';
-    result.valor = 0;
-    libera_lances(&result.plance);
-    result.plance = NULL;
+    resulta.valor = 0;
+    libera_lances(&resulta.plance);
+    resulta.plance = NULL;
     lst_recria(&plmov);
     lst_recria(&pltab);
     ofereci = 1; //computador pode oferecer 1 empate
@@ -4601,10 +4601,10 @@ void  coloca_pecas(tabuleiro *tabu)
 //limpa algumas variaveis para iniciar ponderacao
 void limpa_pensa(void)
 {
-    libera_lances(&result.plance);
-    result.plance = NULL;
+    libera_lances(&resulta.plance);
+    resulta.plance = NULL;
     //eh necessario
-    result.valor = -LIMITE;
+    resulta.valor = -LIMITE;
     //conferir
     profflag = 1;
     //    totalnodo=0;
@@ -4840,8 +4840,8 @@ char randommove(tabuleiro *tabu)
         succ = (movimento *)n->info;
         succ->valor_estatico = 0;
         melhor_caminho = copimel(*succ, NULL);
-        result.valor = 0;
-        result.plance = copilistmov(melhor_caminho);
+        resulta.valor = 0;
+        resulta.plance = copilistmov(melhor_caminho);
         libera_lances(&melhor_caminho);
         return '-'; //ok
     }
