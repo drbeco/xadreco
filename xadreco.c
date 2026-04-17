@@ -4535,7 +4535,8 @@ void sai(int error)
     printdbg(debug, "# xadreco : sai ( %d )\n", error);
     libera_lances(&result.plance);
     result.plance = NULL;
-    libera_lances(&succ_geral);
+    if(plmov)
+        arena_destroi(plmov->a);  //libera arena de movimentos
     if(pltab)
         arena_destroi(pltab->a);  //libera arena de tabuleiros
     exit(error);
@@ -4549,14 +4550,8 @@ void inicia(tabuleiro *tabu)
     result.valor = 0;
     libera_lances(&result.plance);
     result.plance = NULL;
-    libera_lances(&succ_geral);
-    succ_geral = NULL;
-    if(pltab)
-    {
-        arena *a = pltab->a;
-        arena_zera(a);
-        lst_cria(a, &pltab);
-    }
+    lst_recria(&plmov);
+    lst_recria(&pltab);
     ofereci = 1; //computador pode oferecer 1 empate
     USALIVRO = 0;
     if(LINHASBOAS > 0)
