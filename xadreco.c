@@ -5217,12 +5217,13 @@ void lst_recria(lista **pl)
 // particiona: capturas e especiais primeiro
 void lst_parte(lista *l)
 {
-    no *n = l->cabeca;
-    no *next;
+    no *n, *next;
+    movimento *m;
+    n = l->cabeca;
     while(n)
     {
         next = n->prox;
-        movimento *m = (movimento *)n->info;
+        m = (movimento *)n->info;
         if(m->flag_50 > 1 || m->especial)
             lst_furafila(l, n);
         n = next;
@@ -5238,7 +5239,7 @@ void lst_ordem(lista *l)
     if(!l->cabeca || !l->cabeca->prox)
         return;
     total = l->qtd;
-    for(sorted = 0; sorted < total - 1; sorted++)
+    for(sorted = 0; sorted < total; sorted++)
     {
         n = l->cabeca;
         for(i = 0; i < sorted; i++)
@@ -5256,8 +5257,7 @@ void lst_ordem(lista *l)
             }
             scan = scan->prox;
         }
-        if(worst != n)
-            lst_furafila(l, worst);
+        lst_furafila(l, worst);
     }
 }
 
