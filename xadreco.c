@@ -122,7 +122,7 @@
 #define QUANTO_EMPATE2 20
 //flagvf de geramov, so para retornar rapido com um lance valido ou NULL
 #define AFOGOU -2
-// modos de geramov: gera todos, gera unico (confere afogado), gera este (TODO PLAN9)
+// geramodo de geramov: gera todos, gera unico (confere afogado), gera este (TODO PLAN9)
 #define GERA_TUDO  0
 #define GERA_UNICO 1
 #define GERA_ESTE  2
@@ -406,9 +406,9 @@ void pegaNmoves(char *linha2, char *linha, char *strlance);
 void conta_linhas_livro(void);
 
 // computador joga ----------------------------------------------------------
-// lista tipo movimento geramov, op cria lista via enche_pmovi
+// lista tipo movimento geramov, modos tudo, um, este; cria lista via enche_pmovi
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
-movimento *geramov(tabuleiro tabu, int *nmov);
+int geramov(tabuleiro tabu, lista *lmov, int geramodo);
 //coloca em result a melhor variante e seu valor.
 void minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
 //retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
@@ -956,15 +956,15 @@ void copitab(tabuleiro *dest, tabuleiro *font)
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
 }
 
-// se nmovi==-1 retorna verdadeiro (ponteiro para o primeiro lance) / falso NULL
-movimento *geramov(tabuleiro tabu, int *nmovi)
+// gera lista de movimentos legais na lista lmov
+// geramodo: GERA_TUDO=todos, GERA_UNICO=para no primeiro, GERA_ESTE=confere legalidade de um movimento
+// retorna 1 se ha movimentos, 0 se nao ha
+int geramov(tabuleiro tabu, lista *lmov, int geramodo)
 {
     tabuleiro tabaux;
-    movimento *pmovi = NULL, *pmoviant = NULL, *cabeca = NULL;
     int i, j, k, l, m, flag;
     int col, lin;
     int peca;
-    int flagvf = *nmovi; /* flagvf==AFOGOU, retorna unico lance (saber se esta afogado), 0, retorna todos */
     // int pp; //peao pulou
     int rr, ee, ff; //peao pulou, roque, especial e flag50;
 
@@ -1002,9 +1002,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                 //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                 //ee 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
                                 //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                enche_pmovi(&cabeca, &pmovi, i, j, col, lin, /*peao*/ -1, /*roque*/0, /*especial*/0, /*flag50*/ff, nmovi);
-                                if(flagvf == AFOGOU) //pergunta a geramov se afogou e retorna rapido
-                                    return cabeca;
+                                enche_lmovi(lmov, i, j, col, lin, /*peao*/ -1, /*roque*/0, /*especial*/0, /*flag50*/ff);
+                                if(geramodo == GERA_UNICO) //pergunta a geramov se afogou e retorna rapido
+                                    return 1;
                                 //                          pmovi->prox = (movimento *) malloc (sizeof (movimento));
                                 //                          if (pmovi->prox == NULL)
                                 //                              msgsai ("# Erro de alocacao de memoria em geramov 2", 2);
@@ -1044,9 +1044,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                         //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                         //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        enche_pmovi(&cabeca, &pmovi, 4, 0, 6, 0, /*pp*/ -1, /*rr*/0, /*ee*/1, /*ff*/0, nmovi); //BUG flag50 zera no roque? consultar FIDE
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, 4, 0, 6, 0, /*pp*/ -1, /*rr*/0, /*ee*/1, /*ff*/0); //BUG flag50 zera no roque? consultar FIDE
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
 
                                     }
                                 } // roque grande
@@ -1067,9 +1067,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                         //nao pode mais fazer roque. Mexeu Rei
                                         //Rei rocou grd, espec=2. flag=0
                                         //                                   enche_pmovi (pmovi, 4, 0, 2, 0, -1, 0, 2, 0);
-                                        enche_pmovi(&cabeca, &pmovi, 4, 0, 2, 0, /*peao*/ -1, /*roque*/0, /*especial*/2, /*flag50*/0, nmovi);
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, 4, 0, 2, 0, /*peao*/ -1, /*roque*/0, /*especial*/2, /*flag50*/0);
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
                                     }
                                 }
                             } //mexeu TD
@@ -1096,9 +1096,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                         //nao pode mais fazer roque. Mexeu Rei
                                         //Rei rocou pqn, espec=1. flag=0.
                                         //                                  enche_pmovi (pmovi, 4, 7, 6, 7, -1, 0, 1, 0);
-                                        enche_pmovi(&cabeca, &pmovi, 4, 7, 6, 7, /*peao*/ -1, /*roque*/0, /*especial*/1, /*flag50*/0, nmovi);
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, 4, 7, 6, 7, /*peao*/ -1, /*roque*/0, /*especial*/1, /*flag50*/0);
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
                                     }
                                 } // roque grande.
                             } //mexeu TR
@@ -1118,9 +1118,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                         //nao pode mais fazer roque. Mexeu Rei
                                         //Rei rocou grd, espec=2. flag=0.
                                         // enche_pmovi (pmovi, 4, 7, 2, 7, -1, 0, 2, 0);
-                                        enche_pmovi(&cabeca, &pmovi, 4, 7, 2, 7, /*peao*/ -1, /*roque*/0, /*especial*/2, /*flag50*/0, nmovi);
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, 4, 7, 2, 7, /*peao*/ -1, /*roque*/0, /*especial*/2, /*flag50*/0);
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
                                     }
                                 }
                             } //mexeu TD
@@ -1143,9 +1143,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     if(!xeque_rei_das(brancas, tabaux))   //nao deixa rei branco em xeque
                                     {
                                         //                                  enche_pmovi (pmovi, i, j, tabu.peao_pulou, 5, -1, 1, 3, 3);
-                                        enche_pmovi(&cabeca, &pmovi, i, j, tabu.peao_pulou, 5, /*peao*/ -1, /*roque*/1, /*especial*/3, /*flag50*/3, nmovi);
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, i, j, tabu.peao_pulou, 5, /*peao*/ -1, /*roque*/1, /*especial*/3, /*flag50*/3);
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
                                     }
                                 }
                             }
@@ -1159,9 +1159,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     if(!xeque_rei_das(pretas, tabaux))
                                     {
                                         //  enche_pmovi (pmovi, i, j, tabu.peao_pulou, 2, -1, 1, 3, 3);
-                                        enche_pmovi(&cabeca, &pmovi, i, j, tabu.peao_pulou, 2, /*peao*/ -1, /*roque*/1, /*especial*/3, /*flag50*/3, nmovi);
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, i, j, tabu.peao_pulou, 2, /*peao*/ -1, /*roque*/1, /*especial*/3, /*flag50*/3);
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
                                     } //deixa rei em xeque
                                 } //nao esta na fila correta
                             } //fim do else da vez
@@ -1184,12 +1184,12 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     {
                                         //TODO inverter laco e=4, e<8, ee++
                                         for(ee = 4; ee < 8; ee++) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            enche_pmovi(&cabeca, &pmovi, i, j, i, j + 1, /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1, nmovi);
+                                            enche_lmovi(lmov, i, j, i, j + 1, /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
                                     }
                                     else //nao promoveu
-                                        enche_pmovi(&cabeca, &pmovi, i, j, i, j + 1, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/1, nmovi);
-                                    if(flagvf == AFOGOU) //se nao afogou retorna
-                                        return cabeca;
+                                        enche_lmovi(lmov, i, j, i, j + 1, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/1);
+                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        return 1;
                                 } //deixa rei em xeque
                             } //casa ocupada
                         } //passou da casa de promocao e caiu do tabuleiro!
@@ -1208,12 +1208,12 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     if(j - 1 == 0)  //se promoveu
                                     {
                                         for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            enche_pmovi(&cabeca, &pmovi, i, j, i, j - 1, /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1, nmovi);
+                                            enche_lmovi(lmov, i, j, i, j - 1, /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
                                     }
                                     else //nao promoveu
-                                        enche_pmovi(&cabeca, &pmovi, i, j, i, j - 1, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/1, nmovi);
-                                    if(flagvf == AFOGOU) //se nao afogou retorna
-                                        return cabeca;
+                                        enche_lmovi(lmov, i, j, i, j - 1, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/1);
+                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        return 1;
                                 } //deixa rei em xeque
                             } //casa ocupada
                         } //passou da casa de promocao e caiu do tabuleiro!
@@ -1231,9 +1231,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                 if(!xeque_rei_das(brancas, tabaux))
                                 {
                                     // enche_pmovi (pmovi, i, 1, i, 3, i, 1, 0, 1);
-                                    enche_pmovi(&cabeca, &pmovi, i, 1, i, 3, /*peao*/i, /*roque*/1, /*especial*/0, /*flag50*/1, nmovi);
-                                    if(flagvf == AFOGOU) //se nao afogou retorna
-                                        return cabeca;
+                                    enche_lmovi(lmov, i, 1, i, 3, /*peao*/i, /*roque*/1, /*especial*/0, /*flag50*/1);
+                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        return 1;
                                 } //deixa rei em xeque
                             } //alguma das casas esta ocupada
                         } //este peao ja mexeu antes
@@ -1249,9 +1249,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                 if(!xeque_rei_das(pretas, tabaux))
                                 {
                                     //                                 enche_pmovi (pmovi, i, 6, i, 4, i, 1, 0, 1);
-                                    enche_pmovi(&cabeca, &pmovi, i, 6, i, 4, /*peao*/i, /*roque*/1, /*especial*/0, /*flag50*/1, nmovi);
-                                    if(flagvf == AFOGOU) //se nao afogou retorna
-                                        return cabeca;
+                                    enche_lmovi(lmov, i, 6, i, 4, /*peao*/i, /*roque*/1, /*especial*/0, /*flag50*/1);
+                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        return 1;
                                 } //deixa rei em xeque
                             } //alguma das casas esta ocupada
                         } //este peao ja mexeu antes
@@ -1276,12 +1276,12 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     if(j + 1 == 7)  //se promoveu comendo
                                     {
                                         for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            enche_pmovi(&cabeca, &pmovi, i, j, k, j + 1, /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3, nmovi);
+                                            enche_lmovi(lmov, i, j, k, j + 1, /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
                                     }
                                     else //comeu sem promover
-                                        enche_pmovi(&cabeca, &pmovi, i, j, k, j + 1, /*peao*/ -1, /*roque*/1, /*especial*/0, /*flag50*/3, nmovi);
-                                    if(flagvf == AFOGOU) //se nao afogou retorna
-                                        return cabeca;
+                                        enche_lmovi(lmov, i, j, k, j + 1, /*peao*/ -1, /*roque*/1, /*especial*/0, /*flag50*/3);
+                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        return 1;
                                 } //deixa rei em xeque
                             } //nao tem peca preta para comer
                             k += 2; //proxima diagonal do peao
@@ -1308,12 +1308,12 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     if(j - 1 == 0)  //se promoveu comendo
                                     {
                                         for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            enche_pmovi(&cabeca, &pmovi, i, j, k, j - 1, /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3, nmovi);
+                                            enche_lmovi(lmov, i, j, k, j - 1, /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
                                     }
                                     else //comeu sem promover
-                                        enche_pmovi(&cabeca, &pmovi, i, j, k, j - 1, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/3, nmovi);
-                                    if(flagvf == AFOGOU) //se nao afogou retorna
-                                        return cabeca;
+                                        enche_lmovi(lmov, i, j, k, j - 1, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/3);
+                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        return 1;
                                 } //rei em xeque
                             } //nao tem peao branco para comer
                             k += 2;
@@ -1341,9 +1341,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                     ff = 0; //Cavalo nao capturou
                                 else
                                     ff = 2; // Cavalo capturou peca adversaria.
-                                enche_pmovi(&cabeca, &pmovi, i, j, col + i, lin + j, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/ff, nmovi);
-                                if(flagvf == AFOGOU) //se nao afogou retorna
-                                    return cabeca;
+                                enche_lmovi(lmov, i, j, col + i, lin + j, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/ff);
+                                if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                    return 1;
                             }
                             //deixa rei em xeque
                         }
@@ -1399,9 +1399,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                         //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                         //ee 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        enche_pmovi(&cabeca, &pmovi, i, j, col, j, /*peao*/ -1, /*roque*/rr, /*especial*/ 0, /*flag50*/ff, nmovi);
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, i, j, col, j, /*peao*/ -1, /*roque*/rr, /*especial*/ 0, /*flag50*/ff);
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
                                     }
                                     else //deixa rei em xeque
                                         if(tabu.tab[SQ(col,j)] != VAZIA)
@@ -1448,9 +1448,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                         //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                         //ee 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        enche_pmovi(&cabeca, &pmovi, i, j, i, lin, /*peao*/ -1, /*roque*/rr, /*especial*/ 0, /*flag50*/ff, nmovi);
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, i, j, i, lin, /*peao*/ -1, /*roque*/rr, /*especial*/ 0, /*flag50*/ff);
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
                                     }
                                     else //deixa rei em xeque
                                         if(tabu.tab[SQ(i,lin)] != VAZIA)
@@ -1498,9 +1498,9 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
                                         //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                         //ee 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        enche_pmovi(&cabeca, &pmovi, i, j, col, lin, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/ff, nmovi);
-                                        if(flagvf == AFOGOU) //se nao afogou retorna
-                                            return cabeca;
+                                        enche_lmovi(lmov, i, j, col, lin, /*peao*/ -1, /*roque*/1, /*especial*/ 0, /*flag50*/ff);
+                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                            return 1;
                                     }
                                     else //deixa rei em xeque
                                         if(tabu.tab[SQ(col,lin)] != VAZIA)  //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
@@ -1522,42 +1522,13 @@ movimento *geramov(tabuleiro tabu, int *nmovi)
         } //loop das pecas todas do tabuleiro
 //     if (cabeca == pmovi) //se a lista esta vazia
 
-    if(flagvf == AFOGOU) //pergunta a geramov se afogou e retorna rapido
-        return cabeca; //nao retornou ate aqui, cabeca==NULL
-    if(cabeca == NULL)  //se a lista esta vazia
-        //free (cabeca); /* core dump BUG */
-        return NULL;
-    //ordena e retorna! flag_50: 0-nada, 1-peao andou, 2-captura, 3-peao capturou
-    // especial: 0-nada, roque 1-pqn, 2-grd, 3-enpassant
-    // 4,5,6,7 promocao de Dama, Cavalo, Torre, Bispo
-//         free (pmovi);
-//         pmoviant->prox = NULL; //aloca e desaloca o ultimo. desperdicio de tempo.
-    pmoviant = cabeca;
-    pmovi = cabeca->prox;
-    while(pmovi != NULL)  //percorre, passa para cabeca tudo de interessante.
-    {
-        //especial 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
-        //especial promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-        //flag_50 :0=nada, 1=Moveu peao, 2=Comeu, 3=Peao Comeu
-        if(pmovi->flag_50 > 1 || pmovi->especial)  //achou captura ou especial
-        {
-            //move para a cabeca da lista!
-            pmoviant->prox = pmovi->prox; //o anterior aponta para o prox.
-            pmovi->prox = cabeca; //o prox do especial aponta para o primeiro
-            cabeca = pmovi; //o cabeca agora eh pmovi!
-            pmovi = pmoviant->prox;
-        }
-        else
-        {
-            // faz nada... anda ponteiros para os proximos
-            pmoviant = pmovi;
-            pmovi = pmovi->prox;
-        }
-    } //fim do while, e consequentemente da lista
-    assert(*nmov >= 0 && "Negative move count in geramov");
-    return cabeca; //lista criada: quem chamou que a libere
+    if(geramodo == GERA_UNICO) //GERA_UNICO: nao achou nenhum lance
+        return 0;
+    if(lmov && lmov->qtd > 1)
+        lst_parte(lmov); //particiona: capturas e especiais primeiro
+    return (lmov ? lmov->qtd > 0 : 0);
 }
-//fim de   ----------- movimento *geramov(tabuleiro tabu)
+//fim de   ----------- int geramov(tabuleiro tabu, lista *lmov, int geramodo)
 
 int ataca(int cor, int col, int lin, tabuleiro tabu)
 {
@@ -5237,9 +5208,10 @@ void lst_furafila(lista *l, no *n)
 // zera arena e recria lista do inicio
 void lst_recria(lista **pl)
 {
+    arena *a;
     if(!*pl)
         return;
-    arena *a = (*pl)->a;
+    a = (*pl)->a;
     arena_zera(a);
     lst_cria(a, pl);
 }
@@ -5262,21 +5234,23 @@ void lst_parte(lista *l)
 // ordena por valor_estatico decrescente (melhor primeiro)
 void lst_ordem(lista *l)
 {
+    int total, sorted, i;
+    int val, worst_val;
+    no *n, *worst, *scan;
     if(!l->cabeca || !l->cabeca->prox)
         return;
-    int total = l->qtd;
-    int sorted, i;
+    total = l->qtd;
     for(sorted = 0; sorted < total - 1; sorted++)
     {
-        no *n = l->cabeca;
+        n = l->cabeca;
         for(i = 0; i < sorted; i++)
-            n = n->prox;
-        no *worst = n;
-        int worst_val = ((movimento *)worst->info)->valor_estatico;
-        no *scan = n->prox;
+            n = n->prox; // pula os que ja foram comparados
+        worst = n;
+        worst_val = ((movimento *)worst->info)->valor_estatico;
+        scan = n->prox;
         while(scan)
         {
-            int val = ((movimento *)scan->info)->valor_estatico;
+            val = ((movimento *)scan->info)->valor_estatico;
             if(val < worst_val)
             {
                 worst = scan;
