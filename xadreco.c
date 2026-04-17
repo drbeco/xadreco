@@ -4771,68 +4771,6 @@ void imprime_linha(movimento *loop, int mnum, int tabuvez)
     printf("\n");
 }
 
-//ordena succ_geral
-void ordena_succ(int nmov)
-{
-    movimento *loop, *pior, *insere, *aux;
-    int peguei, pior_valor;
-    if(nmov <= 1)
-        return;
-    insere = NULL;
-    pior = NULL;
-    loop = succ_geral;
-    if(loop == NULL)  //se a lista esta vazia
-        return;
-    while(loop != NULL)
-    {
-        if(loop->flag_50 > 1 || loop->especial)  //para manter os especiais em primeiro
-            loop->ordena = 1;
-        else
-            loop->ordena = 0;
-        loop = loop->prox;
-    }
-    peguei = 1;
-    while(peguei)
-    {
-        pior_valor = +XEQUEMATE + 1;
-        loop = succ_geral;
-        peguei = 0;
-        while(loop != NULL)
-        {
-            if(loop->valor_estatico <= pior_valor && loop->ordena != 1)
-            {
-                pior = loop;
-                pior_valor = loop->valor_estatico;
-                peguei = 1;
-            }
-            loop = loop->prox;
-        } //fim do while loop, e consequentemente da lista
-        if(peguei)
-        {
-            aux = copimel(*pior, insere);
-            //insere pior na cabeca (a lista  fica em ordem decrescente: o melhor na cabeca)
-            libera_lances(&insere);
-            insere = aux;
-            pior->ordena = 1;
-        }
-    } //fim do while trocou
-    //os primeiros ficam intactos
-    //conta com a funcao geramov, que coloca os especiais na cabeca
-    loop = succ_geral;
-    while(loop != NULL)
-        if(loop->flag_50 > 1 || loop->especial)
-        {
-            aux = copimel(*loop, insere);  //movimento *copimel(movimento ummovi, movimento *plan)
-            libera_lances(&insere);
-            insere = aux;
-            loop = loop->prox;
-        }
-        else
-            break;
-    libera_lances(&succ_geral);
-    succ_geral = insere;
-}
-
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
 int estatico_pmovi(tabuleiro tabu, movimento *cabeca)
 {
