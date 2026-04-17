@@ -2494,12 +2494,12 @@ char compjoga(tabuleiro *tabu)
 {
     char res;
     int i;
-    int nv = 1, nmov;
+    int nv = 1;
     int melhorvalor1;
     // lances calc. em maior nivel tem mais importancia?
     movimento *melhorcaminho1;
     int moveto;
-    movimento *succ = NULL, *melhor_caminho = NULL;
+    movimento *melhor_caminho = NULL;
     limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
     melhorvalor1 = -LIMITE;
     melhorcaminho1 = NULL;
@@ -2522,9 +2522,8 @@ char compjoga(tabuleiro *tabu)
     {
         //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
         nv = 1;
-        nmov = 0; // zero= retorna todos validos
-        libera_lances(&succ_geral);
-        succ_geral = geramov(*tabu, &nmov);  //gera os sucessores
+        lst_recria(&plmov);
+        geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
         totalnodo = 0;
         //primeiro lance: joga rapido, metade do tempo, maximo 10s
         if(tabu->meionum <= 1)
@@ -2538,16 +2537,18 @@ char compjoga(tabuleiro *tabu)
         //funcao COMPJOGA (CONFERIR)
         if(randomchess)
         {
-            succ = succ_geral;
+            {
+            no *n = plmov->cabeca;
             result.plance = NULL;
             result.valor = 0;
-            moveto = (int)(rand() % nmov);  //sorteia um lance possivel da lista de lances
+            moveto = (int)(rand() % plmov->qtd);  //sorteia um lance possivel da lista de lances
             for(i = 0; i < moveto; ++i)
-                if(succ != NULL)
-                    succ = succ->prox; //escolhe este lance como o que sera jogado
+                if(n != NULL)
+                    n = n->prox; //escolhe este lance como o que sera jogado
 
-            if(succ != NULL)
+            if(n != NULL)
             {
+                movimento *succ = (movimento *)n->info;
                 melhor_caminho = copimel(*succ, result.plance);
                 succ->valor_estatico = 0;
                 result.valor = 0;
@@ -2557,6 +2558,7 @@ char compjoga(tabuleiro *tabu)
                 melhorcaminho1 = copilistmov(result.plance);
                 melhorvalor1 = result.valor;
             } //else succ!=NULL
+            } //block for no *n
         } //if randomchess
         else
             while(result.valor < XEQUEMATE)
@@ -2591,7 +2593,7 @@ char compjoga(tabuleiro *tabu)
                     if(melhorcaminho1 != NULL) /* time exceeded and we have a move: stop now */
                         break;
                 totalnodo += totalnodonivel;
-                ordena_succ(nmov);  //ordena succ_geral
+                lst_ordem(plmov);  //ordena lista de movimentos
                 if(debug == 2)
                 {
                     fprintf(fmini, "#\n# result.valor: %+.2f totalnodo: %d\n# result.plance: ", result.valor / 100.0, totalnodo);
@@ -2688,7 +2690,7 @@ char compjoga(tabuleiro *tabu)
 char analisa(tabuleiro *tabu)
 {
     tabuleiro tanalise;
-    int nv = 0, nmov;
+    int nv = 0;
     // lances calc. em maior nivel tem mais importancia?
     //mudou para logo abaixo do scanf de humajoga
     copitab(&tanalise, tabu);
