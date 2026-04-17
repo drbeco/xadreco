@@ -2433,8 +2433,7 @@ char situacao(tabuleiro tabu)
     //      3,4                             M,m:            xeque-mate (nas Brancas e nas Pretas respec.)
     //      5,6                             T,t:            o tempo acabou (das Brancas e das Pretas respec.)
     //      7                               *:              {Game was unfinished}
-    movimento *cabeca;
-    int insuf_branca = 0, insuf_preta = 0, nmov;
+    int insuf_branca = 0, insuf_preta = 0;
     int i, j;
     if(tabu.empate_50 >= 50.0)  //empate apos 50 lances sem captura ou movimento de peao
         return ('5');
@@ -2472,9 +2471,7 @@ char situacao(tabuleiro tabu)
     if(insuf_branca < 3 && insuf_preta < 3)  //os dois estao com insuficiencia de material
         return ('i');
     //repeticao: detectada em tab_insere(), chamada por joga_em()
-    nmov = AFOGOU; //somente achar UM LANCE e retornar rapido
-    cabeca = geramov(tabu, &nmov);  //TODO criar funcao gera1mov() retorna verdadeiro ou falso: quando nmov == -1, geramov retorna no primeiro valido
-    if(cabeca == NULL)  //Sem lances: Mate ou Afogamento.
+    if(!geramov(tabu, NULL, GERA_UNICO))  //Sem lances: Mate ou Afogamento.
     {
         if(!xeque_rei_das(tabu.vez, tabu))
             return ('a'); //empate por afogamento.
@@ -2484,9 +2481,8 @@ char situacao(tabuleiro tabu)
             else
                 return ('m'); //as pretas estao em xeque-mate
     }
-    else //Tem lances... mudou a geramov: tem um lance so: nmovi==AFOGOU
+    else //Tem lances
     {
-        libera_lances(&cabeca); //libera o lance
         if(xeque_rei_das(tabu.vez, tabu))
             return ('x');
     }
