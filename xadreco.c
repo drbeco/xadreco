@@ -122,6 +122,10 @@
 #define QUANTO_EMPATE2 20
 //flagvf de geramov, so para retornar rapido com um lance valido ou NULL
 #define AFOGOU -2
+// modos de geramov: gera todos, gera unico (confere afogado), gera este (TODO PLAN9)
+#define GERA_TUDO  0
+#define GERA_UNICO 1
+#define GERA_ESTE  2
 
 // dados ----------------------
 
@@ -227,6 +231,7 @@ enum piece_values
 
 // listas em arenas ----------------------------------
 lista *pltab=NULL; // ponteiro para lista de tabuleiros
+lista *plmov=NULL; // ponteiro para lista de movimentos (substitui succ_geral)
 
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
@@ -457,6 +462,11 @@ int main(int argc, char *argv[])
     arena_inicia(&atab, 1024 * 1024); // inicializa arena com 1Mb para historico de tabuleiros
     arena_destrutor(&atab, lst_limpa); // callback para limpar pltab
     lst_cria(&atab, &pltab); // lista de tabuleiros para historico
+
+    arena amov; // movimentos gerados para analise
+    arena_inicia(&amov, 1024 * 1024); // inicializa arena com 1Mb para movimentos
+    arena_destrutor(&amov, lst_limpa); // callback para limpar plmov
+    lst_cria(&amov, &plmov); // lista de movimentos para busca
 
     int opt; /* return from getopt() */
     tabuleiro tabu;
