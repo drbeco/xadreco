@@ -399,7 +399,7 @@ void pegaNmoves(char *linha2, char *linha, char *strlance);
 void conta_linhas_livro(void);
 
 // computador joga ----------------------------------------------------------
-// lista tipo movimento geramov, op cria lista via ench_pmovi
+// lista tipo movimento geramov, op cria lista via enche_pmovi
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 movimento *geramov(tabuleiro tabu, int *nmov);
 //coloca em result a melhor variante e seu valor.
@@ -4806,9 +4806,8 @@ void imprime_linha(movimento *loop, int mnum, int tabuvez)
     printf("\n");
 }
 
-//void ordena_succ(void){}
-//para testar sem a funcao ordena_succ. (notei que ha ganho no corte de nodos)
-void ordena_succ(int nmov)  //ordena succ_geral
+//ordena succ_geral
+void ordena_succ(int nmov)
 {
     movimento *loop, *pior, *insere, *aux;
     int peguei, pior_valor;
