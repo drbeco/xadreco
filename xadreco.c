@@ -4665,7 +4665,7 @@ void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, 
     }
     (*pmovi)->prox = NULL;
     (*pmovi)->lance[0] = c0; //lance em notacao inteira
-    (*pmovi)->lance[1] = c1; //move in integer notation
+    (*pmovi)->lance[1] = c1;
     (*pmovi)->lance[2] = c2;
     (*pmovi)->lance[3] = c3;
     (*pmovi)->peao_pulou = p; //contem coluna do peao que andou duas neste lance
