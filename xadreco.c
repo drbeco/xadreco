@@ -120,8 +120,6 @@
 #define QUANTO_EMPATE1 -200
 //pede empate se lances > MOVE_EMPATE2 e tem menos que 0.2 PEAO
 #define QUANTO_EMPATE2 20
-//flagvf de geramov, so para retornar rapido com um lance valido ou NULL
-#define AFOGOU -2
 // geramodo de geramov: gera todos, gera unico (confere afogado), gera este (TODO PLAN9)
 #define GERA_TUDO  0
 #define GERA_UNICO 1
@@ -231,14 +229,11 @@ enum piece_values
 
 // listas em arenas ----------------------------------
 lista *pltab = NULL; // ponteiro para lista de tabuleiros
-lista *plmov = NULL; // ponteiro para lista de movimentos (substitui succ_geral)
+lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas (antiga succ_geral)
 
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
 resultado result;
-//ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas;
-movimento *succ_geral;
-
 // outros globais ------------------------------------
 //my rating and opponent rating
 int myrating, opprating;
@@ -339,15 +334,14 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
 void testajogo(char *movinito, int mnum);
 //limpa algumas variaveis para iniciar a ponderacao
 void limpa_pensa(void);
-// lista tipo movimento enche_pmovi, op malloc+append, usada por geramov()
-//preenche a estrutura da lista de movimento
-//pp peao_pulou: contem -1 ou coluna do peao que andou duas neste lance
-//rr roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-//ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-//ff flag_50: 0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff, int *nmovi);
-//preenche a estrutura movimento usando arena e lst_insere (substitui enche_pmovi)
-void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int p, int r, int e, int f);
+//preenche a estrutura movimento usando arena e lst_insere
+//Argumentos:
+//   c0c1-c2c3: lance
+//   pp peao_pulou: nao -1 ou coluna do peao que andou duas neste lance
+//   rr roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
+//   ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+//   ff flag_50: 0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
+void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
 //imprime uma sequencia de lances armazenada na lista movimento, numerados.
@@ -384,9 +378,6 @@ char analisa(tabuleiro *tabu);
 int valido(tabuleiro tabu, int *lanc, movimento *result);
 //retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
 char situacao(tabuleiro tabu);
-//ordena succ_geral
-void ordena_succ(int nmov);
-
 // livro --------------------------------------------------------------
 //retorna em result.plance uma variante do livro, baseado na posicao do tabuleiro tabu
 void usalivro(tabuleiro tabu);
