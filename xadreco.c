@@ -4621,35 +4621,7 @@ void limpa_pensa(void)
     //  teminterroga = 0;
 }
 
-//preenche a estrutura movimento
-void enche_pmovi(movimento **cabeca, movimento **pmovi, int c0, int c1, int c2, int c3, int p, int r, int e, int f, int *nmovi)
-{
-    movimento *paux = (movimento *) malloc(sizeof(movimento));
-    if(paux == NULL)
-        msgsai("# Erro de alocacao de memoria em enche_pmovi 1", 1);
-
-    if((*cabeca) == NULL)
-        (*cabeca) = (*pmovi) = paux;
-    else
-    {
-        (*pmovi)->prox = paux;
-        (*pmovi) = (*pmovi)->prox;
-    }
-    (*pmovi)->prox = NULL;
-    (*pmovi)->lance[0] = c0; //lance em notacao inteira
-    (*pmovi)->lance[1] = c1;
-    (*pmovi)->lance[2] = c2;
-    (*pmovi)->lance[3] = c3;
-    (*pmovi)->peao_pulou = p; //contem coluna do peao que andou duas neste lance
-    (*pmovi)->roque = r;   //0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-    (*pmovi)->especial = e; //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    (*pmovi)->flag_50 = f; //:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
-    (*pmovi)->ordena = 0; //flag para ordenar a lista de movimentos segundo o valor_estatico
-    (*pmovi)->valor_estatico = 0; //valor deste lance, dado um tabuleiro para ele.
-    (*nmovi)++;
-}
-
-//preenche a estrutura movimento usando arena e lst_insere (substitui enche_pmovi)
+//preenche a estrutura movimento usando arena e lst_insere
 void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int p, int r, int e, int f)
 {
     if(!lmov)
