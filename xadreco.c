@@ -233,7 +233,7 @@ lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequ
 
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
-resultado resulta;
+resultado resulto;
 // outros globais ------------------------------------
 //my rating and opponent rating
 int myrating, opprating;
@@ -2492,6 +2492,8 @@ char compjoga(tabuleiro *tabu)
     movimento *melhorcaminho1;
     movimento *melhor_caminho = NULL;
     movimento *succ;
+    movimento *pv = NULL;
+    int val;
     no *n;
     limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
     melhorvalor1 = -LIMITE;
@@ -2537,8 +2539,8 @@ char compjoga(tabuleiro *tabu)
         if(randomchess)
         {
             n = plmov->cabeca;
-            resulta.plance = NULL;
-            resulta.valor = 0;
+            pv = NULL;
+            val = 0;
             moveto = (int)(rand() % plmov->qtd);  //sorteia um lance possivel da lista de lances
             for(i = 0; i < moveto; ++i)
                 if(n != NULL)
@@ -2547,44 +2549,38 @@ char compjoga(tabuleiro *tabu)
             if(n != NULL)
             {
                 succ = (movimento *)n->info;
-                melhor_caminho = copimel(*succ, resulta.plance);
+                melhor_caminho = copimel(*succ, pv);
                 succ->valor_estatico = 0;
-                resulta.valor = 0;
-                libera_lances(&resulta.plance);
-                resulta.plance = copilistmov(melhor_caminho);
+                val = 0;
+                libera_lances(&pv);
+                pv = copilistmov(melhor_caminho);
                 libera_lances(&melhor_caminho);
-                melhorcaminho1 = copilistmov(resulta.plance);
-                melhorvalor1 = resulta.valor;
+                melhorcaminho1 = copilistmov(pv);
+                melhorvalor1 = val;
             } //if n
         } //if randomchess
         else
-            while(resulta.valor < XEQUEMATE)
+            while(val < XEQUEMATE)
             {
                 limpa_pensa();
+                libera_lances(&pv);
                 if(debug == 2)  //nivel extra de debug
                 {
                     fprintf(fmini, "#\n#\n# *************************************************************");
                     fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)",
                             -LIMITE, LIMITE, nv);
                 }
-                //tabuleiro atual, profundidade zero, limite minimo de estatico (alfa ou passo), limite maximo de estatico (beta ou uso), nivel da busca
-                //profflag=1; //pode analisar.
-                minimax(*tabu, 0, -LIMITE, +LIMITE, nv);
-                //retorna o melhor caminho a partir de tab...
-                if(resulta.plance == NULL)
+                val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv, &pv);
+                if(pv == NULL)
                 {
-//                    printf ("# Error compjoga 2857: Sem lances; resulta.plance==NULL; break; \n");
-                    //Nova definicao: sem lances, pode ser que queira avancar apos mate.
-                    //20131202 NULL nao implica nao ter lance. Pode ter no nivel anterior
+                    //sem lances, pode ser que queira avancar apos mate.
                     break;
                 }
-                //18/10/2004, 19:20 +3 GMT. Descobri e criei esse teste apos muito sofrimento em debugs. Fim da ver. cinco!
-                //01/12/2013, funcao difclocks trabalhando com segundos (nao mais centisegundos)
                 if(difclocks() < tempomovclock)
                 {
                     libera_lances(&melhorcaminho1);
-                    melhorcaminho1 = copilistmov(resulta.plance);
-                    melhorvalor1 = resulta.valor;
+                    melhorcaminho1 = copilistmov(pv);
+                    melhorvalor1 = val;
                 }
                 else
                     if(melhorcaminho1 != NULL) /* time exceeded and we have a move: stop now */
@@ -2593,39 +2589,32 @@ char compjoga(tabuleiro *tabu)
                 lst_ordem(plmov);  //ordena lista de movimentos
                 if(debug == 2)
                 {
-                    fprintf(fmini, "#\n# resulta.valor: %+.2f totalnodo: %d\n# resulta.plance: ", resulta.valor / 100.0, totalnodo);
-                    if(!mostrapensando || abs(resulta.valor) == FIMTEMPO || abs(resulta.valor) == LIMITE)
-                        imprime_linha(resulta.plance, 1, 2);
-                    //1=mnum do lance, 2=vez: pular impressao na tela.
-                    //tabu->meionum+1, -tabu->vez);
+                    fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\n# pv: ", val / 100.0, totalnodo);
+                    if(!mostrapensando || abs(val) == FIMTEMPO || abs(val) == LIMITE)
+                        imprime_linha(pv, 1, 2);
                 }
-                //nivel pontuacao tempo totalnodo variacao === usado!
-                //nivel tempo valor lances no arena. (nao usado aqui. testar)
-                if(mostrapensando && abs(resulta.valor) != FIMTEMPO && abs(resulta.valor) != LIMITE)
+                if(mostrapensando && abs(val) != FIMTEMPO && abs(val) != LIMITE)
                 {
-//                    printf ("# xadreco : ply score time nodes pv\n");
-                    printf("%3d %+6d %3d %7d ", nv, resulta.valor, (int)difclocks(), totalnodo);
-                    imprime_linha(resulta.plance, tabu->meionum + 1, -tabu->vez);
-//                    printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d ", nv, (float) resulta.valor / 100.0, (int)difclocks(), totalnodo);
+                    printf("%3d %+6d %3d %7d ", nv, val, (int)difclocks(), totalnodo);
+                    imprime_linha(pv, tabu->meionum + 1, -tabu->vez);
                 }
                 // termino do laco infinito baseado no tempo
-                if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))   // termino do laco infinito baseado no tempo
+                if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))
                 {
-                    if(resulta.plance == NULL)
+                    if(pv == NULL)
                     {
-                        printdbg(debug, "# compjoga 2898: Sem lances; difclocks()>tempomovclock; resulta.plance==NULL; (!break);\n");
-                        // nv--; /* testar se pode rodar de novo o mesmo nivel e ter lance */
-                        // antigo: if(dif) break! retirar o else.
+                        printdbg(debug, "# compjoga: Sem lances; difclocks()>tempomovclock; pv==NULL; (!break);\n");
                     }
                     else
                         break;
                 }
                 nv++; // busca em amplitude: aumenta um nivel.
-            } //while resulta.plance < XEQUEMATE
+            } //while val < XEQUEMATE
     } // fim do se nao usou livro
+    libera_lances(&pv);  //libera pv local da ultima iteracao
     libera_lances(&resulta.plance);
-    resulta.plance = copilistmov(melhorcaminho1);
-    libera_lances(&melhorcaminho1);
+    resulta.plance = melhorcaminho1;  //transfere ownership
+    melhorcaminho1 = NULL;
     resulta.valor = melhorvalor1;
     //nivel extra de debug
     if(debug == 2)
