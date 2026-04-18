@@ -180,8 +180,9 @@ typedef struct stabuleiro
     float empate_50;
     //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: * sem resultado
     int situa;
-    //lance executado originador deste tabuleiro.
-    int lancex[4];
+    //lance executado originador deste tabuleiro. de=origem, pa=destino (0-63)
+    int de;
+    int pa;
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu en passant.
     //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
     int especial;
@@ -192,8 +193,10 @@ tabuleiro;
 
 typedef struct smovimento
 {
-    //lance em notacao inteira
-    int lance[4];
+    //lance em notacao inteira: de=origem, pa=destino (0-63, indices de tab[64])
+    //a1=0, h1=7, a8=56, h8=63. SQ(col,row)=col+row*8, COL(sq)=sq&7, ROW(sq)=sq>>3
+    int de;
+    int pa;
     //contem coluna do peao que andou duas neste lance
     int peao_pulou;
     //roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
@@ -310,15 +313,13 @@ void imptab(tabuleiro tabu);
 //mostra na tela informacoes do jogo e analises
 void mostra_lances(tabuleiro tabu);
 //transforma lances int 0077 em char tipo a1h8
-void lance2movi(char *m, int *l, int especial);
+void lance2movi(char *m, int de, int pa, int especial);
 //faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.
-int movi2lance(int *l, char *m);
+int movi2lance(int *de, int *pa, char *m);
 //retorna o adversario de quem esta na vez
 inline int adv(int vez);
 //retorna 1, -1 ou 0. Sinal de x
 inline int sinal(int x);
-//compara dois vetores de lance[4]. Se igual, retorna 1
-int igual(int *lance1, int *lance2);
 //pegar caracter (linux e windows)
 char pega(char *no, char *msg);
 /* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
@@ -344,7 +345,7 @@ void limpa_pensa(void);
 //   rr roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
 //   ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
 //   ff flag_50: 0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff);
+void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
 //imprime uma sequencia de lances armazenada na lista, numerados.
@@ -378,7 +379,7 @@ void volta_lance(tabuleiro *tabu);
 //analisa uma posicao mas nao joga
 char analisa(tabuleiro *tabu);
 //procura nos movimentos de geramov se o lance em questao eh valido. Retorna o *movimento preenchido. Se nao, retorna NULL.
-int valido(tabuleiro tabu, int *lanc, movimento *result);
+int valido(tabuleiro tabu, int de, int pa, movimento *result);
 //retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
 char situacao(tabuleiro tabu);
 // livro --------------------------------------------------------------
@@ -434,8 +435,6 @@ lista *lst_copia(arena *a, lista *src); // copia lista src para arena a
 lista *pv_constroi(arena *a, movimento ummovi, lista *plan); // constroi PV: ummovi + plan
 
 // prototipos listas dinamicas -----------------------------------------------------------
-//copia os itens da estrutura movimento. dest=font
-void copimov(movimento *dest, movimento *font);
 //insere tabuleiro na arena pltab. Retorna contagem de repeticao (>=3 empate)
 int tab_insere(tabuleiro tabu);
 //copia font para dest. dest=font.
