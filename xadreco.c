@@ -214,7 +214,7 @@ typedef struct sresultado
     //valor da variante
     int valor;
     //os movimentos da variante
-    movimento *plance;
+    lista *plance;
 }
 resultado;
 
@@ -2616,8 +2616,7 @@ char compjoga(tabuleiro *tabu)
             } //while val < XEQUEMATE
     } // fim do se nao usou livro
     pv = NULL;
-    //TODO step7: resulta.plance tipo lista*
-    resulta.plance = melhorcaminho1;  //TODO step7: resulta.plance tipo lista*
+    resulta.plance = melhorcaminho1;  //transfere ownership
     melhorcaminho1 = NULL;
     resulta.valor = melhorvalor1;
     //nivel extra de debug
@@ -2673,7 +2672,7 @@ char compjoga(tabuleiro *tabu)
             return res; //vazio mesmo! Nem aleatorio foi!
         printdbg(debug, "# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
     }
-    res = joga_em(tabu, *resulta.plance, 1);  // computador joga
+    res = joga_em(tabu, *(movimento *)resulta.plance->cabeca->info, 1);  // computador joga
     return (res);
 } //fim da compjoga
 
