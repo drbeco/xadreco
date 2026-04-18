@@ -432,20 +432,12 @@ lista *lst_copia(arena *a, lista *src); // copia lista src para arena a
 lista *pv_constroi(arena *a, movimento ummovi, lista *plan); // constroi PV: ummovi + plan
 
 // prototipos listas dinamicas -----------------------------------------------------------
-//retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
-movimento *copimel(movimento pmovi, movimento *plance);
 //copia os itens da estrutura movimento, mas nao copia ponteiro prox. dest=font
 void copimov(movimento *dest, movimento *font);
-//mantem dest, e copia para dest->prox a lista encadeada font. Assim, a nova lista e (dest+font)
-void copilistmovmel(movimento *dest, movimento *font);
-//copia uma lista encadeada para outra nova. Retorna cabeca da lista destino
-movimento *copilistmov(movimento *font);
 //insere tabuleiro na arena pltab. Retorna contagem de repeticao (>=3 empate)
 int tab_insere(tabuleiro tabu);
 //copia font para dest. dest=font.
 void copitab(tabuleiro *dest, tabuleiro *font);
-// lista tipo movimento, libera da memoria uma lista encadeada de movimentos
-void libera_lances(movimento **cabeca);
 
 // turnos -----------------------------------------------------------
 //humano joga. Aceita comandos XBoard/WinBoard.
@@ -836,20 +828,6 @@ void mostra_lances(tabuleiro tabu)
 }
 
 //fim do mostra_lances
-void libera_lances(movimento **cabeca)
-{
-    movimento *loop, *aux;
-    if(*cabeca == NULL)
-        return;
-    loop = *cabeca;
-    while(loop != NULL)
-    {
-        aux = loop->prox;
-        free(loop);
-        loop = aux;
-    }
-    *cabeca = NULL;
-}
 
 // imprime o movimento
 // funcao intermediaria chamada no intervalo humajoga / compjoga
@@ -1527,7 +1505,6 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
         return 0;
     if(lmov && lmov->qtd > 1)
         lst_parte(lmov); //particiona: capturas e especiais primeiro
-    assert(plpv != NULL && "plpv NULL at exit of geramov");
     return (lmov ? lmov->qtd > 0 : 0);
 }
 //fim de   ----------- int geramov(tabuleiro tabu, lista *lmov, int geramodo)
@@ -2521,29 +2498,22 @@ char compjoga(tabuleiro *tabu)
     }
 
     // checar se usa livro --------------------------------------------------
-    assert(plpv != NULL && "plpv NULL before usalivro");
     if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usalivro(*tabu);
-        assert(plpv != NULL && "plpv NULL after usalivro");
         if(!resulta.plance || !resulta.plance->cabeca)
             USALIVRO = 0;
         melhorcaminho1 = lst_copia(plpv->a, resulta.plance);
-        assert(plpv != NULL && "plpv NULL after lst_copia in book");
         melhorvalor1 = resulta.valor;
     }
 
     // se nao livro, random ou minimax -------------------------------------
-    assert(plpv != NULL && "plpv NULL before search decision");
     if(!resulta.plance || !resulta.plance->cabeca)
     {
         //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
         nv = 1;
-        assert(plpv != NULL && "plpv NULL before lst_recria plmov");
         lst_recria(&plmov);
-        assert(plpv != NULL && "plpv NULL after lst_recria plmov");
         geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
-        assert(plpv != NULL && "plpv NULL after geramov");
         totalnodo = 0;
         //primeiro lance: joga rapido, metade do tempo, maximo 10s
         if(tabu->meionum <= 1)
@@ -2568,7 +2538,6 @@ char compjoga(tabuleiro *tabu)
             if(n != NULL)
             {
                 succ = (movimento *)n->info;
-                assert(plpv != NULL && "plpv NULL in compjoga randomchess");
                 melhorcaminho1 = pv_constroi(plpv->a, *succ, pv);
                 succ->valor_estatico = 0;
                 val = 0;
@@ -2578,20 +2547,15 @@ char compjoga(tabuleiro *tabu)
         } //end if randomchess
         else
         {
-            assert(plpv != NULL && "plpv NULL before while loop");
-            fprintf(stderr, "# DBG plpv=%p before while\n", (void*)plpv);
             while(val < XEQUEMATE)
             {
                 limpa_pensa();
-                assert(plpv != NULL && "plpv NULL after limpa_pensa");
-                assert(resulta.plance != plpv && "resulta.plance and plpv share same address");
                 pv = NULL;
                 if(debug == 2)  //nivel extra de debug
                 {
                     fprintf(fmini, "#\n#\n# *************************************************************");
                     fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
                 }
-                assert(plpv != NULL && "plpv NULL before minimax in compjoga");
                 val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv, &pv);
                 if(pv == NULL)
                 {
@@ -2854,13 +2818,11 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
         }
         child_val = minimax(tab, prof + 1, -beta, -alfa, niv, &child_pv);
-        assert(plpv != NULL && "plpv NULL after child minimax returns");
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         novo_valor = -child_val;
         if(novo_valor > alfa)
         {
             alfa = novo_valor;
-            assert(plpv != NULL && "plpv is NULL in minimax pv_constroi");
             melhor_caminho = pv_constroi(plpv->a, *succ, child_pv);
         }
         child_pv = NULL;  //abandona PV do filho na arena
@@ -3086,50 +3048,6 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     return (res);
 } //fim da joga_em
 
-//copia ummovi no comeco da lista *plan, e retorna a cabeca desta NOVA lista (mel)
-movimento *copimel(movimento ummovi, movimento *plan)
-{
-    movimento *mel;
-    mel = (movimento *) malloc(sizeof(movimento));
-    if(mel == NULL)
-        msgsai("# Erro de alocacao de memoria em copimel 1", 25);
-    copimov(mel, &ummovi);
-    copilistmovmel(mel, plan);
-    return (mel);
-}
-
-// copia do segundo lance para frente, mantendo o primeiro
-void copilistmovmel(movimento *dest, movimento *font)
-{
-    movimento *loop;
-    if(font == dest)
-        msgsai("# Funcao copilistmovmel precisa de duas listas DIFERENTES.", 26);
-    if(dest == NULL)
-        msgsai("# Funcao copilistmovmel precisa dest!=NULL.", 27);
-    if(font == NULL)
-    {
-        dest->prox = NULL;
-        return;
-    }
-    dest->prox = (movimento *) malloc(sizeof(movimento));
-    if(dest->prox == NULL)
-        msgsai("# Erro de alocacao de memoria em copilistmovmel 1", 28);
-    loop = dest->prox;
-    while(font != NULL)
-    {
-        copimov(loop, font);
-        font = font->prox;
-        if(font != NULL)
-        {
-            loop->prox = (movimento *) malloc(sizeof(movimento));
-            if(loop->prox == NULL)
-                msgsai("# Erro de alocacao de memoria em copilistmovmel 2", 29);
-            loop = loop->prox;
-        }
-    }
-    loop->prox = NULL;
-}
-
 //nao compia o ponteiro prox
 void copimov(movimento *dest, movimento *font)
 {
@@ -3142,32 +3060,6 @@ void copimov(movimento *dest, movimento *font)
     dest->especial = font->especial;
     dest->ordena = font->ordena;
     dest->valor_estatico = font->valor_estatico;
-}
-
-//cria nova lista de movimentos para destino
-movimento *copilistmov(movimento *font)
-{
-    movimento *cabeca, *pmovi;
-    if(font == NULL)
-        return NULL;
-    cabeca = (movimento *) malloc(sizeof(movimento));   //valor novo que sera do resulta.plance # BUG valgrind memory leak
-    if(cabeca == NULL)
-        msgsai("# Erro ao alocar memoria em copilistmov 1", 30);
-    pmovi = cabeca;
-    while(font != NULL)
-    {
-        copimov(pmovi, font);
-        font = font->prox;
-        if(font != NULL)
-        {
-            pmovi->prox = (movimento *) malloc(sizeof(movimento));
-            if(pmovi->prox == NULL)
-                msgsai("# Erro ao alocar memoria em copilistmov 2", 31);
-            pmovi = pmovi->prox;
-        }
-    }
-    pmovi->prox = NULL;
-    return cabeca;
 }
 
 //retorna o valor tatico e estrategico de um tabuleiro, sendo valor positivo melhor quem esta na vez
@@ -4354,25 +4246,6 @@ void usalivro(tabuleiro tabu)
             resulta.plance = cabeca;
 
             /* if(cabeca == NULL) */
-            /* { */
-            /*     cabeca = string2pmovi(tabu.meionum, linha); */
-            /*     resulta.valor = estatico_pmovi(tabu, cabeca); */
-            /*     libera_lances(&resulta.plance); */
-            /*     resulta.plance = copilistmov(cabeca); */
-            /* } */
-            /* else */
-            /* { */
-            /*     libera_lances(&cabeca); */
-            /*     cabeca = string2pmovi(tabu.meionum, linha); */
-            /*     //eh a primeira linha que casou */
-            /*     novovalor = estatico_pmovi(tabu, cabeca); */
-            /*     if(novovalor > resulta.valor) */
-            /*     { */
-            /*         resulta.valor = novovalor; */
-            /*         libera_lances(&resulta.plance); */
-            /*         resulta.plance = copilistmov(cabeca); */
-            /*     } */
-            /* } */
         } //else nao e o primeiro lance nem de brancas, nem de pretas
 
     if(flivro)
@@ -4546,10 +4419,7 @@ void  coloca_pecas(tabuleiro *tabu)
 void limpa_pensa(void)
 {
     IFDEBUG("limpa_pensa()");
-    /* fprintf(stderr, "# DBG plpv=%p at entry limpa_pensa\n", (void*)plpv); */
-    assert(plpv != NULL && "plpv NULL at entry of limpa_pensa");
     resulta.plance = NULL;
-    assert(plpv != NULL && "plpv NULL after resulta.plance=NULL in limpa_pensa");
     //eh necessario
     resulta.valor = -LIMITE;
     //conferir
