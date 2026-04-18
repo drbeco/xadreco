@@ -2553,9 +2553,8 @@ char compjoga(tabuleiro *tabu)
                 succ->valor_estatico = 0;
                 val = 0;
                 libera_lances(&pv);
-                pv = copilistmov(melhor_caminho);
-                libera_lances(&melhor_caminho);
-                melhorcaminho1 = copilistmov(pv);
+                melhorcaminho1 = melhor_caminho;  //transfere ownership
+                melhor_caminho = NULL;
                 melhorvalor1 = val;
             } //if n
         } //end if randomchess
@@ -4777,8 +4776,8 @@ char randommove(tabuleiro *tabu)
         succ->valor_estatico = 0;
         melhor_caminho = copimel(*succ, NULL);
         resulta.valor = 0;
-        resulta.plance = copilistmov(melhor_caminho);
-        libera_lances(&melhor_caminho);
+        resulta.plance = melhor_caminho;  //transfere ownership
+        melhor_caminho = NULL;
         return '-'; //ok
     }
     printdbg(debug, "# empty from randommove - BUG\n");
