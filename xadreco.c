@@ -230,6 +230,7 @@ enum piece_values
 // listas em arenas ----------------------------------
 lista *pltab = NULL; // ponteiro para lista de tabuleiros
 lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas (antiga succ_geral)
+lista *plpv = NULL; // PV line (principal variation)
 
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
@@ -427,6 +428,9 @@ void lst_furafila(lista *l, no *n); // desencaixa no e reinsere na cabeca da lis
 void lst_recria(lista **pl); // zera arena e recria lista do inicio
 void lst_parte(lista *l); // particiona: capturas e especiais primeiro
 void lst_ordem(lista *l); // ordena por valor_estatico decrescente
+lista *lst_copia(arena *a, lista *src); // copia lista src para arena a
+lista *pv_constroi(arena *a, movimento ummovi, lista *plan); // constroi PV: ummovi + plan
+void arena_gc(arena *a, lista *l); // garbage collector: compacta arena se >75%
 
 // prototipos listas dinamicas -----------------------------------------------------------
 //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
@@ -464,6 +468,11 @@ int main(int argc, char *argv[])
     arena_inicia(&amov, 1024 * 1024); // inicializa arena com 1Mb para movimentos
     arena_destrutor(&amov, lst_limpa); // callback para limpar plmov
     lst_cria(&amov, &plmov); // lista de movimentos para busca
+
+    arena apv; // principal variation (PV)
+    arena_inicia(&apv, 1024 * 1024); // inicializa arena com 1Mb para PV
+    arena_destrutor(&apv, lst_limpa); // callback para limpar plpv
+    lst_cria(&apv, &plpv); // lista da variante principal
 
     int opt; /* return from getopt() */
     tabuleiro tabu;
