@@ -2681,7 +2681,7 @@ char analisa(tabuleiro *tabu)
 {
     tabuleiro tanalise;
     int nv = 0;
-    movimento *pv = NULL;
+    lista *pv = NULL;
     int val = -LIMITE;
     // lances calc. em maior nivel tem mais importancia?
     //mudou para logo abaixo do scanf de humajoga
@@ -2719,7 +2719,7 @@ char analisa(tabuleiro *tabu)
         while(val < XEQUEMATE)
         {
             limpa_pensa();
-            libera_lances(&pv);
+            pv = NULL;
             val = minimax(*tabu, 0, -LIMITE, LIMITE, nv, &pv);
             totalnodo += totalnodonivel;
             lst_ordem(plmov);
