@@ -858,15 +858,13 @@ void imptab(tabuleiro tabu)
     }
 }
 
-//int para char
-void lance2movi(char *m, int *l, int espec)
+//int para char: de/pa (0-63) para string "e2e4"
+void lance2movi(char *m, int de, int pa, int espec)
 {
-    int i;
-    for(i = 0; i < 2; i++)
-    {
-        m[2 * i] = l[2 * i] + 'a';
-        m[2 * i + 1] = l[2 * i + 1] + '1';
-    }
+    m[0] = COL(de) + 'a';
+    m[1] = ROW(de) + '1';
+    m[2] = COL(pa) + 'a';
+    m[3] = ROW(pa) + '1';
     m[4] = '\0';
     m[5] = '\0';
     //n[2]='-';
@@ -892,24 +890,16 @@ void lance2movi(char *m, int *l, int espec)
     }
 }
 
-//transforma char de entrada em int
-int movi2lance(int *l, char *m)
+//transforma char de entrada em int de/pa (0-63)
+int movi2lance(int *de, int *pa, char *m)
 {
-    int i;
-    for(i = 0; i < 2; i++)
-        //as coordenadas origem e destino estao no tabuleiro
-        if(m[2 * i] < 'a' || m[2 * i] > 'h' || m[2 * i + 1] < '1'
-                || m[2 * i + 1] > '8')
-            //2i e 2i+1
-            return (0);
-    for(i = 0; i < 2; i++)
-    {
-        l[2 * i] = (int)(m[2 * i] - 'a');
-        //l[0]=m[0]-'a'   l[2]=m[3]-'a'
-        l[2 * i + 1] = (int)(m[2 * i + 1]) - '1';
-        //l[1]=m[1]-'1'   l[3]=m[4]-'1'
-    }
-    return (1);
+    if(m[0] < 'a' || m[0] > 'h' || m[1] < '1' || m[1] > '8')
+        return 0;
+    if(m[2] < 'a' || m[2] > 'h' || m[3] < '1' || m[3] > '8')
+        return 0;
+    *de = SQ((int)(m[0] - 'a'), (int)(m[1] - '1'));
+    *pa = SQ((int)(m[2] - 'a'), (int)(m[3] - '1'));
+    return 1;
 }
 
 inline int adv(int vez)
