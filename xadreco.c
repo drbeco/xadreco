@@ -2498,10 +2498,9 @@ char compjoga(tabuleiro *tabu)
     int melhorvalor1;
     int moveto;
     // lances calc. em maior nivel tem mais importancia?
-    movimento *melhorcaminho1;
-    movimento *melhor_caminho = NULL;
+    lista *melhorcaminho1 = NULL;
+    lista *pv = NULL;
     movimento *succ;
-    movimento *pv = NULL;
     int val = -LIMITE;
     no *n;
     limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
@@ -2522,8 +2521,8 @@ char compjoga(tabuleiro *tabu)
         usalivro(*tabu);
         if(resulta.plance == NULL)
             USALIVRO = 0;
-        libera_lances(&melhorcaminho1);
-        melhorcaminho1 = copilistmov(resulta.plance);
+        melhorcaminho1 = NULL; //TODO step8: lst_copia do livro
+        //TODO step8: melhorcaminho1 = lst_copia(plpv->a, resulta.plance); //livro ainda usa movimento*
         melhorvalor1 = resulta.valor;
     }
 
@@ -2558,12 +2557,10 @@ char compjoga(tabuleiro *tabu)
             if(n != NULL)
             {
                 succ = (movimento *)n->info;
-                melhor_caminho = copimel(*succ, pv);
+                melhorcaminho1 = pv_constroi(plpv->a, *succ, pv);
                 succ->valor_estatico = 0;
                 val = 0;
-                libera_lances(&pv);
-                melhorcaminho1 = melhor_caminho;  //transfere ownership
-                melhor_caminho = NULL;
+                pv = NULL;
                 melhorvalor1 = val;
             } //if n
         } //end if randomchess
@@ -2571,7 +2568,7 @@ char compjoga(tabuleiro *tabu)
             while(val < XEQUEMATE)
             {
                 limpa_pensa();
-                libera_lances(&pv);
+                pv = NULL;
                 if(debug == 2)  //nivel extra de debug
                 {
                     fprintf(fmini, "#\n#\n# *************************************************************");
@@ -2585,8 +2582,8 @@ char compjoga(tabuleiro *tabu)
                 }
                 if(difclocks() < tempomovclock)
                 {
-                    libera_lances(&melhorcaminho1);
-                    melhorcaminho1 = copilistmov(pv);
+                    melhorcaminho1 = lst_copia(plpv->a, pv);
+                    arena_gc(plpv->a, melhorcaminho1);
                     melhorvalor1 = val;
                 }
                 else
@@ -2598,12 +2595,12 @@ char compjoga(tabuleiro *tabu)
                 {
                     fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\n# pv: ", val / 100.0, totalnodo);
                     if(!mostrapensando || abs(val) == FIMTEMPO || abs(val) == LIMITE)
-                        imprime_linha(pv, 1, 2);
+                        ; //TODO step6: imprime_linha(pv, 1, 2);
                 }
                 if(mostrapensando && abs(val) != FIMTEMPO && abs(val) != LIMITE)
                 {
                     printf("%3d %+6d %3d %7d ", nv, val, (int)difclocks(), totalnodo);
-                    imprime_linha(pv, tabu->meionum + 1, -tabu->vez);
+                    //TODO step6: imprime_linha(pv, tabu->meionum + 1, -tabu->vez);
                 }
                 // termino do laco infinito baseado no tempo
                 if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))
@@ -2618,9 +2615,9 @@ char compjoga(tabuleiro *tabu)
                 nv++; // busca em amplitude: aumenta um nivel.
             } //while val < XEQUEMATE
     } // fim do se nao usou livro
-    libera_lances(&pv);  //libera pv local da ultima iteracao
-    libera_lances(&resulta.plance);
-    resulta.plance = melhorcaminho1;  //transfere ownership
+    pv = NULL;
+    //TODO step7: resulta.plance tipo lista*
+    resulta.plance = melhorcaminho1;  //TODO step7: resulta.plance tipo lista*
     melhorcaminho1 = NULL;
     resulta.valor = melhorvalor1;
     //nivel extra de debug
