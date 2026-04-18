@@ -4369,8 +4369,8 @@ void inicia(tabuleiro *tabu)
     ultimo_resultado[0] = '\0';
     tabu->situa = 0;
     tabu->especial = 0;
-    for(i = 0; i < 4; i++)
-        tabu->lancex[i] = 0;
+    tabu->de = 0;
+    tabu->pa = 0;
     for(i = 0; i < 8; i++)
         for(j = 0; j < 8; j++)
             tabu->tab[SQ(i, j)] = VAZIA;
