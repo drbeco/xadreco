@@ -121,9 +121,9 @@
 //pede empate se lances > MOVE_EMPATE2 e tem menos que 0.2 PEAO
 #define QUANTO_EMPATE2 20
 // geramodo de geramov: gera todos, gera unico (confere afogado), gera este (TODO PLAN9)
-#define GERA_TUDO  0
-#define GERA_UNICO 1
-#define GERA_ESTE  2
+#define GERA_TUDO  -1
+#define GERA_UNICO -2
+// geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
 // tamanho das arenas em bytes
 #define ARENA_TAB  (2 * 1024 * 1024)
 #define ARENA_MOV  (2 * 1024 * 1024)
@@ -942,12 +942,22 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     int i, j, k, l, m, flag;
     int col, lin;
     int peca;
-    // int pp; //peao pulou
-    int rr, ee, ff; //peao pulou, roque, especial e flag50;
+    int rr, ee, ff; //roque, especial e flag50;
+    int i0, i1, j0, j1; //limites do loop
 
-    assert(tabu.vez == brancas || tabu.vez == pretas && "Invalid turn in geramov");
-    for(i = 0; i < 8; i++)  //#coluna
-        for(j = 0; j < 8; j++)  //#linha
+    assert(tabu.vez == brancas || (tabu.vez == pretas && "Invalid turn in geramov"));
+    if(geramodo >= 0) // GERA_DESTE: gera apenas da casa geramodo (0-63)
+    {
+        i0 = i1 = COL(geramodo);
+        j0 = j1 = ROW(geramodo);
+    }
+    else
+    {
+        i0 = 0; i1 = 7;
+        j0 = 0; j1 = 7;
+    }
+    for(i = i0; i <= i1; i++)  //#coluna
+        for(j = j0; j <= j1; j++)  //#linha
         {
             if((tabu.tab[SQ(i, j)]) * (tabu.vez) <= 0) //casa vazia, ou cor errada:
                 continue; // (+)*(-)==(-) , (-)*(+)==(-)
@@ -2343,7 +2353,7 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result)
     arena_inicia(&aval, 64 * 1024);
     if(lst_cria(&aval, &llval))
         msgsai("# Erro arena cheia em valido() lst_cria", 39);
-    geramov(tabu, llval, GERA_TUDO);
+    geramov(tabu, llval, de); // de (0-63) como geramodo: gera apenas desta casa
 
     n = llval->cabeca;
     while(n)
