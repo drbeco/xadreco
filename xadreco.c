@@ -5093,6 +5093,70 @@ void lst_ordem(lista *l)
     }
 }
 
+// copia lista src para arena a
+lista *lst_copia(arena *a, lista *src)
+{
+    lista *dst;
+    no *n;
+    movimento *m;
+
+    lst_cria(a, &dst);
+    if(!src)
+        return dst;
+    n = src->cabeca;
+    while(n)
+    {
+        m = (movimento *)arena_aloca(a, sizeof(movimento));
+        *m = *(movimento *)n->info;
+        lst_insere(dst, m, sizeof(movimento));
+        n = n->prox;
+    }
+    return dst;
+}
+
+// constroi PV: ummovi na cabeca + copia de plan
+lista *pv_constroi(arena *a, movimento ummovi, lista *plan)
+{
+    lista *pv;
+    movimento *m;
+    no *n;
+
+    lst_cria(a, &pv);
+    m = (movimento *)arena_aloca(a, sizeof(movimento));
+    *m = ummovi;
+    lst_insere(pv, m, sizeof(movimento));
+    if(plan)
+    {
+        n = plan->cabeca;
+        while(n)
+        {
+            m = (movimento *)arena_aloca(a, sizeof(movimento));
+            *m = *(movimento *)n->info;
+            lst_insere(pv, m, sizeof(movimento));
+            n = n->prox;
+        }
+    }
+    return pv;
+}
+
+// garbage collector: compacta arena se >75%, dobra tamanho
+void arena_gc(arena *a, lista *l)
+{
+    arena anew;
+    lista *lnew;
+
+    if(a->usado <= a->total * 3 / 4)
+        return;
+    arena_inicia(&anew, a->total * 2);
+    if(a->destrutor)
+        arena_destrutor(&anew, a->destrutor);
+    lnew = lst_copia(&anew, l);
+    lnew->pl = l->pl;
+    *(l->pl) = lnew;
+    arena_destroi(a);
+    *a = anew;
+}
+
 /* historico de tabuleiros usando arena ------------------------------- */
 
 //insere tabuleiro na arena pltab. Retorna contagem de repeticao (>=3 empate)
