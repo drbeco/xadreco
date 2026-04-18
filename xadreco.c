@@ -124,6 +124,10 @@
 #define GERA_TUDO  0
 #define GERA_UNICO 1
 #define GERA_ESTE  2
+// tamanho das arenas em bytes
+#define ARENA_TAB  (2 * 1024 * 1024)
+#define ARENA_MOV  (2 * 1024 * 1024)
+#define ARENA_PV   (2 * 1024 * 1024)
 
 // dados ----------------------
 
@@ -451,17 +455,17 @@ int main(int argc, char *argv[])
 {
     // gerenciamento de memoria com arenas
     arena atab; // historico de posicoes de tabuleiro do jogo
-    arena_inicia(&atab, 1024 * 1024); // inicializa arena com 1Mb para historico de tabuleiros
+    arena_inicia(&atab, ARENA_TAB);
     arena_destrutor(&atab, lst_limpa); // callback para limpar pltab
     lst_cria(&atab, &pltab); // lista de tabuleiros para historico
 
     arena amov; // movimentos gerados para analise
-    arena_inicia(&amov, 1024 * 1024); // inicializa arena com 1Mb para movimentos
+    arena_inicia(&amov, ARENA_MOV);
     arena_destrutor(&amov, lst_limpa); // callback para limpar plmov
     lst_cria(&amov, &plmov); // lista de movimentos para busca
 
     arena apv; // principal variation (PV)
-    arena_inicia(&apv, 4 * 1024 * 1024); // inicializa arena com 4Mb para PV
+    arena_inicia(&apv, ARENA_PV);
     arena_destrutor(&apv, lst_limpa); // callback para limpar plpv
     lst_cria(&apv, &plpv); // lista da variante principal
 
@@ -4713,6 +4717,7 @@ void copyr(void)
     IFDEBUG("copyr()");
     printf("%s - Version %s, build %s\n", "Xadreco", VERSION, BUILD);
     printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2018, "Ruben Carlo Benante", "rcb@beco.cc");
+    printf("Arenas: tab=%dKB mov=%dKB pv=%dKB\n\n", ARENA_TAB/1024, ARENA_MOV/1024, ARENA_PV/1024);
     if(debug > 3) printf("copyr(): Verbose: %d\n", debug); /* -vvvv */
     exit(EXIT_FAILURE);
 }
