@@ -1708,7 +1708,7 @@ char humajoga(tabuleiro *tabu)
     //    char aux;
     //     char peca;
     int tente;
-    int lanc[4], moves, minutes;
+    int de, pa, moves, minutes;
     double secs, osecs = 0.0, incre = 0.0;
     int i, j, k;
     //     int casacor;
@@ -2311,14 +2311,14 @@ char humajoga(tabuleiro *tabu)
             testajogo(movinito, tabu->meionum);
         //retorna um lance do jogo de teste (em movinito)
         //e vai la embaixo jogar ele
-        if(!movi2lance(lanc, movinito))   //se nao existe este lance
+        if(!movi2lance(&de, &pa, movinito))   //se nao existe este lance
         {
 //            printdbg(debug, "# xadreco : Error (unknown command): %s\n", movinito);
             printf2("Error (unknown command): %s\n", movinito);
             tente = 1;
             continue;
         }
-        if(!valido(*tabu, lanc, &mval))  //lanc eh int lanc[4]; preenche mval
+        if(!valido(*tabu, de, pa, &mval))  //de/pa preenche mval
         {
 //            printdbg(debug, "# xadreco : Illegal move: %s\n", movinito);
             printf2("Illegal move: %s\n", movinito);
@@ -2359,7 +2359,7 @@ char humajoga(tabuleiro *tabu)
     //vez da outra cor jogar. retorna a situacao.
 } //fim do huma_joga---------------
 
-int valido(tabuleiro tabu, int *lanc, movimento *result)
+int valido(tabuleiro tabu, int de, int pa, movimento *result)
 {
     IFDEBUG("valido()");
 
