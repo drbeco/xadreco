@@ -2938,28 +2938,27 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, 
 
 char joga_em(tabuleiro *tabu, movimento movi, int cod)
 {
-    int i;
     char res;
 
     if(movi.especial == 7)  //promocao do peao: BISPO
-        tabu->tab[SQ(movi.lance[0], movi.lance[1])] = BISPO * tabu->vez;
+        tabu->tab[movi.de] = BISPO * tabu->vez;
     if(movi.especial == 6)  //promocao do peao: TORRE
-        tabu->tab[SQ(movi.lance[0], movi.lance[1])] = TORRE * tabu->vez;
+        tabu->tab[movi.de] = TORRE * tabu->vez;
     if(movi.especial == 5)  //promocao do peao: CAVALO
-        tabu->tab[SQ(movi.lance[0], movi.lance[1])] = CAVALO * tabu->vez;
+        tabu->tab[movi.de] = CAVALO * tabu->vez;
     if(movi.especial == 4)  //promocao do peao: DAMA
-        tabu->tab[SQ(movi.lance[0], movi.lance[1])] = DAMA * tabu->vez;
+        tabu->tab[movi.de] = DAMA * tabu->vez;
     if(movi.especial == 3)  //comeu en passant
-        tabu->tab[SQ(tabu->peao_pulou, movi.lance[1])] = VAZIA;
+        tabu->tab[SQ(tabu->peao_pulou, ROW(movi.de))] = VAZIA;
     if(movi.especial == 2)  //roque grande
     {
-        tabu->tab[SQ(0, movi.lance[1])] = VAZIA;
-        tabu->tab[SQ(3, movi.lance[1])] = TORRE * tabu->vez;
+        tabu->tab[SQ(0, ROW(movi.de))] = VAZIA;
+        tabu->tab[SQ(3, ROW(movi.de))] = TORRE * tabu->vez;
     }
     if(movi.especial == 1)  //roque pequeno
     {
-        tabu->tab[SQ(7, movi.lance[1])] = VAZIA;
-        tabu->tab[SQ(5, movi.lance[1])] = TORRE * tabu->vez;
+        tabu->tab[SQ(7, ROW(movi.de))] = VAZIA;
+        tabu->tab[SQ(5, ROW(movi.de))] = TORRE * tabu->vez;
     }
     if(movi.flag_50)  //empate de 50 lances sem mover peao ou capturar
         tabu->empate_50 = 0;
