@@ -845,7 +845,7 @@ void imptab(tabuleiro tabu)
 {
     char movinito[80];
     movinito[79] = '\0';
-    lance2movi(movinito, tabu.lancex, tabu.especial);
+    lance2movi(movinito, tabu.de, tabu.pa, tabu.especial);
     /* imprime o movimento */
     if((tabu.vez == brancas && segundo == 'c') || (tabu.vez == pretas && primeiro == 'c'))
     {
