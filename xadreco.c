@@ -925,8 +925,8 @@ void copitab(tabuleiro *dest, tabuleiro *font)
     dest->roqueb = font->roqueb;
     dest->roquep = font->roquep;
     dest->empate_50 = font->empate_50;
-    for(i = 0; i < 4; i++)
-        dest->lancex[i] = font->lancex[i];
+    dest->de = font->de;
+    dest->pa = font->pa;
     dest->meionum = font->meionum;
     dest->especial = font->especial;
     //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
@@ -2377,7 +2377,7 @@ int valido(tabuleiro tabu, int *lanc, movimento *result)
     while(n)
     {
         m = (movimento *)n->info;
-        if(igual(m->lance, lanc))
+        if(m->de == de && m->pa == pa)
         {
             *result = *m;
             arena_destroi(&aval);
@@ -2388,16 +2388,6 @@ int valido(tabuleiro tabu, int *lanc, movimento *result)
     arena_destroi(&aval);
     return 0;
 } //fim da valido
-
-//dois lances[4] sao iguais
-int igual(int *l1, int *l2)
-{
-    int j;
-    for(j = 0; j < 4; j++)
-        if(l1[j] != l2[j])
-            return (0);
-    return (1);
-}
 
 char situacao(tabuleiro tabu)
 {
