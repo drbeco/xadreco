@@ -233,7 +233,7 @@ lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequ
 
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
-resultado resulto;
+resultado resulta;
 // outros globais ------------------------------------
 //my rating and opponent rating
 int myrating, opprating;
@@ -400,7 +400,7 @@ void conta_linhas_livro(void);
 // lista tipo movimento geramov, modos tudo, um, este; cria lista via enche_pmovi
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
-//retorna valor e pv da melhor variante. Caller owns *pv.
+//retorna (int) valor, e pv da melhor variante. Quem chama que cuida de *pv.
 int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **pv);
 //retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
 int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, movimento **pv);
@@ -2493,7 +2493,7 @@ char compjoga(tabuleiro *tabu)
     movimento *melhor_caminho = NULL;
     movimento *succ;
     movimento *pv = NULL;
-    int val;
+    int val = -LIMITE;
     no *n;
     limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
     melhorvalor1 = -LIMITE;
@@ -2558,7 +2558,7 @@ char compjoga(tabuleiro *tabu)
                 melhorcaminho1 = copilistmov(pv);
                 melhorvalor1 = val;
             } //if n
-        } //if randomchess
+        } //end if randomchess
         else
             while(val < XEQUEMATE)
             {
@@ -2567,8 +2567,7 @@ char compjoga(tabuleiro *tabu)
                 if(debug == 2)  //nivel extra de debug
                 {
                     fprintf(fmini, "#\n#\n# *************************************************************");
-                    fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)",
-                            -LIMITE, LIMITE, nv);
+                    fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
                 }
                 val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv, &pv);
                 if(pv == NULL)
@@ -2677,6 +2676,8 @@ char analisa(tabuleiro *tabu)
 {
     tabuleiro tanalise;
     int nv = 0;
+    movimento *pv = NULL;
+    int val = -LIMITE;
     // lances calc. em maior nivel tem mais importancia?
     //mudou para logo abaixo do scanf de humajoga
     copitab(&tanalise, tabu);
@@ -2710,49 +2711,33 @@ char analisa(tabuleiro *tabu)
         lst_recria(&plmov);
         geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
         totalnodo = 0;
-        while(resulta.valor < XEQUEMATE)
-            //for(nv=1; nv<=7; nv++)
-            //funcao ANALISA (CONFERIR)
+        while(val < XEQUEMATE)
         {
             limpa_pensa();
-            // tabuleiro atual, profundidade zero, limite minimo de estatico (alfa ou passo), limite maximo de estatico (beta ou uso), nivel da busca
-            minimax(*tabu, 0, -LIMITE, LIMITE, nv);
-            //retorna o melhor caminho a partir de tab...
+            libera_lances(&pv);
+            val = minimax(*tabu, 0, -LIMITE, LIMITE, nv, &pv);
             totalnodo += totalnodonivel;
-//            clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
-            //tclock2 = time(NULL);
-            //diftclock = difftime(tclock2 , tclock1);
-//            difclock = clock2 - clock1;
             lst_ordem(plmov);
-            //nivel pontuacao tempo totalnodo variacao === usado!
-            if(abs(resulta.valor) != FIMTEMPO && abs(resulta.valor) != LIMITE)
+            if(abs(val) != FIMTEMPO && abs(val) != LIMITE)
             {
-//                printf ("# xadreco : ply score time nodes pv\n");
-                printf("%3d %+6d %3d %7d ", nv, resulta.valor, (int)difclocks(), totalnodo);
-//                printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds nodos=%d ", nv, (float) resulta.valor / 100.0, (int)difclocks(), totalnodo);
-                imprime_linha(resulta.plance, tabu->meionum + 1, -tabu->vez);
-                //1=mnum do lance, 2=vez: pular impressao na tela
-//                if(debug)
-//                {
-//                    if (resulta.plance == NULL)
-//                        printf ("# no moves\n");
-//                    else
-//                        printf ("# \n");
-//                }
+                printf("%3d %+6d %3d %7d ", nv, val, (int)difclocks(), totalnodo);
+                imprime_linha(pv, tabu->meionum + 1, -tabu->vez);
             }
             if(debug == 2)
             {
-                fprintf(fmini, "#\n# resulta.valor: %+.2f totalnodo: %d\nresulta.plance: ", resulta.valor / 100.0, totalnodo);
-                imprime_linha(resulta.plance, 1, 2);
-                //1=mnum do lance, 2=vez: pular impressao na tela.
-                // tabu->meionum+1, -tabu->vez);
+                fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\npv: ", val / 100.0, totalnodo);
+                imprime_linha(pv, 1, 2);
             }
-            if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))  // termino do laco infinito baseado no tempo
+            if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))
                 break;
-            if(resulta.plance == NULL)  //Nova definicao: sem lances, pode ser que queira avancar apos mate.
+            if(pv == NULL)
                 break;
             nv++;
         }
+        libera_lances(&resulta.plance);
+        resulta.plance = pv;  //transfere ownership
+        pv = NULL;
+        resulta.valor = val;
     }
     if(debug == 2)          //nivel extra de debug
         fclose(fmini);
@@ -2805,12 +2790,6 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **
         n = llmov->cabeca;
     }
 
-    //succ==NULL se alguem ganhou ou empatou
-    //if(debug == 2) {
-    //fprintf(fmini, "\nsucc=geramov(): ");
-    //imprime_linha(succ, 1, 2);
-    //1=mnum do lance, 2=vez: pular impressao na tela
-    //}
     if(!n)
     {
         //entao o estatico refletira isso: afogamento
@@ -2870,8 +2849,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **
             }
         }
         //implementar o NULL-MOVE
-        if(novo_valor >= beta)
-            //corte alfa-beta! Conferido 2026-04-15 (alfa==passo, beta==uso, para brancas)
+        if(novo_valor >= beta) //corte alfa-beta! Conferido 2026-04-15 (alfa==passo, beta==uso, para brancas)
         {
             alfa = beta; //Aha! Retorna beta como o melhor possivel desta arvore
             if(debug == 2)
@@ -2879,7 +2857,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **
                 lance2movi(m, succ->lance, succ->especial);
                 fprintf(fmini, "#\n# succ: novo_valor>=beta (%+.2f>=%+.2f) %s (%d%d%d%d) Corte Alfa/Beta!", novo_valor / 100.0, beta / 100.0, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
             }
-            break; //faz o corte!
+            break; //faz o corte alfa-beta!
         }
         if(prof == 0)
             succ->valor_estatico = novo_valor;
@@ -2900,10 +2878,6 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, 
 {
     char input;
 
-    //tclock2 = time(NULL);
-    //diftclock = difftime(tclock2 , tclock1);
-//    clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
-//    difclock = clock2 - clock1;
     //se tem captura ou xeque... liberou
     //se ja passou do nivel estipulado, pare a busca incondicionalmente
     if(prof > niv)
@@ -2920,73 +2894,46 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, 
         *valor = estatico(atual, 1, prof, alfa, beta);	//-FIMTEMPO;//
         return 1;
     }
-    //retorna sem analisar... Deve desconsiderar o lance. Usuario clicou em "move now" (?)
-    //if((int)(difclock) % 100 == 0) // a cada 100 centesimos, examina
-    //{
-    //  if(moveagora())
-    //  {
-    //	resulta.plance = NULL;
-    //	resulta.valor = estatico (atual, 1, prof, alfa, beta); //-FIMTEMPO;//
-    //	ungetc (input, stdin);
-    //	return 1;
-    //  }
-    //  }
 
-//    if(clock2 - inputcheckclock > 8) // && teminterroga==0) //CLOCKS_PER_SEC/10000)
     if(difftime(tatual, tultimoinput) >= 1) //faz poll uma vez por segundo apenas
     {
-        //		printf("(%d) ",clock2 - inputcheckclock);
+        // printf("(%d) ",clock2 - inputcheckclock);
         if(pollinput())
         {
             do
             {
                 input = getc(stdin);
-                //				printf("input: %c", input);
+                // printf("input: %c", input);
             }
             while((input == '\n' || input == '\r') && pollinput());
-            //			printf ("%c\n", input);
-            //		ungetc (input, stdin);
+            // printf ("%c\n", input);
+            // ungetc (input, stdin);
             if(input == '?')
             {
                 *pv = NULL;
                 *valor = estatico(atual, 1, prof, alfa, beta);  //-FIMTEMPO;//
                 ungetc(input, stdin);
-                //				teminterroga=1;
-                //				printf("teminterroga: %d",teminterroga);
+                // teminterroga=1;
+                // printf("teminterroga: %d",teminterroga);
                 return 1;
             }
             else
             {
                 ungetc(input, stdin);
-//                inputcheckclock = clock2;
+                // inputcheckclock = clock2;
                 tultimoinput = time(NULL);
-                //				return 0;
+                // return 0;
             }
         }
     }
 
-    //  if(teminterroga)
-    //  {
-    //	resulta.plance = NULL;
-    //	resulta.valor = estatico (atual, 1, prof, alfa, beta); //-FIMTEMPO;//
-    //	return 1;
-    //  }
-
-    if(!profflag)
-        //nao liberou profflag==0 retorna
+    if(!profflag) //nao liberou profflag==0 retorna
     {
         *pv = NULL;
-        *valor = estatico(atual, 0, prof, alfa, beta);
-        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
-        return 1;
-        //a profundidade ja eh sufuciente
+        *valor = estatico(atual, 0, prof, alfa, beta); //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
+        return 1; //a profundidade ja eh sufuciente
     }
-    //se esta no nivel estipulado e nao liberou
-    //if(prof==niv && profflag<2)
-    //return 1;
-    //a profundidade ja eh sufuciente
-    //se OU Nem-Chegou-no-Nivel OU Liberou, pode ir fundo
-    return 0;
+    return 0; //se OU Nem-Chegou-no-Nivel OU Liberou, pode ir fundo
 }
 
 char joga_em(tabuleiro *tabu, movimento movi, int cod)
