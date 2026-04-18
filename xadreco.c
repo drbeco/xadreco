@@ -127,7 +127,8 @@
 // tamanho das arenas em bytes
 #define ARENA_TAB  (2 * 1024 * 1024)
 #define ARENA_MOV  (2 * 1024 * 1024)
-#define ARENA_PV   (2 * 1024 * 1024)
+#define ARENA_PVSEARCH (8 * 1024 * 1024)
+#define ARENA_PVBEST   (64 * 1024)
 
 // dados ----------------------
 
@@ -234,7 +235,8 @@ enum piece_values
 // listas em arenas ----------------------------------
 lista *pltab = NULL; // ponteiro para lista de tabuleiros
 lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas (antiga succ_geral)
-lista *plpv = NULL; // PV line (principal variation)
+lista *plpv_search = NULL; // PV search workspace
+lista *plpv_best = NULL;   // PV best saved across iterations
 
 // listas --------------------------------------------
 //a melhor variante achada (lista movimento)
@@ -464,10 +466,15 @@ int main(int argc, char *argv[])
     arena_destrutor(&amov, lst_limpa); // callback para limpar plmov
     lst_cria(&amov, &plmov); // lista de movimentos para busca
 
-    arena apv; // principal variation (PV)
-    arena_inicia(&apv, ARENA_PV);
-    arena_destrutor(&apv, lst_limpa); // callback para limpar plpv
-    lst_cria(&apv, &plpv); // lista da variante principal
+    arena apv_search; // PV search workspace
+    arena_inicia(&apv_search, ARENA_PVSEARCH);
+    arena_destrutor(&apv_search, lst_limpa);
+    lst_cria(&apv_search, &plpv_search);
+
+    arena apv_best; // PV best saved
+    arena_inicia(&apv_best, ARENA_PVBEST);
+    arena_destrutor(&apv_best, lst_limpa);
+    lst_cria(&apv_best, &plpv_best);
 
     int opt; /* return from getopt() */
     tabuleiro tabu;
@@ -943,7 +950,6 @@ void copitab(tabuleiro *dest, tabuleiro *font)
 int geramov(tabuleiro tabu, lista *lmov, int geramodo)
 {
     /* IFDEBUG("geramov()"); */
-    assert(plpv != NULL && "plpv NULL at entry of geramov");
     tabuleiro tabaux;
     int i, j, k, l, m, flag;
     int col, lin;
@@ -2507,7 +2513,8 @@ char compjoga(tabuleiro *tabu)
         usalivro(*tabu);
         if(!resulta.plance || !resulta.plance->cabeca)
             USALIVRO = 0;
-        melhorcaminho1 = lst_copia(plpv->a, resulta.plance);
+        lst_recria(&plpv_best);
+        melhorcaminho1 = lst_copia(plpv_best->a, resulta.plance);
         melhorvalor1 = resulta.valor;
     }
 
@@ -2542,7 +2549,8 @@ char compjoga(tabuleiro *tabu)
             if(n != NULL)
             {
                 succ = (movimento *)n->info;
-                melhorcaminho1 = pv_constroi(plpv->a, *succ, pv);
+                lst_recria(&plpv_best);
+                melhorcaminho1 = pv_constroi(plpv_best->a, *succ, pv);
                 succ->valor_estatico = 0;
                 val = 0;
                 pv = NULL;
@@ -2554,6 +2562,7 @@ char compjoga(tabuleiro *tabu)
             while(val < XEQUEMATE)
             {
                 limpa_pensa();
+                lst_recria(&plpv_search);  // reset search arena each iteration
                 pv = NULL;
                 if(debug == 2)  //nivel extra de debug
                 {
@@ -2561,6 +2570,11 @@ char compjoga(tabuleiro *tabu)
                     fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
                 }
                 val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv, &pv);
+                printdbg(debug, "# nv=%d tab=%zu/%zu mov=%zu/%zu pvs=%zu/%zu pvb=%zu/%zu\n",
+                    nv, pltab->a->usado, pltab->a->total,
+                    plmov->a->usado, plmov->a->total,
+                    plpv_search->a->usado, plpv_search->a->total,
+                    plpv_best->a->usado, plpv_best->a->total);
                 if(pv == NULL)
                 {
                     //sem lances, pode ser que queira avancar apos mate.
@@ -2568,7 +2582,8 @@ char compjoga(tabuleiro *tabu)
                 }
                 if(difclocks() < tempomovclock)
                 {
-                    melhorcaminho1 = lst_copia(plpv->a, pv);
+                    lst_recria(&plpv_best);
+                    melhorcaminho1 = lst_copia(plpv_best->a, pv);
                     melhorvalor1 = val;
                 }
                 else
@@ -2708,6 +2723,7 @@ char analisa(tabuleiro *tabu)
         while(val < XEQUEMATE)
         {
             limpa_pensa();
+            lst_recria(&plpv_search);  // reset search arena each iteration
             pv = NULL;
             val = minimax(*tabu, 0, -LIMITE, LIMITE, nv, &pv);
             totalnodo += totalnodonivel;
@@ -2728,7 +2744,8 @@ char analisa(tabuleiro *tabu)
                 break;
             nv++;
         }
-        resulta.plance = pv;  //transfere ownership
+        lst_recria(&plpv_best);
+        resulta.plance = lst_copia(plpv_best->a, pv);
         pv = NULL;
         resulta.valor = val;
     }
@@ -2763,7 +2780,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
     size_t saved;
 
     assert(prof >= 0 && alfa <= beta && "Invalid minimax parameters");
-    assert(plpv != NULL && "plpv NULL at minimax entry");
+
     if(profsuf(atual, prof, alfa, beta, niv, &child_val, pv))
     {
         //profsuf preencheu *pv e child_val
@@ -2827,7 +2844,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
         if(novo_valor > alfa)
         {
             alfa = novo_valor;
-            melhor_caminho = pv_constroi(plpv->a, *succ, child_pv);
+            melhor_caminho = pv_constroi(plpv_search->a, *succ, child_pv);
         }
         child_pv = NULL;  //abandona PV do filho na arena
         if(debug == 2 && prof == 0)
@@ -3984,7 +4001,7 @@ lista *string2pmovi(int mnum, char *linha)
         {0, 0, 0, 0},
         0, 0
     };
-    lst_cria(plpv->a, &cabeca);
+    lst_cria(plpv_search->a, &cabeca);
     while(linha[n] != '\0')
     {
         n++;
@@ -4002,7 +4019,7 @@ lista *string2pmovi(int mnum, char *linha)
         disc = (char) joga_em(&tab, mval, 0);
         if(n / 5 >= mnum) //chegou na posicao atual! comeca inserir na lista
         {
-            pmovi = (movimento *)arena_aloca(plpv->a, sizeof(movimento));
+            pmovi = (movimento *)arena_aloca(plpv_search->a, sizeof(movimento));
             if(!pmovi)
                 msgsai("# Erro arena cheia em string2pmovi", 38);
             copimov(pmovi, &mval);
@@ -4336,8 +4353,10 @@ void sai(int error)
 {
     printdbg(debug, "# xadreco : sai ( %d )\n", error);
     resulta.plance = NULL;
-    if(plpv)
-        arena_destroi(plpv->a);  //libera arena de PV
+    if(plpv_best)
+        arena_destroi(plpv_best->a);  //libera arena de PV best
+    if(plpv_search)
+        arena_destroi(plpv_search->a);  //libera arena de PV search
     if(plmov)
         arena_destroi(plmov->a);  //libera arena de movimentos
     if(pltab)
@@ -4352,7 +4371,8 @@ void inicia(tabuleiro *tabu)
     pausa = 'n';
     resulta.valor = 0;
     resulta.plance = NULL;
-    lst_recria(&plpv);
+    lst_recria(&plpv_search);
+    lst_recria(&plpv_best);
     lst_recria(&plmov);
     lst_recria(&pltab);
     ofereci = 1; //computador pode oferecer 1 empate
@@ -4664,7 +4684,8 @@ char randommove(tabuleiro *tabu)
         succ = (movimento *)n->info;
         succ->valor_estatico = 0;
         resulta.valor = 0;
-        resulta.plance = pv_constroi(plpv->a, *succ, NULL);
+        lst_recria(&plpv_best);
+        resulta.plance = pv_constroi(plpv_best->a, *succ, NULL);
         return '-'; //ok
     }
     printdbg(debug, "# empty from randommove - BUG\n");
@@ -4717,7 +4738,7 @@ void copyr(void)
     IFDEBUG("copyr()");
     printf("%s - Version %s, build %s\n", "Xadreco", VERSION, BUILD);
     printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2018, "Ruben Carlo Benante", "rcb@beco.cc");
-    printf("Arenas: tab=%dKB mov=%dKB pv=%dKB\n\n", ARENA_TAB/1024, ARENA_MOV/1024, ARENA_PV/1024);
+    printf("Arenas: tab=%dKB mov=%dKB pvsearch=%dKB pvbest=%dKB\n\n", ARENA_TAB/1024, ARENA_MOV/1024, ARENA_PVSEARCH/1024, ARENA_PVBEST/1024);
     if(debug > 3) printf("copyr(): Verbose: %d\n", debug); /* -vvvv */
     exit(EXIT_FAILURE);
 }
