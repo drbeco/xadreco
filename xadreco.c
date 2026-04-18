@@ -3007,11 +3007,10 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
                 break;
         }
     tabu->peao_pulou = movi.peao_pulou;
-    tabu->tab[SQ(movi.lance[2], movi.lance[3])] =
-        tabu->tab[SQ(movi.lance[0], movi.lance[1])];
-    tabu->tab[SQ(movi.lance[0], movi.lance[1])] = VAZIA;
-    for(i = 0; i < 4; i++)
-        tabu->lancex[i] = movi.lance[i];
+    tabu->tab[movi.pa] = tabu->tab[movi.de];
+    tabu->tab[movi.de] = VAZIA;
+    tabu->de = movi.de;
+    tabu->pa = movi.pa;
     tabu->meionum++;
     //conta os movimentos de cada peao (e chamado de dentro de funcao recursiva!)
     tabu->vez = adv(tabu->vez);
@@ -3058,20 +3057,6 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     }
     return (res);
 } //fim da joga_em
-
-//nao compia o ponteiro prox
-void copimov(movimento *dest, movimento *font)
-{
-    int i;
-    for(i = 0; i < 4; i++)
-        dest->lance[i] = font->lance[i];
-    dest->peao_pulou = font->peao_pulou;
-    dest->roque = font->roque;
-    dest->flag_50 = font->flag_50;
-    dest->especial = font->especial;
-
-    dest->valor_estatico = font->valor_estatico;
-}
 
 //retorna o valor tatico e estrategico de um tabuleiro, sendo valor positivo melhor quem esta na vez
 //cod: 1: acabou o tempo, 0: ou eh avaliacao normal?
