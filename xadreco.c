@@ -402,9 +402,9 @@ void conta_linhas_livro(void);
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
 //retorna (int) valor, e pv da melhor variante. Quem chama que cuida de *pv.
-int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **pv);
+int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv);
 //retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, movimento **pv);
+int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, lista **pv);
 //retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
 //joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
@@ -2765,11 +2765,11 @@ char analisa(tabuleiro *tabu)
 //If there had been no fish in the bag, determining that the six-pack of pop
 //bag was better than the sandwich bag would have been like exceeding alpha (one ply back).
 //source: http://www.seanet.com/~brucemo/topics/alphabeta.htm
-int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **pv)
+int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
 {
-    movimento *melhor_caminho = NULL;
+    lista *melhor_caminho = NULL;
     movimento *succ;
-    movimento *child_pv = NULL;
+    lista *child_pv = NULL;
     int novo_valor, child_val, contamov = 0;
     tabuleiro tab;
     char m[8];
@@ -2841,10 +2841,9 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **
         if(novo_valor > alfa)
         {
             alfa = novo_valor;
-            libera_lances(&melhor_caminho);
-            melhor_caminho = copimel(*succ, child_pv);
+            melhor_caminho = pv_constroi(plpv->a, *succ, child_pv);
         }
-        libera_lances(&child_pv);  //sempre libera PV do filho
+        child_pv = NULL;  //abandona PV do filho na arena
         if(debug == 2 && prof == 0)
         {
             lance2movi(m, succ->lance, succ->especial);
@@ -2852,8 +2851,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **
             if(melhor_caminho != NULL)
             {
                 fprintf(fmini, "#\n# melhor_caminho=");
-                imprime_linha(melhor_caminho, 1, 2);
-                //1=mnum do lance, 2=vez: pular impressao na tela
+                //TODO step6: imprime_linha(melhor_caminho, 1, 2); //melhor_caminho agora eh lista*
             }
         }
         //implementar o NULL-MOVE
@@ -2882,7 +2880,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, movimento **
     return alfa;
 }
 
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, movimento **pv)
+int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, lista **pv)
 {
     char input;
 
