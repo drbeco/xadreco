@@ -4545,7 +4545,7 @@ void imprime_linha(lista *lpv, int mnum, int tabuvez)
     while(n)
     {
         mov = (movimento *)n->info;
-        lance2movi(m, mov->lance, mov->especial);
+        lance2movi(m, mov->de, mov->pa, mov->especial);
         if(vez == brancas)  //jogou anterior as pretas
         {
             if(tabuvez == brancas && num == (int)((mnum + 1.0) / 2.0))
