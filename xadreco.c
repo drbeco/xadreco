@@ -4431,17 +4431,15 @@ void limpa_pensa(void)
 }
 
 //preenche a estrutura movimento usando arena e lst_insere
-void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int p, int r, int e, int f)
+void enche_lmovi(lista *lmov, int de, int pa, int p, int r, int e, int f)
 {
     if(!lmov)
         return;
     movimento *m = (movimento *)arena_aloca(lmov->a, sizeof(movimento));
     if(!m)
         msgsai("# Erro arena cheia em enche_lmovi", 37);
-    m->lance[0] = c0;
-    m->lance[1] = c1;
-    m->lance[2] = c2;
-    m->lance[3] = c3;
+    m->de = de;
+    m->pa = pa;
     m->peao_pulou = p;
     m->roque = r;
     m->especial = e;
