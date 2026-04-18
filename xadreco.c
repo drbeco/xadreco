@@ -2822,8 +2822,8 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
         }
         if(debug == 2)
         {
-            lance2movi(m, succ->lance, succ->especial);
-            fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
+            lance2movi(m, succ->de, succ->pa, succ->especial);
+            fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
         }
         child_val = minimax(tab, prof + 1, -beta, -alfa, niv, &child_pv);
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
@@ -2840,7 +2840,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
         child_pv = NULL;  //abandona PV do filho na arena
         if(debug == 2 && prof == 0)
         {
-            lance2movi(m, succ->lance, succ->especial);
+            lance2movi(m, succ->de, succ->pa, succ->especial);
             fprintf(fmini, "#\n# novo_valor=%+.2f", novo_valor / 100.0);
             if(melhor_caminho != NULL)
             {
@@ -2854,8 +2854,8 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
             alfa = beta; //Aha! Retorna beta como o melhor possivel desta arvore
             if(debug == 2)
             {
-                lance2movi(m, succ->lance, succ->especial);
-                fprintf(fmini, "#\n# succ: novo_valor>=beta (%+.2f>=%+.2f) %s (%d%d%d%d) Corte Alfa/Beta!", novo_valor / 100.0, beta / 100.0, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
+                lance2movi(m, succ->de, succ->pa, succ->especial);
+                fprintf(fmini, "#\n# succ: novo_valor>=beta (%+.2f>=%+.2f) %s (%d%d%d%d) Corte Alfa/Beta!", novo_valor / 100.0, beta / 100.0, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
             }
             break; //faz o corte alfa-beta!
         }
