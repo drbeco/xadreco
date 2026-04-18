@@ -4738,7 +4738,7 @@ double difclocks(void)
 char randommove(tabuleiro *tabu)
 {
     int moveto;
-    movimento *succ, *melhor_caminho = NULL;
+    movimento *succ;
     no *n;
 
     limpa_pensa();  //limpa plance para iniciar a ponderacao
@@ -4758,10 +4758,8 @@ char randommove(tabuleiro *tabu)
     {
         succ = (movimento *)n->info;
         succ->valor_estatico = 0;
-        melhor_caminho = copimel(*succ, NULL);
         resulta.valor = 0;
-        resulta.plance = melhor_caminho;  //transfere ownership
-        melhor_caminho = NULL;
+        resulta.plance = pv_constroi(plpv->a, *succ, NULL);
         return '-'; //ok
     }
     printdbg(debug, "# empty from randommove - BUG\n");
