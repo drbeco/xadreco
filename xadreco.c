@@ -420,9 +420,9 @@ void arena_libera(arena *a, size_t tam); // libera apenas o ultimo item da area 
 void arena_zera(arena *a); // libera toda area reservada na arena (simula loop free all)
 void arena_destrutor(arena *a, void (*destrutor)(arena *)); // callback para limpar pltab
 
-void lst_cria(arena *a, lista **pl); // cria uma lista alocada em uma arena
+int lst_cria(arena *a, lista **pl); // cria uma lista alocada em uma arena. retorna 0 ok, -1 falha
 void lst_zera(lista *l); // libera reserva de uma lista alocada em uma arena
-void lst_insere(lista *l, void *info, size_t tam); // insere um item ao final de uma lista (append)
+int lst_insere(lista *l, void *info, size_t tam); // insere um item ao final de uma lista (append). retorna 0 ok, -1 falha
 void lst_remove(lista *l); // remove o ultimo item da lista
 int lst_conta(lista *l); // conta o numero de elementos em uma lista
 void lst_limpa(arena *a); // limpa pointeiro externo da lista
@@ -455,22 +455,26 @@ int main(int argc, char *argv[])
     arena atab; // historico de posicoes de tabuleiro do jogo
     arena_inicia(&atab, ARENA_TAB);
     arena_destrutor(&atab, lst_limpa); // callback para limpar pltab
-    lst_cria(&atab, &pltab); // lista de tabuleiros para historico
+    if(lst_cria(&atab, &pltab))
+        msgsai("# Erro arena cheia em main lst_cria atab", 39);
 
     arena amov; // movimentos gerados para analise
     arena_inicia(&amov, ARENA_MOV);
     arena_destrutor(&amov, lst_limpa); // callback para limpar plmov
-    lst_cria(&amov, &plmov); // lista de movimentos para busca
+    if(lst_cria(&amov, &plmov))
+        msgsai("# Erro arena cheia em main lst_cria amov", 39);
 
     arena apv_search; // PV search workspace
     arena_inicia(&apv_search, ARENA_PVSEARCH);
     arena_destrutor(&apv_search, lst_limpa);
-    lst_cria(&apv_search, &plpv_search);
+    if(lst_cria(&apv_search, &plpv_search))
+        msgsai("# Erro arena cheia em main lst_cria apv_search", 39);
 
     arena apv_best; // PV best saved
     arena_inicia(&apv_best, ARENA_PVBEST);
     arena_destrutor(&apv_best, lst_limpa);
-    lst_cria(&apv_best, &plpv_best);
+    if(lst_cria(&apv_best, &plpv_best))
+        msgsai("# Erro arena cheia em main lst_cria apv_best", 39);
 
     int opt; /* return from getopt() */
     tabuleiro tabu;
@@ -2376,7 +2380,8 @@ int valido(tabuleiro tabu, int *lanc, movimento *result)
     movimento *m;
 
     arena_inicia(&aval, 64 * 1024);
-    lst_cria(&aval, &llval);
+    if(lst_cria(&aval, &llval))
+        msgsai("# Erro arena cheia em valido() lst_cria", 39);
     geramov(tabu, llval, GERA_TUDO);
 
     n = llval->cabeca;
@@ -2579,8 +2584,14 @@ char compjoga(tabuleiro *tabu)
                 if(difclocks() < tempomovclock)
                 {
                     lst_recria(&plpv_best);
-                    melhorcaminho1 = lst_copia(plpv_best->a, pv);
-                    melhorvalor1 = val;
+                    {
+                    lista *copia = lst_copia(plpv_best->a, pv);
+                    if(copia)
+                    {
+                        melhorcaminho1 = copia;
+                        melhorvalor1 = val;
+                    }
+                    }
                 }
                 else
                     if(melhorcaminho1 != NULL) /* time exceeded and we have a move: stop now */
@@ -2792,7 +2803,8 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
     else
     {
         saved = plmov->a->usado;  //bookmark
-        lst_cria(plmov->a, &llmov);
+        if(lst_cria(plmov->a, &llmov))
+            msgsai("# Erro arena cheia em minimax lst_cria", 39);
         geramov(atual, llmov, GERA_TUDO); // gerar lista de lances para tabuleiro imaginario
         n = llmov->cabeca;
     }
@@ -2840,7 +2852,11 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
         if(novo_valor > alfa)
         {
             alfa = novo_valor;
-            melhor_caminho = pv_constroi(plpv_search->a, *succ, child_pv);
+            {
+            lista *novo_pv = pv_constroi(plpv_search->a, *succ, child_pv);
+            if(novo_pv)
+                melhor_caminho = novo_pv;
+            }
         }
         child_pv = NULL;  //abandona PV do filho na arena
         if(debug == 2 && prof == 0)
@@ -3997,7 +4013,8 @@ lista *string2pmovi(int mnum, char *linha)
         {0, 0, 0, 0},
         0, 0
     };
-    lst_cria(plpv_search->a, &cabeca);
+    if(lst_cria(plpv_search->a, &cabeca))
+        return NULL; // arena full, no book PV
     while(linha[n] != '\0')
     {
         n++;
@@ -4017,9 +4034,10 @@ lista *string2pmovi(int mnum, char *linha)
         {
             pmovi = (movimento *)arena_aloca(plpv_search->a, sizeof(movimento));
             if(!pmovi)
-                msgsai("# Erro arena cheia em string2pmovi", 38);
+                break; // arena full, return partial book PV
             copimov(pmovi, &mval);
-            lst_insere(cabeca, pmovi, sizeof(movimento));
+            if(lst_insere(cabeca, pmovi, sizeof(movimento)))
+                break; // arena full
         }
         n += 5;
     }
@@ -4467,7 +4485,8 @@ void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int p, int r, int 
     m->flag_50 = f;
 
     m->valor_estatico = 0;
-    lst_insere(lmov, m, sizeof(movimento));
+    if(lst_insere(lmov, m, sizeof(movimento)))
+        msgsai("# Erro arena cheia em enche_lmovi lst_insere", 40);
 }
 
 void msgsai(char *msg, int error)  //aborta programa por falta de memoria
@@ -4840,20 +4859,24 @@ void arena_libera(arena *a, size_t tam)
 /* lista generica usando arena --------------------------------------- */
 
 // cria uma lista alocada em uma arena
-void lst_cria(arena *a, lista **pl)
+int lst_cria(arena *a, lista **pl)
 {
+    lista *l;
     if(!pl)
-        return;
-    lista *l = (lista *)arena_aloca(a, sizeof(lista));
+        return -1;
+    l = (lista *)arena_aloca(a, sizeof(lista));
     if(!l)
-        msgsai("# Erro arena cheia em lst_cria", 39);
-    l->pl = pl; // a lista sabe o endereco de onde ela mesma esta
-    *pl = l; // endereco da lista global armazenada
+    {
+        *pl = NULL;
+        return -1;
+    }
+    l->pl = pl;
+    *pl = l;
     l->cabeca = NULL;
     l->cauda = NULL;
     l->qtd = 0;
     l->a = a;
-    return;
+    return 0;
 }
 
 // libera reserva de uma lista alocada em uma arena
@@ -4864,13 +4887,13 @@ void lst_zera(lista *l)
     l->qtd = 0; // zerou numero de items
 }
 
-// insere um item ao final de uma lista (append)
-void lst_insere(lista *l, void *i, size_t tam)
+// insere um item ao final de uma lista (append). retorna 0 ok, -1 falha
+int lst_insere(lista *l, void *i, size_t tam)
 {
     no *n = (no *)arena_aloca(l->a, sizeof(no));
 
     if(!n)
-        msgsai("# Erro arena cheia em lst_insere", 40);
+        return -1;
 
     n->info = i;
     n->tam = tam;
@@ -4882,6 +4905,7 @@ void lst_insere(lista *l, void *i, size_t tam)
         l->cabeca = n;
     l->cauda = n;
     l->qtd++;
+    return 0;
 }
 
 // remove o ultimo item da lista
@@ -4937,7 +4961,8 @@ void lst_recria(lista **pl)
         return;
     a = (*pl)->a;
     arena_zera(a);
-    lst_cria(a, pl);
+    if(lst_cria(a, pl))
+        msgsai("# Erro arena cheia em lst_recria (impossivel)", 39);
 }
 
 // particiona: capturas e especiais primeiro
@@ -4994,7 +5019,8 @@ lista *lst_copia(arena *a, lista *src)
     no *n;
     movimento *m;
 
-    lst_cria(a, &dst);
+    if(lst_cria(a, &dst))
+        return NULL;
     if(!src)
         return dst;
     n = src->cabeca;
@@ -5002,27 +5028,30 @@ lista *lst_copia(arena *a, lista *src)
     {
         m = (movimento *)arena_aloca(a, sizeof(movimento));
         if(!m)
-            msgsai("# Erro arena cheia em lst_copia", 41);
+            return dst; // partial copy
         *m = *(movimento *)n->info;
-        lst_insere(dst, m, sizeof(movimento));
+        if(lst_insere(dst, m, sizeof(movimento)))
+            return dst; // partial copy
         n = n->prox;
     }
     return dst;
 }
 
-// constroi PV: ummovi na cabeca + copia de plan
+// constroi PV: ummovi na cabeca + copia de plan. Retorna NULL se arena cheia.
 lista *pv_constroi(arena *a, movimento ummovi, lista *plan)
 {
     lista *pv;
     movimento *m;
     no *n;
 
-    lst_cria(a, &pv);
+    if(lst_cria(a, &pv))
+        return NULL;
     m = (movimento *)arena_aloca(a, sizeof(movimento));
     if(!m)
-        msgsai("# Erro arena cheia em pv_constroi 1", 42);
+        return NULL;
     *m = ummovi;
-    lst_insere(pv, m, sizeof(movimento));
+    if(lst_insere(pv, m, sizeof(movimento)))
+        return NULL;
     if(plan)
     {
         n = plan->cabeca;
@@ -5030,9 +5059,10 @@ lista *pv_constroi(arena *a, movimento ummovi, lista *plan)
         {
             m = (movimento *)arena_aloca(a, sizeof(movimento));
             if(!m)
-                msgsai("# Erro arena cheia em pv_constroi 2", 43);
+                return pv; // partial PV: head move without full continuation
             *m = *(movimento *)n->info;
-            lst_insere(pv, m, sizeof(movimento));
+            if(lst_insere(pv, m, sizeof(movimento)))
+                return pv; // partial PV
             n = n->prox;
         }
     }
@@ -5051,7 +5081,8 @@ int tab_insere(tabuleiro tabu)
         return 0;
     }
     *t = tabu;
-    lst_insere(pltab, t, sizeof(tabuleiro));
+    if(lst_insere(pltab, t, sizeof(tabuleiro)))
+        msgsai("# Erro arena cheia em tab_insere lst_insere", 40);
 
     int count = 1;
     no *n = pltab->cauda->ant;
