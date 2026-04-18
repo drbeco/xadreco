@@ -34,3 +34,33 @@
 ## Linux / Debian / KDE / Dolphin
 .directory
 
+## from command
+# git st | grep -P '\t' | tr -d '\t' >> .gitignore
+
+.cache/
+.xadrecofics
+20240224-valgrind-output.txt
+DEEPVERSION
+TODO.txt
+Xadreco-Soberango.pgn
+bin/
+calcbook.sh
+config.yml
+error-nomove.txt
+ficsxadreco.sh
+gerabook.sh
+gerapgnbook.sh
+livro-calc.pgn
+livro-calc.txt
+livro-p7-calc.txt
+livro-p7.pgn
+log.xadreco.first
+log.xadreco.temp
+norbert-debug/
+plans/
+stockfish.ini
+tests/
+xadreco
+xadreco.c.orig
+xboard.c
+
