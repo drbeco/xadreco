@@ -3937,7 +3937,7 @@ void listab2string(char *strlance)
     while(nd)
     {
         t = (tabuleiro *)nd->info;
-        lance2movi(m, t->lancex, t->especial);
+        lance2movi(m, t->de, t->pa, t->especial);
         m[4] = '\0';
         for(i = 0; i < 4; i++)
             strlance[n + i] = m[i];
@@ -3955,7 +3955,7 @@ void listab2string(char *strlance)
 lista *string2pmovi(int mnum, char *linha)
 {
     char m[8];
-    int n = 0, lanc[4], i, conta = 0;
+    int n = 0, de, pa, i, conta = 0;
     movimento mval;
     movimento *pmovi;
     lista *cabeca;
@@ -3973,7 +3973,7 @@ lista *string2pmovi(int mnum, char *linha)
             -TORRE, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, TORRE    /* h1-h8 */
         },
         -1, -1, 1, 1, 0, 0,
-        {0, 0, 0, 0},
+        0, 0,
         0, 0
     };
     if(lst_cria(plpv_search->a, &cabeca))
@@ -3989,8 +3989,8 @@ lista *string2pmovi(int mnum, char *linha)
         for(i = 0; i < 4; i++)
             m[i] = linha[n + i];
         m[4] = '\0';
-        movi2lance(lanc, m);
-        if(!valido(tab, lanc, &mval))
+        movi2lance(&de, &pa, m);
+        if(!valido(tab, de, pa, &mval))
             break;
         disc = (char) joga_em(&tab, mval, 0);
         if(n / 5 >= mnum) //chegou na posicao atual! comeca inserir na lista
@@ -3998,7 +3998,7 @@ lista *string2pmovi(int mnum, char *linha)
             pmovi = (movimento *)arena_aloca(plpv_search->a, sizeof(movimento));
             if(!pmovi)
                 break; // arena full, return partial book PV
-            copimov(pmovi, &mval);
+            *pmovi = mval;
             if(lst_insere(cabeca, pmovi, sizeof(movimento)))
                 break; // arena full
         }
