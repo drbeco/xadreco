@@ -206,10 +206,6 @@ typedef struct smovimento
     int especial;
     //dado um tabuleiro, este e o valor estatico deste tabuleiro apos a execucao deste movimento, no contexto da analise minimax
     int valor_estatico;
-    //flag para dizer se ja foi inserido esse elemento na lista ordenada;
-    int ordena;
-    //ponteiro para o proximo movimento da lista
-    struct smovimento *prox;
 }
 movimento;
 
@@ -438,7 +434,7 @@ lista *lst_copia(arena *a, lista *src); // copia lista src para arena a
 lista *pv_constroi(arena *a, movimento ummovi, lista *plan); // constroi PV: ummovi + plan
 
 // prototipos listas dinamicas -----------------------------------------------------------
-//copia os itens da estrutura movimento, mas nao copia ponteiro prox. dest=font
+//copia os itens da estrutura movimento. dest=font
 void copimov(movimento *dest, movimento *font);
 //insere tabuleiro na arena pltab. Retorna contagem de repeticao (>=3 empate)
 int tab_insere(tabuleiro tabu);
@@ -3079,7 +3075,7 @@ void copimov(movimento *dest, movimento *font)
     dest->roque = font->roque;
     dest->flag_50 = font->flag_50;
     dest->especial = font->especial;
-    dest->ordena = font->ordena;
+
     dest->valor_estatico = font->valor_estatico;
 }
 
@@ -4469,7 +4465,7 @@ void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int p, int r, int 
     m->roque = r;
     m->especial = e;
     m->flag_50 = f;
-    m->ordena = 0;
+
     m->valor_estatico = 0;
     lst_insere(lmov, m, sizeof(movimento));
 }
