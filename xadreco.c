@@ -430,7 +430,6 @@ void lst_parte(lista *l); // particiona: capturas e especiais primeiro
 void lst_ordem(lista *l); // ordena por valor_estatico decrescente
 lista *lst_copia(arena *a, lista *src); // copia lista src para arena a
 lista *pv_constroi(arena *a, movimento ummovi, lista *plan); // constroi PV: ummovi + plan
-void arena_gc(arena *a, lista *l); // garbage collector: compacta arena se >75%
 
 // prototipos listas dinamicas -----------------------------------------------------------
 //retorna nova lista contendo o movimento pmovi mais a sequencia de movimentos plance. (para melhor_caminho)
@@ -470,7 +469,7 @@ int main(int argc, char *argv[])
     lst_cria(&amov, &plmov); // lista de movimentos para busca
 
     arena apv; // principal variation (PV)
-    arena_inicia(&apv, 1024 * 1024); // inicializa arena com 1Mb para PV
+    arena_inicia(&apv, 4 * 1024 * 1024); // inicializa arena com 4Mb para PV
     arena_destrutor(&apv, lst_limpa); // callback para limpar plpv
     lst_cria(&apv, &plpv); // lista da variante principal
 
@@ -961,6 +960,8 @@ void copitab(tabuleiro *dest, tabuleiro *font)
 // retorna 1 se ha movimentos, 0 se nao ha
 int geramov(tabuleiro tabu, lista *lmov, int geramodo)
 {
+    /* IFDEBUG("geramov()"); */
+    assert(plpv != NULL && "plpv NULL at entry of geramov");
     tabuleiro tabaux;
     int i, j, k, l, m, flag;
     int col, lin;
@@ -1526,6 +1527,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
         return 0;
     if(lmov && lmov->qtd > 1)
         lst_parte(lmov); //particiona: capturas e especiais primeiro
+    assert(plpv != NULL && "plpv NULL at exit of geramov");
     return (lmov ? lmov->qtd > 0 : 0);
 }
 //fim de   ----------- int geramov(tabuleiro tabu, lista *lmov, int geramodo)
@@ -2383,6 +2385,8 @@ char humajoga(tabuleiro *tabu)
 
 int valido(tabuleiro tabu, int *lanc, movimento *result)
 {
+    IFDEBUG("valido()");
+
     arena aval;
     lista *llval = NULL;
     no *n;
@@ -2491,6 +2495,7 @@ char situacao(tabuleiro tabu)
 // ------------------------------- jogo do computador -----------------------
 char compjoga(tabuleiro *tabu)
 {
+    IFDEBUG("compjoga()");
     // declaracao de variaveis locais ---------------------------------------
     char res;
     int i;
@@ -2516,22 +2521,29 @@ char compjoga(tabuleiro *tabu)
     }
 
     // checar se usa livro --------------------------------------------------
+    assert(plpv != NULL && "plpv NULL before usalivro");
     if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usalivro(*tabu);
-        if(resulta.plance == NULL)
+        assert(plpv != NULL && "plpv NULL after usalivro");
+        if(!resulta.plance || !resulta.plance->cabeca)
             USALIVRO = 0;
         melhorcaminho1 = lst_copia(plpv->a, resulta.plance);
+        assert(plpv != NULL && "plpv NULL after lst_copia in book");
         melhorvalor1 = resulta.valor;
     }
 
     // se nao livro, random ou minimax -------------------------------------
-    if(resulta.plance == NULL)
+    assert(plpv != NULL && "plpv NULL before search decision");
+    if(!resulta.plance || !resulta.plance->cabeca)
     {
         //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
         nv = 1;
+        assert(plpv != NULL && "plpv NULL before lst_recria plmov");
         lst_recria(&plmov);
+        assert(plpv != NULL && "plpv NULL after lst_recria plmov");
         geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
+        assert(plpv != NULL && "plpv NULL after geramov");
         totalnodo = 0;
         //primeiro lance: joga rapido, metade do tempo, maximo 10s
         if(tabu->meionum <= 1)
@@ -2556,6 +2568,7 @@ char compjoga(tabuleiro *tabu)
             if(n != NULL)
             {
                 succ = (movimento *)n->info;
+                assert(plpv != NULL && "plpv NULL in compjoga randomchess");
                 melhorcaminho1 = pv_constroi(plpv->a, *succ, pv);
                 succ->valor_estatico = 0;
                 val = 0;
@@ -2564,15 +2577,21 @@ char compjoga(tabuleiro *tabu)
             } //if n
         } //end if randomchess
         else
+        {
+            assert(plpv != NULL && "plpv NULL before while loop");
+            fprintf(stderr, "# DBG plpv=%p before while\n", (void*)plpv);
             while(val < XEQUEMATE)
             {
                 limpa_pensa();
+                assert(plpv != NULL && "plpv NULL after limpa_pensa");
+                assert(resulta.plance != plpv && "resulta.plance and plpv share same address");
                 pv = NULL;
                 if(debug == 2)  //nivel extra de debug
                 {
                     fprintf(fmini, "#\n#\n# *************************************************************");
                     fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
                 }
+                assert(plpv != NULL && "plpv NULL before minimax in compjoga");
                 val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv, &pv);
                 if(pv == NULL)
                 {
@@ -2582,7 +2601,6 @@ char compjoga(tabuleiro *tabu)
                 if(difclocks() < tempomovclock)
                 {
                     melhorcaminho1 = lst_copia(plpv->a, pv);
-                    arena_gc(plpv->a, melhorcaminho1);
                     melhorvalor1 = val;
                 }
                 else
@@ -2613,9 +2631,10 @@ char compjoga(tabuleiro *tabu)
                 }
                 nv++; // busca em amplitude: aumenta um nivel.
             } //while val < XEQUEMATE
+        } // else (not randomchess)
     } // fim do se nao usou livro
     pv = NULL;
-    resulta.plance = melhorcaminho1;  //transfere ownership
+    resulta.plance = melhorcaminho1;  //transfere ownership (pode ser NULL se tempo estourou)
     melhorcaminho1 = NULL;
     resulta.valor = melhorvalor1;
     //nivel extra de debug
@@ -2664,19 +2683,23 @@ char compjoga(tabuleiro *tabu)
     }
     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
     //algum problema ocorreu que esta sem lances
-    if(resulta.plance == NULL)
+    if(!resulta.plance || !resulta.plance->cabeca)
     {
         res = randommove(tabu);
         if(res == 'e')
             return res; //vazio mesmo! Nem aleatorio foi!
         printdbg(debug, "# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
     }
+    assert(resulta.plance != NULL && "resulta.plance NULL before joga_em in compjoga");
+    assert(resulta.plance->cabeca != NULL && "resulta.plance->cabeca NULL before joga_em in compjoga");
+    assert(resulta.plance->cabeca->info != NULL && "resulta.plance->cabeca->info NULL before joga_em in compjoga");
     res = joga_em(tabu, *(movimento *)resulta.plance->cabeca->info, 1);  // computador joga
     return (res);
 } //fim da compjoga
 
 char analisa(tabuleiro *tabu)
 {
+    IFDEBUG("analisa()");
     tabuleiro tanalise;
     int nv = 0;
     lista *pv = NULL;
@@ -2695,7 +2718,7 @@ char analisa(tabuleiro *tabu)
     //mudou para busca em amplitude: variavel nivel obsoleta!
     if(USALIVRO && tabu->meionum < 50 && setboard != 1)
         usalivro(*tabu);
-    if(resulta.plance != NULL)
+    if(resulta.plance && resulta.plance->cabeca)
     {
         //tclock2 = time(NULL);
 //        clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
@@ -2737,14 +2760,13 @@ char analisa(tabuleiro *tabu)
                 break;
             nv++;
         }
-        libera_lances(&resulta.plance);
         resulta.plance = pv;  //transfere ownership
         pv = NULL;
         resulta.valor = val;
     }
     if(debug == 2)          //nivel extra de debug
         fclose(fmini);
-    if(resulta.plance == NULL)
+    if(!resulta.plance || !resulta.plance->cabeca)
         //...apos o termino da partida, so pode-se usar edicao, undo, etc.
         //              msgsai("# Computador sem lances validos 3", 35);
         //algum problema ocorreu que esta sem lances
@@ -2773,6 +2795,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
     size_t saved;
 
     assert(prof >= 0 && alfa <= beta && "Invalid minimax parameters");
+    assert(plpv != NULL && "plpv NULL at minimax entry");
     if(profsuf(atual, prof, alfa, beta, niv, &child_val, pv))
     {
         //profsuf preencheu *pv e child_val
@@ -2831,11 +2854,13 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, succ->lance[0], succ->lance[1], succ->lance[2], succ->lance[3]);
         }
         child_val = minimax(tab, prof + 1, -beta, -alfa, niv, &child_pv);
+        assert(plpv != NULL && "plpv NULL after child minimax returns");
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         novo_valor = -child_val;
         if(novo_valor > alfa)
         {
             alfa = novo_valor;
+            assert(plpv != NULL && "plpv is NULL in minimax pv_constroi");
             melhor_caminho = pv_constroi(plpv->a, *succ, child_pv);
         }
         child_pv = NULL;  //abandona PV do filho na arena
@@ -4141,6 +4166,7 @@ void pegaNmoves(char *linha2, char *linha, char *strlance)
 //retorna em resulta.plance uma variante do livro
 void usalivro(tabuleiro tabu)
 {
+    IFDEBUG("usalivro()");
     lista *cabeca;
     char linha[256], strlance[256], sjoga[256], linha2[256];
     FILE *flivro;
@@ -4432,8 +4458,9 @@ int irand_minmax(int min, int max)
 void sai(int error)
 {
     printdbg(debug, "# xadreco : sai ( %d )\n", error);
-    libera_lances(&resulta.plance);
     resulta.plance = NULL;
+    if(plpv)
+        arena_destroi(plpv->a);  //libera arena de PV
     if(plmov)
         arena_destroi(plmov->a);  //libera arena de movimentos
     if(pltab)
@@ -4447,8 +4474,8 @@ void inicia(tabuleiro *tabu)
     int i, j;
     pausa = 'n';
     resulta.valor = 0;
-    libera_lances(&resulta.plance);
     resulta.plance = NULL;
+    lst_recria(&plpv);
     lst_recria(&plmov);
     lst_recria(&pltab);
     ofereci = 1; //computador pode oferecer 1 empate
@@ -4518,8 +4545,11 @@ void  coloca_pecas(tabuleiro *tabu)
 //limpa algumas variaveis para iniciar ponderacao
 void limpa_pensa(void)
 {
-    libera_lances(&resulta.plance);
+    IFDEBUG("limpa_pensa()");
+    /* fprintf(stderr, "# DBG plpv=%p at entry limpa_pensa\n", (void*)plpv); */
+    assert(plpv != NULL && "plpv NULL at entry of limpa_pensa");
     resulta.plance = NULL;
+    assert(plpv != NULL && "plpv NULL after resulta.plance=NULL in limpa_pensa");
     //eh necessario
     resulta.valor = -LIMITE;
     //conferir
@@ -4737,6 +4767,7 @@ double difclocks(void)
 
 char randommove(tabuleiro *tabu)
 {
+    IFDEBUG("randommove()");
     int moveto;
     movimento *succ;
     no *n;
@@ -4923,10 +4954,7 @@ void lst_cria(arena *a, lista **pl)
         return;
     lista *l = (lista *)arena_aloca(a, sizeof(lista));
     if(!l)
-    {
-        *pl = NULL; // endereco da lista global armazenada
-        return;
-    }
+        msgsai("# Erro arena cheia em lst_cria", 39);
     l->pl = pl; // a lista sabe o endereco de onde ela mesma esta
     *pl = l; // endereco da lista global armazenada
     l->cabeca = NULL;
@@ -4950,7 +4978,7 @@ void lst_insere(lista *l, void *i, size_t tam)
     no *n = (no *)arena_aloca(l->a, sizeof(no));
 
     if(!n)
-        return;
+        msgsai("# Erro arena cheia em lst_insere", 40);
 
     n->info = i;
     n->tam = tam;
@@ -5011,6 +5039,7 @@ void lst_furafila(lista *l, no *n)
 // zera arena e recria lista do inicio
 void lst_recria(lista **pl)
 {
+    IFDEBUG("lst_recria()");
     arena *a;
     if(!*pl)
         return;
@@ -5080,6 +5109,8 @@ lista *lst_copia(arena *a, lista *src)
     while(n)
     {
         m = (movimento *)arena_aloca(a, sizeof(movimento));
+        if(!m)
+            msgsai("# Erro arena cheia em lst_copia", 41);
         *m = *(movimento *)n->info;
         lst_insere(dst, m, sizeof(movimento));
         n = n->prox;
@@ -5096,6 +5127,8 @@ lista *pv_constroi(arena *a, movimento ummovi, lista *plan)
 
     lst_cria(a, &pv);
     m = (movimento *)arena_aloca(a, sizeof(movimento));
+    if(!m)
+        msgsai("# Erro arena cheia em pv_constroi 1", 42);
     *m = ummovi;
     lst_insere(pv, m, sizeof(movimento));
     if(plan)
@@ -5104,30 +5137,14 @@ lista *pv_constroi(arena *a, movimento ummovi, lista *plan)
         while(n)
         {
             m = (movimento *)arena_aloca(a, sizeof(movimento));
+            if(!m)
+                msgsai("# Erro arena cheia em pv_constroi 2", 43);
             *m = *(movimento *)n->info;
             lst_insere(pv, m, sizeof(movimento));
             n = n->prox;
         }
     }
     return pv;
-}
-
-// garbage collector: compacta arena se >75%, dobra tamanho
-void arena_gc(arena *a, lista *l)
-{
-    arena anew;
-    lista *lnew;
-
-    if(a->usado <= a->total * 3 / 4)
-        return;
-    arena_inicia(&anew, a->total * 2);
-    if(a->destrutor)
-        arena_destrutor(&anew, a->destrutor);
-    lnew = lst_copia(&anew, l);
-    lnew->pl = l->pl;
-    *(l->pl) = lnew;
-    arena_destroi(a);
-    *a = anew;
 }
 
 /* historico de tabuleiros usando arena ------------------------------- */
