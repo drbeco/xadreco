@@ -345,8 +345,8 @@ void limpa_pensa(void);
 void enche_lmovi(lista *lmov, int c0, int c1, int c2, int c3, int pp, int rr, int ee, int ff);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
-//imprime uma sequencia de lances armazenada na lista movimento, numerados.
-void imprime_linha(movimento *loop, int mnum, int vez);
+//imprime uma sequencia de lances armazenada na lista, numerados.
+void imprime_linha(lista *lpv, int mnum, int vez);
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 int pollinput(void);
 //calcula diferenca de tempo em segundo do lance atual
@@ -2595,12 +2595,12 @@ char compjoga(tabuleiro *tabu)
                 {
                     fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\n# pv: ", val / 100.0, totalnodo);
                     if(!mostrapensando || abs(val) == FIMTEMPO || abs(val) == LIMITE)
-                        ; //TODO step6: imprime_linha(pv, 1, 2);
+                        imprime_linha(pv, 1, 2);
                 }
                 if(mostrapensando && abs(val) != FIMTEMPO && abs(val) != LIMITE)
                 {
                     printf("%3d %+6d %3d %7d ", nv, val, (int)difclocks(), totalnodo);
-                    //TODO step6: imprime_linha(pv, tabu->meionum + 1, -tabu->vez);
+                    imprime_linha(pv, tabu->meionum + 1, -tabu->vez);
                 }
                 // termino do laco infinito baseado no tempo
                 if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))
@@ -2848,7 +2848,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
             if(melhor_caminho != NULL)
             {
                 fprintf(fmini, "#\n# melhor_caminho=");
-                //TODO step6: imprime_linha(melhor_caminho, 1, 2); //melhor_caminho agora eh lista*
+                imprime_linha(melhor_caminho, 1, 2);
             }
         }
         //implementar o NULL-MOVE
@@ -4650,24 +4650,24 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
            fullmove);
 }
 
-//imprime uma sequencia de lances armazenada na lista movimento
+//imprime uma sequencia de lances armazenada na lista
 //tabuvez==2 para pular numeracao em debug==2
-void imprime_linha(movimento *loop, int mnum, int tabuvez)
+// TODO: find a better way to represent lances/movements
+void imprime_linha(lista *lpv, int mnum, int tabuvez)
 {
     int num, vez;
     char m[80];
-//    FILE *fimprime;
+    no *n;
+    movimento *mov;
+
     num = (int)((mnum + 1.0) / 2.0);
     vez = tabuvez;
-//    fimprime = NULL;
-//    if(debug == 2)
-//        fimprime = fmini;
-//    if(debug == 1)
-//        fimprime = fsaida;
     printdbg(debug, "# ");
-    while(loop != NULL)
+    n = lpv ? lpv->cabeca : NULL;
+    while(n)
     {
-        lance2movi(m, loop->lance, loop->especial);
+        mov = (movimento *)n->info;
+        lance2movi(m, mov->lance, mov->especial);
         if(vez == brancas)  //jogou anterior as pretas
         {
             if(tabuvez == brancas && num == (int)((mnum + 1.0) / 2.0))
@@ -4695,7 +4695,7 @@ void imprime_linha(movimento *loop, int mnum, int tabuvez)
                 if(debug == 2) fprintf(fmini, "%d. %s ", num, m);
             }
         }
-        loop = loop->prox;
+        n = n->prox;
         vez *= (-1);
     }
     printf("\n");
