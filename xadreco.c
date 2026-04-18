@@ -385,11 +385,11 @@ void usalivro(tabuleiro tabu);
 //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
 void listab2string(char *strlance);
 //retorna uma (lista) linha de jogo como se fosse a resposta do minimax
-movimento *string2pmovi(int mnum, char *linha);
+lista *string2pmovi(int mnum, char *linha);
 //retorna verdadeiro se o jogo atual strlances casa com a linha do livro atual strlinha
 int igual_strlances_strlinha(char *strlances, char *strlinha);
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
-int estatico_pmovi(tabuleiro tabu, movimento *cabeca);
+int estatico_pmovi(tabuleiro tabu, lista *lpv);
 //dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
 void pega2moves(char *linha2, char *linha);
 /* pega total de lances em strlance + 1 */
@@ -2521,8 +2521,7 @@ char compjoga(tabuleiro *tabu)
         usalivro(*tabu);
         if(resulta.plance == NULL)
             USALIVRO = 0;
-        melhorcaminho1 = NULL; //TODO step8: lst_copia do livro
-        //TODO step8: melhorcaminho1 = lst_copia(plpv->a, resulta.plance); //livro ainda usa movimento*
+        melhorcaminho1 = lst_copia(plpv->a, resulta.plance);
         melhorvalor1 = resulta.valor;
     }
 
@@ -4040,12 +4039,13 @@ void listab2string(char *strlance)
 
 //retorna uma linha de jogo como se fosse a resposta do minimax
 //com inicio no lance da vez.
-movimento *string2pmovi(int mnum, char *linha)
+lista *string2pmovi(int mnum, char *linha)
 {
     char m[8];
     int n = 0, lanc[4], i, conta = 0;
-    movimento *pmovi, *pmoviant, *cabeca;
     movimento mval;
+    movimento *pmovi;
+    lista *cabeca;
     //posicao inicial
     tabuleiro tab =
     {
@@ -4063,9 +4063,7 @@ movimento *string2pmovi(int mnum, char *linha)
         {0, 0, 0, 0},
         0, 0
     };
-    cabeca = NULL;
-    pmoviant = NULL;
-    pmovi = NULL;
+    lst_cria(plpv->a, &cabeca);
     while(linha[n] != '\0')
     {
         n++;
@@ -4080,26 +4078,14 @@ movimento *string2pmovi(int mnum, char *linha)
         movi2lance(lanc, m);
         if(!valido(tab, lanc, &mval))
             break;
-        //chamar joga_em() apenas para atualizar esse tabuleiro local, para usar a funcao valido()
         disc = (char) joga_em(&tab, mval, 0);
-        //a funcao joga_em deve inserir no listab, cod: 1:insere, 0:nao insere
         if(n / 5 >= mnum) //chegou na posicao atual! comeca inserir na lista
         {
-            pmovi = (movimento *) malloc(sizeof(movimento));
-            if(pmovi == NULL)
-                msgsai("# Erro ao alocar memoria em string2pmovi", 38);
+            pmovi = (movimento *)arena_aloca(plpv->a, sizeof(movimento));
+            if(!pmovi)
+                msgsai("# Erro arena cheia em string2pmovi", 38);
             copimov(pmovi, &mval);
-            pmovi->prox = NULL;
-            if(cabeca == NULL)
-            {
-                cabeca = pmovi;
-                pmoviant = pmovi;
-            }
-            else
-            {
-                pmoviant->prox = pmovi;
-                pmoviant = pmoviant->prox;
-            }
+            lst_insere(cabeca, pmovi, sizeof(movimento));
         }
         n += 5;
     }
@@ -4155,7 +4141,7 @@ void pegaNmoves(char *linha2, char *linha, char *strlance)
 //retorna em resulta.plance uma variante do livro
 void usalivro(tabuleiro tabu)
 {
-    movimento *cabeca;
+    lista *cabeca;
     char linha[256], strlance[256], sjoga[256], linha2[256];
     FILE *flivro;
     int sorteio, nlinha = 0;
@@ -4167,7 +4153,6 @@ void usalivro(tabuleiro tabu)
     if(!flivro)
     {
         /* chamada por compjoga() e analisa() */
-        libera_lances(&resulta.plance);
         resulta.plance = NULL;
         return;
     }
@@ -4177,7 +4162,6 @@ void usalivro(tabuleiro tabu)
         if(LINHASBOAS < 1)
         {
             fclose(flivro);
-            libera_lances(&resulta.plance);
             resulta.plance = NULL;
             return;
         }
@@ -4206,8 +4190,7 @@ void usalivro(tabuleiro tabu)
         //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
         cabeca = string2pmovi(tabu.meionum, linha);
         resulta.valor = estatico_pmovi(tabu, cabeca);
-        libera_lances(&resulta.plance);
-        resulta.plance = copilistmov(cabeca);
+        resulta.plance = cabeca;
     }
     else
         if(tabu.meionum == 1)  // No primeiro lance de pretas, sorteia uma possivel resposta
@@ -4239,7 +4222,6 @@ void usalivro(tabuleiro tabu)
             if(nlinha < 1)
             {
                 fclose(flivro);
-                libera_lances(&resulta.plance);
                 resulta.plance = NULL;
                 return;
             }
@@ -4276,8 +4258,7 @@ void usalivro(tabuleiro tabu)
             /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.meionum, linha);
             resulta.valor = estatico_pmovi(tabu, cabeca);
-            libera_lances(&resulta.plance);
-            resulta.plance = copilistmov(cabeca);
+            resulta.plance = cabeca;
         }
         else /* tab.meionum>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
         {
@@ -4308,7 +4289,6 @@ void usalivro(tabuleiro tabu)
             if(nlinha < 1)
             {
                 fclose(flivro);
-                libera_lances(&resulta.plance);
                 resulta.plance = NULL;
                 return;
             }
@@ -4345,8 +4325,7 @@ void usalivro(tabuleiro tabu)
             /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.meionum, linha);
             resulta.valor = estatico_pmovi(tabu, cabeca);
-            libera_lances(&resulta.plance);
-            resulta.plance = copilistmov(cabeca);
+            resulta.plance = cabeca;
 
             /* if(cabeca == NULL) */
             /* { */
@@ -4701,18 +4680,20 @@ void imprime_linha(lista *lpv, int mnum, int tabuvez)
 }
 
 //retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
-int estatico_pmovi(tabuleiro tabu, movimento *cabeca)
+int estatico_pmovi(tabuleiro tabu, lista *lpv)
 {
     //cod: 1: acabou o tempo, 0: ou eh avaliacao normal?
     //niv: qual a distancia do tabuleiro real para a copia tabu avaliada?
     int niv = 0;
-    while(cabeca != NULL)
+    no *n;
+    movimento *mov;
+    n = lpv ? lpv->cabeca : NULL;
+    while(n)
     {
-        disc = (char) joga_em(&tabu, *cabeca, 0);
+        mov = (movimento *)n->info;
+        disc = (char) joga_em(&tabu, *mov, 0);
         //a funcao joga_em deve inserir no listab, cod: 1:insere, 0:nao insere
-        //com isso surge o problema de que o programa nao detecta empate por 3 repeticoes enquanto le o livro de aberturas.
-        //a solucao simples e nao incluir no livro de abertura linhas que empatam com tres repeticoes na fase de abertura (se e que isso existe!)
-        cabeca = cabeca->prox;
+        n = n->prox;
         niv++;
     }
     return estatico(tabu, 0, niv, -LIMITE, LIMITE);
