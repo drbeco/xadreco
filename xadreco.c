@@ -380,7 +380,7 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result);
 //retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
 char situacao(tabuleiro tabu);
 // livro --------------------------------------------------------------
-//retorna em resulta.plance uma variante do livro, baseado na posicao do tabuleiro tabu
+//preenche melhor com uma variante do livro, baseado na posicao do tabuleiro tabu
 void usalivro(tabuleiro tabu);
 //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
 void listab2string(char *strlance);
@@ -4021,23 +4021,20 @@ void pegaNmoves(char *linha2, char *linha, char *strlance)
     linha2[ll] = '\0';
 }
 
-//retorna em resulta.plance uma variante do livro
+//preenche melhor com uma variante do livro
 void usalivro(tabuleiro tabu)
 {
     IFDEBUG("usalivro()");
-    lista *cabeca;
     char linha[256], strlance[256], sjoga[256], linha2[256];
     FILE *flivro;
     int sorteio, nlinha = 0;
-    /* int novovalor; */
     char *p;
 
-    cabeca = NULL;
     flivro = fopen(bookfname, "r");
     if(!flivro)
     {
         /* chamada por compjoga() e analisa() */
-        resulta.plance = NULL;
+        melhor.tamanho = 0;
         return;
     }
 
@@ -4046,7 +4043,7 @@ void usalivro(tabuleiro tabu)
         if(LINHASBOAS < 1)
         {
             fclose(flivro);
-            resulta.plance = NULL;
+            melhor.tamanho = 0;
             return;
         }
 
@@ -4072,9 +4069,8 @@ void usalivro(tabuleiro tabu)
         printdbg(debug, "# move 0 - sorteado= %d, linha: '%s'", sorteio, linha);
 
         //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
-        cabeca = string2pmovi(tabu.meionum, linha);
-        resulta.valor = estatico_melhor(tabu, cabeca);
-        resulta.plance = cabeca;
+        livro_linha(tabu.meionum, linha);
+        melhor.valor = estatico_melhor(tabu);
     }
     else
         if(tabu.meionum == 1)  // No primeiro lance de pretas, sorteia uma possivel resposta
@@ -4106,7 +4102,7 @@ void usalivro(tabuleiro tabu)
             if(nlinha < 1)
             {
                 fclose(flivro);
-                resulta.plance = NULL;
+                melhor.tamanho = 0;
                 return;
             }
 
@@ -4140,9 +4136,8 @@ void usalivro(tabuleiro tabu)
             }
             printdbg(debug, "# xboard move 1 - sorteado= %d, linha: '%s'", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
-            cabeca = string2pmovi(tabu.meionum, linha);
-            resulta.valor = estatico_melhor(tabu, cabeca);
-            resulta.plance = cabeca;
+            livro_linha(tabu.meionum, linha);
+            melhor.valor = estatico_melhor(tabu);
         }
         else /* tab.meionum>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
         {
@@ -4173,7 +4168,7 @@ void usalivro(tabuleiro tabu)
             if(nlinha < 1)
             {
                 fclose(flivro);
-                resulta.plance = NULL;
+                melhor.tamanho = 0;
                 return;
             }
 
@@ -4207,11 +4202,8 @@ void usalivro(tabuleiro tabu)
             }
             printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: '%s'", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
-            cabeca = string2pmovi(tabu.meionum, linha);
-            resulta.valor = estatico_melhor(tabu, cabeca);
-            resulta.plance = cabeca;
-
-            /* if(cabeca == NULL) */
+            livro_linha(tabu.meionum, linha);
+            melhor.valor = estatico_melhor(tabu);
         } //else nao e o primeiro lance nem de brancas, nem de pretas
 
     if(flivro)
