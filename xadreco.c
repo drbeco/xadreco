@@ -232,7 +232,6 @@ lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequ
 resultado mel[MAX_PROF];
 // melhor linha salva entre iteracoes (o pote de mel)
 resultado melhor;
-movimento dbg_path[MAX_PROF]; //DEBUG-TMP track move path in minimax
 // outros globais ------------------------------------
 //my rating and opponent rating
 int myrating, opprating;
@@ -2758,20 +2757,6 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             msgsai("# Erro arena cheia em minimax lst_cria", 39);
         geramov(atual, llmov, GERA_TUDO); // gerar lista de lances para tabuleiro imaginario
         n = llmov->cabeca;
-        if(debug == 2 && prof <= 3) // DEBUG TEMP: mostra lista de lances particionada
-        {
-            no *dbg = llmov->cabeca;
-            int dbgi = 0;
-            char dbgm[8];
-            fprintf(fmini, "#\n# MOVELIST prof=%d vez=%s (%d moves):\n", prof, atual.vez == brancas ? "brancas" : "pretas", llmov->qtd);
-            while(dbg)
-            {
-                movimento *dbgs = (movimento *)dbg->info;
-                lance2movi(dbgm, dbgs->de, dbgs->pa, dbgs->especial);
-                fprintf(fmini, "# %2d. %s ee=%d ff=%d val=%d\n", ++dbgi, dbgm, dbgs->especial, dbgs->flag_50, dbgs->valor_estatico);
-                dbg = dbg->prox;
-            }
-        }
     }
 
     if(!n)
@@ -2790,19 +2775,6 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         succ = (movimento *)n->info;
         copitab(&tab, &atual);
         disc = (char) joga_em(&tab, *succ, 1);
-        dbg_path[prof] = *succ; //DEBUG-TMP
-        if(debug == 2 && succ->de == SQ(7,4) && succ->pa == SQ(7,6)) //DEBUG-TMP h5h7
-        {
-            char dbgline[256]; //DEBUG-TMP
-            int dbgp, dbgn = 0; //DEBUG-TMP
-            for(dbgp = 0; dbgp <= prof; dbgp++) //DEBUG-TMP
-            {
-                lance2movi(&dbgline[dbgn], dbg_path[dbgp].de, dbg_path[dbgp].pa, dbg_path[dbgp].especial);
-                dbgn += 4; dbgline[dbgn++] = ' ';
-            }
-            dbgline[dbgn] = '\0'; //DEBUG-TMP
-            fprintf(fmini, "# DEBUG h5h7: prof=%d situa=%d disc=%c line=[%s]\n", prof, tab.situa, disc, dbgline);
-        }
         //joga o lance atual, a funcao joga_em deve inserir no listab
         totalnodonivel++;
         profflag = succ->flag_50 + 1;	//se for zero, fim da busca.
@@ -2827,11 +2799,6 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         child_val = minimax(tab, prof + 1, -beta, -alfa, niv);
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         novo_valor = -child_val;
-        if(debug == 2 && prof == 0) //DEBUG-TMP root move scores
-        {
-            lance2movi(m, succ->de, succ->pa, succ->especial);
-            fprintf(fmini, "# ROOT %s child_val=%d novo_valor=%d alfa=%d beta=%d\n", m, child_val, novo_valor, alfa, beta);
-        }
         if(novo_valor > alfa)
         {
             alfa = novo_valor;
@@ -3315,9 +3282,6 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     if(peca_movida != REI && peca_movida != 0
        && ataca(tabu.vez, COL(tabu.pa), ROW(tabu.pa), tabu))
         material += peca_movida; // pendurada: lado da vez pode recapturar (positivo = bom para vez)
-
-    if(debug == 2 && tabu.tab[SQ(7,6)] == -DAMA) //DEBUG-TMP: queen on h7
-        fprintf(fmini, "# DEBUG-LAZY h7=Q: situa=%d vez=%d material=%d alfa=%d beta=%d pecab=%d pecap=%d\n", tabu.situa, tabu.vez, material, alfa, beta, pecab, pecap);
 
     //lazy: material even with best positional bonus can't beat alfa
     if(material + MARGEM_PREGUICA <= alfa)
