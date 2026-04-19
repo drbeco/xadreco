@@ -838,6 +838,7 @@ void imptab(tabuleiro tabu)
             OFERECEREMPATE = 0;
         }
     }
+    if(debug) mostra_tabu(tabu);
 }
 
 //mostra tabuleiro em ascii no stderr (debug)
@@ -2529,7 +2530,8 @@ char compjoga(tabuleiro *tabu)
         {
             while(val < XEQUEMATE)
             {
-                limpa_pensa();
+                totalnodonivel = 0;
+                profflag = 1;
                 if(debug == 2)  //nivel extra de debug
                 {
                     fprintf(fmini, "#\n#\n# *************************************************************");
@@ -2673,7 +2675,8 @@ char analisa(tabuleiro *tabu)
         totalnodo = 0;
         while(val < XEQUEMATE)
         {
-            limpa_pensa();
+            totalnodonivel = 0;
+            profflag = 1;
             val = minimax(*tabu, 0, -LIMITE, LIMITE, nv);
             totalnodo += totalnodonivel;
             lst_ordem(plmov);
@@ -2725,6 +2728,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     size_t saved;
 
     assert(prof >= 0 && alfa <= beta && "Invalid minimax parameters");
+    mel[prof].tamanho = 0; // inicializa PV vazio (evita dados stale de iteracao anterior)
 
     if(profsuf(atual, prof, alfa, beta, niv, &child_val))
     {
@@ -3938,7 +3942,6 @@ void livro_linha(int mnum, char *linha)
         0, 0
     };
     melhor.tamanho = 0;
-    if(debug) mostra_tabu(tab);
     while(linha[n] != '\0')
     {
         n++;
