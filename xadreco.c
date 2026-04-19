@@ -389,7 +389,7 @@ void livro_linha(int mnum, char *linha);
 //retorna verdadeiro se o jogo atual strlances casa com a linha do livro atual strlinha
 int igual_strlances_strlinha(char *strlances, char *strlinha);
 //retorna o valor estatico de um tabuleiro apos jogada a melhor linha de movimentos
-int estatico_pmovi(tabuleiro tabu);
+int estatico_melhor(tabuleiro tabu);
 //dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
 void pega2moves(char *linha2, char *linha);
 /* pega total de lances em strlance + 1 */
@@ -3929,15 +3929,13 @@ void listab2string(char *strlance)
     return;
 }
 
-//retorna uma linha de jogo como se fosse a resposta do minimax
-//com inicio no lance da vez.
-lista *string2pmovi(int mnum, char *linha)
+//le linha do livro de aberturas e preenche melhor.linha/melhor.tamanho
+//com inicio no lance da vez (mnum).
+void livro_linha(int mnum, char *linha)
 {
     char m[8];
     int n = 0, de, pa, i, conta = 0;
     movimento mval;
-    movimento *pmovi;
-    lista *cabeca;
     //posicao inicial
     tabuleiro tab =
     {
@@ -3955,8 +3953,7 @@ lista *string2pmovi(int mnum, char *linha)
         0, 0,
         0, 0
     };
-    if(lst_cria(plpv_search->a, &cabeca))
-        return NULL; // arena full, no book PV
+    melhor.tamanho = 0;
     while(linha[n] != '\0')
     {
         n++;
@@ -3972,18 +3969,10 @@ lista *string2pmovi(int mnum, char *linha)
         if(!valido(tab, de, pa, &mval))
             break;
         disc = (char) joga_em(&tab, mval, 0);
-        if(n / 5 >= mnum) //chegou na posicao atual! comeca inserir na lista
-        {
-            pmovi = (movimento *)arena_aloca(plpv_search->a, sizeof(movimento));
-            if(!pmovi)
-                break; // arena full, return partial book PV
-            *pmovi = mval;
-            if(lst_insere(cabeca, pmovi, sizeof(movimento)))
-                break; // arena full
-        }
+        if(n / 5 >= mnum) //chegou na posicao atual! comeca inserir
+            melhor.linha[melhor.tamanho++] = mval;
         n += 5;
     }
-    return cabeca;
 }
 
 //retorna verdadeiro se o jogo atual casa com a linha do livro atual
@@ -4084,7 +4073,7 @@ void usalivro(tabuleiro tabu)
 
         //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
         cabeca = string2pmovi(tabu.meionum, linha);
-        resulta.valor = estatico_pmovi(tabu, cabeca);
+        resulta.valor = estatico_melhor(tabu, cabeca);
         resulta.plance = cabeca;
     }
     else
@@ -4152,7 +4141,7 @@ void usalivro(tabuleiro tabu)
             printdbg(debug, "# xboard move 1 - sorteado= %d, linha: '%s'", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.meionum, linha);
-            resulta.valor = estatico_pmovi(tabu, cabeca);
+            resulta.valor = estatico_melhor(tabu, cabeca);
             resulta.plance = cabeca;
         }
         else /* tab.meionum>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
@@ -4219,7 +4208,7 @@ void usalivro(tabuleiro tabu)
             printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: '%s'", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
             cabeca = string2pmovi(tabu.meionum, linha);
-            resulta.valor = estatico_pmovi(tabu, cabeca);
+            resulta.valor = estatico_melhor(tabu, cabeca);
             resulta.plance = cabeca;
 
             /* if(cabeca == NULL) */
@@ -4552,26 +4541,17 @@ void imprime_linha(resultado *res, int mnum, int tabuvez)
     printf("\n");
 }
 
-//retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
-int estatico_pmovi(tabuleiro tabu, lista *lpv)
+//retorna o valor estatico de um tabuleiro apos jogada a melhor linha de movimentos
+int estatico_melhor(tabuleiro tabu)
 {
-    //cod: 1: acabou o tempo, 0: ou eh avaliacao normal?
-    //niv: qual a distancia do tabuleiro real para a copia tabu avaliada?
-    int niv = 0;
-    no *n;
-    movimento *mov;
-    n = lpv ? lpv->cabeca : NULL;
-    while(n)
+    int i, niv = 0;
+
+    for(i = 0; i < melhor.tamanho; i++)
     {
-        mov = (movimento *)n->info;
-        disc = (char) joga_em(&tabu, *mov, 0);
-        //a funcao joga_em deve inserir no listab, cod: 1:insere, 0:nao insere
-        n = n->prox;
+        disc = (char) joga_em(&tabu, melhor.linha[i], 0);
         niv++;
     }
     return estatico(tabu, 0, niv, -LIMITE, LIMITE);
-    //      return rand_minmax(-8, +8);
-    /* sorteio = irand_minmax(-8, 9); /-* irand_minmax  [min,max[ */
 }
 
 // pollinput() Emprestado do jogo de xadrez pepito: dica de Fabio Maia
