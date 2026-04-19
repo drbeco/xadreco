@@ -457,18 +457,6 @@ int main(int argc, char *argv[])
     if(lst_cria(&amov, &plmov))
         msgsai("# Erro arena cheia em main lst_cria amov", 39);
 
-    arena apv_search; // PV search workspace
-    arena_inicia(&apv_search, ARENA_PVSEARCH);
-    arena_destrutor(&apv_search, lst_limpa);
-    if(lst_cria(&apv_search, &plpv_search))
-        msgsai("# Erro arena cheia em main lst_cria apv_search", 39);
-
-    arena apv_best; // PV best saved
-    arena_inicia(&apv_best, ARENA_PVBEST);
-    arena_destrutor(&apv_best, lst_limpa);
-    if(lst_cria(&apv_best, &plpv_best))
-        msgsai("# Erro arena cheia em main lst_cria apv_best", 39);
-
     int opt; /* return from getopt() */
     tabuleiro tabu;
     char feature[256];
@@ -4253,11 +4241,6 @@ int irand_minmax(int min, int max)
 void sai(int error)
 {
     printdbg(debug, "# xadreco : sai ( %d )\n", error);
-    resulta.plance = NULL;
-    if(plpv_best)
-        arena_destroi(plpv_best->a);  //libera arena de PV best
-    if(plpv_search)
-        arena_destroi(plpv_search->a);  //libera arena de PV search
     if(plmov)
         arena_destroi(plmov->a);  //libera arena de movimentos
     if(pltab)
@@ -4270,10 +4253,8 @@ void inicia(tabuleiro *tabu)
 {
     int i, j;
     pausa = 'n';
-    resulta.valor = 0;
-    resulta.plance = NULL;
-    lst_recria(&plpv_search);
-    lst_recria(&plpv_best);
+    melhor.tamanho = 0;
+    melhor.valor = 0;
     lst_recria(&plmov);
     lst_recria(&pltab);
     ofereci = 1; //computador pode oferecer 1 empate
@@ -4622,7 +4603,7 @@ void copyr(void)
     IFDEBUG("copyr()");
     printf("%s - Version %s, build %s\n", "Xadreco", VERSION, BUILD);
     printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2018, "Ruben Carlo Benante", "rcb@beco.cc");
-    printf("Arenas: tab=%dKB mov=%dKB pvsearch=%dKB pvbest=%dKB\n\n", ARENA_TAB/1024, ARENA_MOV/1024, ARENA_PVSEARCH/1024, ARENA_PVBEST/1024);
+    printf("Arenas: tab=%dKB mov=%dKB. PV triangular: mel=%zuKB melhor=%zuKB\n\n", ARENA_TAB/1024, ARENA_MOV/1024, sizeof(mel)/1024, sizeof(melhor)/1024);
     if(debug > 3) printf("copyr(): Verbose: %d\n", debug); /* -vvvv */
     exit(EXIT_FAILURE);
 }
@@ -4879,63 +4860,6 @@ void lst_ordem(lista *l)
         }
         lst_furafila(l, worst);
     }
-}
-
-// copia lista src para arena a
-lista *lst_copia(arena *a, lista *src)
-{
-    lista *dst;
-    no *n;
-    movimento *m;
-
-    if(lst_cria(a, &dst))
-        return NULL;
-    if(!src)
-        return dst;
-    n = src->cabeca;
-    while(n)
-    {
-        m = (movimento *)arena_aloca(a, sizeof(movimento));
-        if(!m)
-            return dst; // partial copy
-        *m = *(movimento *)n->info;
-        if(lst_insere(dst, m, sizeof(movimento)))
-            return dst; // partial copy
-        n = n->prox;
-    }
-    return dst;
-}
-
-// constroi PV: ummovi na cabeca + copia de plan. Retorna NULL se arena cheia.
-lista *pv_constroi(arena *a, movimento ummovi, lista *plan)
-{
-    lista *pv;
-    movimento *m;
-    no *n;
-
-    if(lst_cria(a, &pv))
-        return NULL;
-    m = (movimento *)arena_aloca(a, sizeof(movimento));
-    if(!m)
-        return NULL;
-    *m = ummovi;
-    if(lst_insere(pv, m, sizeof(movimento)))
-        return NULL;
-    if(plan)
-    {
-        n = plan->cabeca;
-        while(n)
-        {
-            m = (movimento *)arena_aloca(a, sizeof(movimento));
-            if(!m)
-                return pv; // partial PV: head move without full continuation
-            *m = *(movimento *)n->info;
-            if(lst_insere(pv, m, sizeof(movimento)))
-                return pv; // partial PV
-            n = n->prox;
-        }
-    }
-    return pv;
 }
 
 /* historico de tabuleiros usando arena ------------------------------- */
