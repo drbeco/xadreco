@@ -2626,7 +2626,6 @@ char analisa(tabuleiro *tabu)
     IFDEBUG("analisa()");
     tabuleiro tanalise;
     int nv = 0;
-    lista *pv = NULL;
     int val = -LIMITE;
     // lances calc. em maior nivel tem mais importancia?
     //mudou para logo abaixo do scanf de humajoga
@@ -2642,18 +2641,10 @@ char analisa(tabuleiro *tabu)
     //mudou para busca em amplitude: variavel nivel obsoleta!
     if(USALIVRO && tabu->meionum < 50 && setboard != 1)
         usalivro(*tabu);
-    if(resulta.plance && resulta.plance->cabeca)
+    if(melhor.tamanho > 0)
     {
-        //tclock2 = time(NULL);
-//        clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
-        //diftclock = difftime(tclock2 , tclock1);
-//        difclock = clock2 - clock1;
-        //nivel pontuacao tempo totalnodo variacao === usado!
-//        printf ("# xadreco : ply score time nodes pv\n");
-        printf("%3d %+6d %3d %7d ", nv, resulta.valor, (int)difclocks(), totalnodo);
-        imprime_linha(resulta.plance, tabu->meionum + 1, -tabu->vez);
-//        printdbg(debug, "# xadreco : nv=%d value=%+.2f time=%ds totalnodo=%d\n", nv, (float) resulta.valor / 100.0, (int)difclocks(), totalnodo);
-//        printdbg(debug, "# \n");
+        printf("%3d %+6d %3d %7d ", nv, melhor.valor, (int)difclocks(), totalnodo);
+        imprime_linha(&melhor, tabu->meionum + 1, -tabu->vez);
     }
     else
     {
@@ -2664,37 +2655,33 @@ char analisa(tabuleiro *tabu)
         while(val < XEQUEMATE)
         {
             limpa_pensa();
-            lst_recria(&plpv_search);  // reset search arena each iteration
-            pv = NULL;
-            val = minimax(*tabu, 0, -LIMITE, LIMITE, nv, &pv);
+            val = minimax(*tabu, 0, -LIMITE, LIMITE, nv);
             totalnodo += totalnodonivel;
             lst_ordem(plmov);
             if(abs(val) != FIMTEMPO && abs(val) != LIMITE)
             {
                 printf("%3d %+6d %3d %7d ", nv, val, (int)difclocks(), totalnodo);
-                imprime_linha(pv, tabu->meionum + 1, -tabu->vez);
+                imprime_linha(&mel[0], tabu->meionum + 1, -tabu->vez);
             }
             if(debug == 2)
             {
                 fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\npv: ", val / 100.0, totalnodo);
-                imprime_linha(pv, 1, 2);
+                imprime_linha(&mel[0], 1, 2);
             }
             if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))
                 break;
-            if(pv == NULL)
+            if(mel[0].tamanho == 0)
                 break;
             nv++;
         }
-        lst_recria(&plpv_best);
-        resulta.plance = lst_copia(plpv_best->a, pv);
-        pv = NULL;
-        resulta.valor = val;
+        memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
+        melhor.tamanho = mel[0].tamanho;
+        melhor.valor = val;
     }
     if(debug == 2)          //nivel extra de debug
         fclose(fmini);
-    if(!resulta.plance || !resulta.plance->cabeca)
+    if(melhor.tamanho == 0)
         //...apos o termino da partida, so pode-se usar edicao, undo, etc.
-        //              msgsai("# Computador sem lances validos 3", 35);
         //algum problema ocorreu que esta sem lances
         return ('e');
     //erro 35! computador sem lances!? nivel deve ser > zero
