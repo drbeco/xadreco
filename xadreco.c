@@ -2730,11 +2730,9 @@ char analisa(tabuleiro *tabu)
 //If there had been no fish in the bag, determining that the six-pack of pop
 //bag was better than the sandwich bag would have been like exceeding alpha (one ply back).
 //source: http://www.seanet.com/~brucemo/topics/alphabeta.htm
-int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
+int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
 {
-    lista *melhor_caminho = NULL;
     movimento *succ;
-    lista *child_pv = NULL;
     int novo_valor, child_val, contamov = 0;
     tabuleiro tab;
     char m[8];
@@ -2744,9 +2742,9 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
 
     assert(prof >= 0 && alfa <= beta && "Invalid minimax parameters");
 
-    if(profsuf(atual, prof, alfa, beta, niv, &child_val, pv))
+    if(profsuf(atual, prof, alfa, beta, niv, &child_val))
     {
-        //profsuf preencheu *pv e child_val
+        //profsuf preencheu mel[prof] e child_val
         return child_val;
     }
     if(debug == 2)
@@ -2768,7 +2766,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
     if(!n)
     {
         //entao o estatico refletira isso: afogamento
-        *pv = NULL;
+        mel[prof].tamanho = 0;
         child_val = estatico(atual, 0, prof, alfa, beta);
         if(debug == 2)
             fprintf(fmini, "#NULL ");
@@ -2802,27 +2800,25 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
             lance2movi(m, succ->de, succ->pa, succ->especial);
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
         }
-        child_val = minimax(tab, prof + 1, -beta, -alfa, niv, &child_pv);
+        child_val = minimax(tab, prof + 1, -beta, -alfa, niv);
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         novo_valor = -child_val;
         if(novo_valor > alfa)
         {
             alfa = novo_valor;
-            {
-            lista *novo_pv = pv_constroi(plpv_search->a, *succ, child_pv);
-            if(novo_pv)
-                melhor_caminho = novo_pv;
-            }
+            mel[prof].linha[0] = *succ;
+            memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0],
+                   mel[prof + 1].tamanho * sizeof(movimento));
+            mel[prof].tamanho = mel[prof + 1].tamanho + 1;
         }
-        child_pv = NULL;  //abandona PV do filho na arena
         if(debug == 2 && prof == 0)
         {
             lance2movi(m, succ->de, succ->pa, succ->especial);
             fprintf(fmini, "#\n# novo_valor=%+.2f", novo_valor / 100.0);
-            if(melhor_caminho != NULL)
+            if(mel[prof].tamanho > 0)
             {
                 fprintf(fmini, "#\n# melhor_caminho=");
-                imprime_linha(melhor_caminho, 1, 2);
+                imprime_linha(&mel[prof], 1, 2);
             }
         }
         //implementar o NULL-MOVE
@@ -2843,7 +2839,6 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
         if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)	//tentando com 60%
             break;
     } //while(n)
-    *pv = melhor_caminho;  //transfere ownership, sem copia
     if(prof != 0)
         plmov->a->usado = saved;  //rewind arena
     if(debug == 2)
@@ -2851,15 +2846,22 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv)
     return alfa;
 }
 
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, lista **pv)
+int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
 {
     char input;
 
+    //limite absoluto de profundidade: protege mel[prof] de overflow
+    if(prof >= MAX_PROF)
+    {
+        mel[prof - 1].tamanho = 0;
+        *valor = estatico(atual, 0, prof, alfa, beta);
+        return 1;
+    }
     //se tem captura ou xeque... liberou
     //se ja passou do nivel estipulado, pare a busca incondicionalmente
     if(prof > niv)
     {
-        *pv = NULL;
+        mel[prof].tamanho = 0;
         *valor = estatico(atual, 0, prof, alfa, beta);
         //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
         return 1;
@@ -2867,7 +2869,7 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, 
     //retorna sem analisar... Deve desconsiderar o lance
     if(difclocks() >= tempomovclock && debug != 2)
     {
-        *pv = NULL;
+        mel[prof].tamanho = 0;
         *valor = estatico(atual, 1, prof, alfa, beta);	//-FIMTEMPO;//
         return 1;
     }
@@ -2887,7 +2889,7 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, 
             // ungetc (input, stdin);
             if(input == '?')
             {
-                *pv = NULL;
+                mel[prof].tamanho = 0;
                 *valor = estatico(atual, 1, prof, alfa, beta);  //-FIMTEMPO;//
                 ungetc(input, stdin);
                 // teminterroga=1;
@@ -2906,7 +2908,7 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, 
 
     if(!profflag) //nao liberou profflag==0 retorna
     {
-        *pv = NULL;
+        mel[prof].tamanho = 0;
         *valor = estatico(atual, 0, prof, alfa, beta); //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
         return 1; //a profundidade ja eh sufuciente
     }
