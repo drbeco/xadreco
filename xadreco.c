@@ -168,26 +168,17 @@ lista;
 
 typedef struct stabuleiro
 {
-    //contem as pecas, sendo [coluna][linha], ou seja: e4
-    int tab[64];
-    //contem -1 ou 1 para 'branca' ou 'preta'
-    int vez;
-    //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
-    int peao_pulou;
-    //roque: 0:nao pode mais. 1:pode ambos. 2:mexeu Torre do Rei. Pode O-O-O. 3:mexeu Torre da Dama. Pode O-O.
-    int roqueb, roquep;
-    //contador: quando chega a 50, empate.
-    float empate_50;
-    //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: * sem resultado
-    int situa;
-    //lance executado originador deste tabuleiro. de=origem, pa=destino (0-63)
-    int de;
-    int pa;
-    //0:nada. 1:roque pqn. 2:roque grd. 3:comeu en passant.
-    //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
-    int especial;
-    //meionum: meio-numero (ply/half-move): 0=inicio, 1=e2e4, 2=e7e5, 3=g1f3, 4=b8c6
-    int meionum;
+    int tab[64]; //contem as pecas, sendo [coluna][linha], ou seja: e4
+    int vez; //contem -1 ou 1 para 'branca' ou 'preta'
+    int peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
+    int roqueb, roquep; //roque: 0:nao pode mais. 1:pode ambos. 2:mexeu Torre do Rei. Pode O-O-O. 3:mexeu Torre da Dama. Pode O-O.
+    float empate_50; //contador: quando chega a 50, empate.
+    int situa; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: * sem resultado
+    int de; //lance executado de=origem (0-63)
+    int pa; //lance executado pa=destino (0-63)
+    int especial; //0:nada. 1:roque pqn. 2:roque grd. 3:comeu en passant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+    int meionum; //meionum: meio-numero (ply/half-move): 0=inicio, 1=e2e4, 2=e7e5, 3=g1f3, 4=b8c6
+    int rei_pos[2]; // cache da posicao dos reis para xeque_rei_das()
 }
 tabuleiro;
 
@@ -943,8 +934,8 @@ void copitab(tabuleiro *dest, tabuleiro *font)
     dest->pa = font->pa;
     dest->meionum = font->meionum;
     dest->especial = font->especial;
-    //0:nada. 1:roque pqn. 2:roque grd. 3:comeu enpassant.
-    //promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo.
+    dest->rei_pos[0] = font->rei_pos[0];
+    dest->rei_pos[1] = font->rei_pos[1];
 }
 
 // gera lista de movimentos legais na lista lmov
@@ -992,6 +983,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             copitab(&tabaux, &tabu);
                             tabaux.tab[SQ(i, j)] = VAZIA;
                             tabaux.tab[SQ(col, lin)] = REI * tabu.vez;
+                            tabaux.rei_pos[(tabu.vez + 1) / 2] = SQ(col, lin);
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
                                 //nao pode mais fazer roque. Mexeu Rei
@@ -1678,19 +1670,9 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
 //fim de int ataca(int cor, int col, int lin, tabuleiro tabu)
 int xeque_rei_das(int cor, tabuleiro tabu)
 {
-    int ilin, icol;
-    for(ilin = 0; ilin < 8; ilin++)  //roda linha
-        for(icol = 0; icol < 8; icol++)              //roda coluna
-            if(tabu.tab[SQ(icol, ilin)] == (REI * cor))                 //achou o rei
-            {
-                if(ataca(adv(cor), icol, ilin, tabu))                        //alguem ataca o rei
-                    return 1;
-                else
-                    return 0;
-            }
-    //ninguem ataca o rei
-    return 0;
-    //nao achou o rei!!
+    int sq = tabu.rei_pos[(cor + 1) / 2];
+
+    return ataca(adv(cor), COL(sq), ROW(sq), tabu);
 }
 
 // fim de int xeque_rei_das(int cor, tabuleiro tabu)
@@ -2087,10 +2069,12 @@ char humajoga(tabuleiro *tabu)
                 {
                     case 'K':
                         tabu->tab[SQ(i, j)] = -REI;
+                        tabu->rei_pos[0] = SQ(i, j);
                         i++;
                         break;
                     case 'k':
                         tabu->tab[SQ(i, j)] = REI;
+                        tabu->rei_pos[1] = SQ(i, j);
                         i++;
                         break;
                     case 'Q':
@@ -2976,6 +2960,8 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     tabu->peao_pulou = movi.peao_pulou;
     tabu->tab[movi.pa] = tabu->tab[movi.de];
     tabu->tab[movi.de] = VAZIA;
+    if(abs(tabu->tab[movi.pa]) == REI)
+        tabu->rei_pos[(tabu->vez + 1) / 2] = movi.pa; // vez ainda nao inverteu
     tabu->de = movi.de;
     tabu->pa = movi.pa;
     tabu->meionum++;
@@ -3939,7 +3925,8 @@ void livro_linha(int mnum, char *linha)
         },
         -1, -1, 1, 1, 0, 0,
         0, 0,
-        0, 0
+        0, 0,
+        {SQ(4, 0), SQ(4, 7)}
     };
     melhor.tamanho = 0;
     while(linha[n] != '\0')
@@ -4312,6 +4299,8 @@ void inicia(tabuleiro *tabu)
     tabu->especial = 0;
     tabu->de = 0;
     tabu->pa = 0;
+    tabu->rei_pos[0] = 0;
+    tabu->rei_pos[1] = 0;
     for(i = 0; i < 8; i++)
         for(j = 0; j < 8; j++)
             tabu->tab[SQ(i, j)] = VAZIA;
@@ -4355,6 +4344,8 @@ void  coloca_pecas(tabuleiro *tabu)
     tabu->tab[SQ(4, 0)] = -REI;
     tabu->tab[SQ(3, 7)] = DAMA;
     tabu->tab[SQ(4, 7)] = REI;
+    tabu->rei_pos[0] = SQ(4, 0); // white king e1
+    tabu->rei_pos[1] = SQ(4, 7); // black king e8
 }
 
 //limpa algumas variaveis para iniciar ponderacao
