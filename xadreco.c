@@ -4507,24 +4507,19 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
            fullmove);
 }
 
-//imprime uma sequencia de lances armazenada na lista
+//imprime uma sequencia de lances armazenada em resultado
 //tabuvez==2 para pular numeracao em debug==2
-// TODO: find a better way to represent lances/movements
-void imprime_linha(lista *lpv, int mnum, int tabuvez)
+void imprime_linha(resultado *res, int mnum, int tabuvez)
 {
-    int num, vez;
+    int i, num, vez;
     char m[80];
-    no *n;
-    movimento *mov;
 
     num = (int)((mnum + 1.0) / 2.0);
     vez = tabuvez;
     printdbg(debug, "# ");
-    n = lpv ? lpv->cabeca : NULL;
-    while(n)
+    for(i = 0; i < res->tamanho; i++)
     {
-        mov = (movimento *)n->info;
-        lance2movi(m, mov->de, mov->pa, mov->especial);
+        lance2movi(m, res->linha[i].de, res->linha[i].pa, res->linha[i].especial);
         if(vez == brancas)  //jogou anterior as pretas
         {
             if(tabuvez == brancas && num == (int)((mnum + 1.0) / 2.0))
@@ -4552,7 +4547,6 @@ void imprime_linha(lista *lpv, int mnum, int tabuvez)
                 if(debug == 2) fprintf(fmini, "%d. %s ", num, m);
             }
         }
-        n = n->prox;
         vez *= (-1);
     }
     printf("\n");
