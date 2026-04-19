@@ -823,11 +823,10 @@ void mostra_lances(tabuleiro tabu)
     //nivel pontuacao tempo totalnodo variante
     //nivel esta errado!
 //    printf ("# xadreco : ply score time nodes pv\n");
-    printf2("%3d %+6d %3d %7d ", nivel, resulta.valor, (int)difclocks(), totalnodo);
-    //resulta.valor*10 o xboard divide por 100. centi-peao
-//    if (debug) printf ("# xadreco : %d %+.2f %d %d ", nivel, resulta.valor / 100.0, (int)difclocks(), totalnodo);
-    //resulta.valor/100 para a Dama ficar com valor 9
-    imprime_linha(resulta.plance, tabu.meionum, tabu.vez);
+    printf2("%3d %+6d %3d %7d ", nivel, melhor.valor, (int)difclocks(), totalnodo);
+    //melhor.valor*10 o xboard divide por 100. centi-peao
+    //melhor.valor/100 para a Dama ficar com valor 9
+    imprime_linha(&melhor, tabu.meionum, tabu.vez);
 //    fflush(stdout);
 }
 
@@ -4345,9 +4344,8 @@ void  coloca_pecas(tabuleiro *tabu)
 void limpa_pensa(void)
 {
     IFDEBUG("limpa_pensa()");
-    resulta.plance = NULL;
-    //eh necessario
-    resulta.valor = -LIMITE;
+    melhor.tamanho = 0;
+    melhor.valor = -LIMITE;
     //conferir
     profflag = 1;
     //    totalnodo=0;
@@ -4569,9 +4567,9 @@ char randommove(tabuleiro *tabu)
     {
         succ = (movimento *)n->info;
         succ->valor_estatico = 0;
-        resulta.valor = 0;
-        lst_recria(&plpv_best);
-        resulta.plance = pv_constroi(plpv_best->a, *succ, NULL);
+        melhor.linha[0] = *succ;
+        melhor.tamanho = 1;
+        melhor.valor = 0;
         return '-'; //ok
     }
     printdbg(debug, "# empty from randommove - BUG\n");
