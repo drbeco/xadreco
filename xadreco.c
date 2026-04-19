@@ -2446,15 +2446,11 @@ char compjoga(tabuleiro *tabu)
     int nv = 1;
     int melhorvalor1;
     int moveto;
-    // lances calc. em maior nivel tem mais importancia?
-    lista *melhorcaminho1 = NULL;
-    lista *pv = NULL;
     movimento *succ;
     int val = -LIMITE;
     no *n;
     limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
     melhorvalor1 = -LIMITE;
-    melhorcaminho1 = NULL;
 
     // debug e inicializacoes -----------------------------------------------
     if(debug == 2)  //nivel extra de debug
@@ -2468,15 +2464,13 @@ char compjoga(tabuleiro *tabu)
     if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usalivro(*tabu);
-        if(!resulta.plance || !resulta.plance->cabeca)
+        if(melhor.tamanho == 0)
             USALIVRO = 0;
-        lst_recria(&plpv_best);
-        melhorcaminho1 = lst_copia(plpv_best->a, resulta.plance);
-        melhorvalor1 = resulta.valor;
+        melhorvalor1 = melhor.valor;
     }
 
     // se nao livro, random ou minimax -------------------------------------
-    if(!resulta.plance || !resulta.plance->cabeca)
+    if(melhor.tamanho == 0)
     {
         //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
         nv = 1;
@@ -2496,7 +2490,6 @@ char compjoga(tabuleiro *tabu)
         if(randomchess)
         {
             n = plmov->cabeca;
-            pv = NULL;
             val = 0;
             moveto = (int)(rand() % plmov->qtd);  //sorteia um lance possivel da lista de lances
             for(i = 0; i < moveto; ++i)
@@ -2506,11 +2499,10 @@ char compjoga(tabuleiro *tabu)
             if(n != NULL)
             {
                 succ = (movimento *)n->info;
-                lst_recria(&plpv_best);
-                melhorcaminho1 = pv_constroi(plpv_best->a, *succ, pv);
+                melhor.linha[0] = *succ;
+                melhor.tamanho = 1;
                 succ->valor_estatico = 0;
                 val = 0;
-                pv = NULL;
                 melhorvalor1 = val;
             } //if n
         } //end if randomchess
@@ -2519,38 +2511,29 @@ char compjoga(tabuleiro *tabu)
             while(val < XEQUEMATE)
             {
                 limpa_pensa();
-                lst_recria(&plpv_search);  // reset search arena each iteration
-                pv = NULL;
                 if(debug == 2)  //nivel extra de debug
                 {
                     fprintf(fmini, "#\n#\n# *************************************************************");
                     fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
                 }
-                val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv, &pv);
-                printdbg(debug, "# nv=%d tab=%zu/%zu mov=%zu/%zu pvs=%zu/%zu pvb=%zu/%zu\n",
+                val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv);
+                printdbg(debug, "# nv=%d tab=%zu/%zu mov=%zu/%zu\n",
                     nv, pltab->a->usado, pltab->a->total,
-                    plmov->a->usado, plmov->a->total,
-                    plpv_search->a->usado, plpv_search->a->total,
-                    plpv_best->a->usado, plpv_best->a->total);
-                if(pv == NULL)
+                    plmov->a->usado, plmov->a->total);
+                if(mel[0].tamanho == 0)
                 {
                     //sem lances, pode ser que queira avancar apos mate.
                     break;
                 }
                 if(difclocks() < tempomovclock)
                 {
-                    lst_recria(&plpv_best);
-                    {
-                    lista *copia = lst_copia(plpv_best->a, pv);
-                    if(copia)
-                    {
-                        melhorcaminho1 = copia;
-                        melhorvalor1 = val;
-                    }
-                    }
+                    memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
+                    melhor.tamanho = mel[0].tamanho;
+                    melhor.valor = val;
+                    melhorvalor1 = val;
                 }
                 else
-                    if(melhorcaminho1 != NULL) /* time exceeded and we have a move: stop now */
+                    if(melhor.tamanho > 0) /* time exceeded and we have a move: stop now */
                         break;
                 totalnodo += totalnodonivel;
                 lst_ordem(plmov);  //ordena lista de movimentos
@@ -2558,19 +2541,19 @@ char compjoga(tabuleiro *tabu)
                 {
                     fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\n# pv: ", val / 100.0, totalnodo);
                     if(!mostrapensando || abs(val) == FIMTEMPO || abs(val) == LIMITE)
-                        imprime_linha(pv, 1, 2);
+                        imprime_linha(&mel[0], 1, 2);
                 }
                 if(mostrapensando && abs(val) != FIMTEMPO && abs(val) != LIMITE)
                 {
                     printf("%3d %+6d %3d %7d ", nv, val, (int)difclocks(), totalnodo);
-                    imprime_linha(pv, tabu->meionum + 1, -tabu->vez);
+                    imprime_linha(&mel[0], tabu->meionum + 1, -tabu->vez);
                 }
                 // termino do laco infinito baseado no tempo
                 if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 3))
                 {
-                    if(pv == NULL)
+                    if(mel[0].tamanho == 0)
                     {
-                        printdbg(debug, "# compjoga: Sem lances; difclocks()>tempomovclock; pv==NULL; (!break);\n");
+                        printdbg(debug, "# compjoga: Sem lances; difclocks()>tempomovclock; mel[0].tamanho==0; (!break);\n");
                     }
                     else
                         break;
@@ -2579,17 +2562,14 @@ char compjoga(tabuleiro *tabu)
             } //while val < XEQUEMATE
         } // else (not randomchess)
     } // fim do se nao usou livro
-    pv = NULL;
-    resulta.plance = melhorcaminho1;  //transfere ownership (pode ser NULL se tempo estourou)
-    melhorcaminho1 = NULL;
-    resulta.valor = melhorvalor1;
+    melhor.valor = melhorvalor1;
     //nivel extra de debug
     if(debug == 2)
         fclose(fmini);
     //Utilizado: ABANDONA==-2730, alterado quando contra outra engine
-    if(resulta.valor < ABANDONA && ofereci <= 0)
+    if(melhor.valor < ABANDONA && ofereci <= 0)
     {
-        printdbg(debug, "# xadreco : resign. value: %+.2f\n", resulta.valor / 100.0);
+        printdbg(debug, "# xadreco : resign. value: %+.2f\n", melhor.valor / 100.0);
         --ofereci;
         printf2("resign\n");
     }
@@ -2610,36 +2590,34 @@ char compjoga(tabuleiro *tabu)
         }
     }
 
-    //oferecer empate: resulta.valor esta invertido na vez.
-    if(resulta.valor < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
+    //oferecer empate: melhor.valor esta invertido na vez.
+    if(melhor.valor < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
     {
         //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
-        printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", resulta.valor / 100.0);
+        printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", melhor.valor / 100.0);
         /* printf2("offer draw\n"); */
         OFERECEREMPATE = 1;
         --ofereci;
     }
-    //oferecer empate: resulta.valor esta invertido na vez.
-    if(resulta.valor < QUANTO_EMPATE2 && tabu->meionum >= MOVE_EMPATE2 && ofereci > 0)
+    //oferecer empate: melhor.valor esta invertido na vez.
+    if(melhor.valor < QUANTO_EMPATE2 && tabu->meionum >= MOVE_EMPATE2 && ofereci > 0)
     {
-        printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", resulta.valor / 100.0);
+        printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", melhor.valor / 100.0);
         /* printf2("offer draw\n"); */
         OFERECEREMPATE = 1;
         --ofereci;
     }
     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
     //algum problema ocorreu que esta sem lances
-    if(!resulta.plance || !resulta.plance->cabeca)
+    if(melhor.tamanho == 0)
     {
         res = randommove(tabu);
         if(res == 'e')
             return res; //vazio mesmo! Nem aleatorio foi!
         printdbg(debug, "# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
     }
-    assert(resulta.plance != NULL && "resulta.plance NULL before joga_em in compjoga");
-    assert(resulta.plance->cabeca != NULL && "resulta.plance->cabeca NULL before joga_em in compjoga");
-    assert(resulta.plance->cabeca->info != NULL && "resulta.plance->cabeca->info NULL before joga_em in compjoga");
-    res = joga_em(tabu, *(movimento *)resulta.plance->cabeca->info, 1);  // computador joga
+    assert(melhor.tamanho > 0 && "melhor.tamanho == 0 before joga_em in compjoga");
+    res = joga_em(tabu, melhor.linha[0], 1);  // computador joga
     return (res);
 } //fim da compjoga
 
