@@ -124,11 +124,11 @@
 #define GERA_TUDO  -1
 #define GERA_UNICO -2
 // geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
+// profundidade maxima de busca (limita mel[] e melhor)
+#define MAX_PROF 64
 // tamanho das arenas em bytes
 #define ARENA_TAB  (2 * 1024 * 1024)
 #define ARENA_MOV  (2 * 1024 * 1024)
-#define ARENA_PVSEARCH (8 * 1024 * 1024)
-#define ARENA_PVBEST   (64 * 1024)
 
 // dados ----------------------
 
@@ -215,10 +215,9 @@ movimento;
 //resultado de uma analise de posicao
 typedef struct sresultado
 {
-    //valor da variante
-    int valor;
-    //os movimentos da variante
-    lista *plance;
+    movimento linha[MAX_PROF]; //melhor linha de movimentos
+    int tamanho;               //tamanho da linha
+    int valor;                 //valor da linha
 }
 resultado;
 
@@ -234,12 +233,10 @@ enum piece_values
 // listas em arenas ----------------------------------
 lista *pltab = NULL; // ponteiro para lista de tabuleiros
 lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas (antiga succ_geral)
-lista *plpv_search = NULL; // PV search workspace
-lista *plpv_best = NULL;   // PV best saved across iterations
-
-// listas --------------------------------------------
-//a melhor variante achada (lista movimento)
-resultado resulta;
+// array triangular de PV: mel[prof] = melhor linha na profundidade prof
+resultado mel[MAX_PROF];
+// melhor linha salva entre iteracoes (o pote de mel)
+resultado melhor;
 // outros globais ------------------------------------
 //my rating and opponent rating
 int myrating, opprating;
@@ -348,8 +345,8 @@ void limpa_pensa(void);
 void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
-//imprime uma sequencia de lances armazenada na lista, numerados.
-void imprime_linha(lista *lpv, int mnum, int vez);
+//imprime uma sequencia de lances armazenada em resultado, numerados.
+void imprime_linha(resultado *res, int mnum, int vez);
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 int pollinput(void);
 //calcula diferenca de tempo em segundo do lance atual
@@ -387,12 +384,12 @@ char situacao(tabuleiro tabu);
 void usalivro(tabuleiro tabu);
 //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
 void listab2string(char *strlance);
-//retorna uma (lista) linha de jogo como se fosse a resposta do minimax
-lista *string2pmovi(int mnum, char *linha);
+//le linha do livro de aberturas e preenche melhor.linha/melhor.tamanho
+void livro_linha(int mnum, char *linha);
 //retorna verdadeiro se o jogo atual strlances casa com a linha do livro atual strlinha
 int igual_strlances_strlinha(char *strlances, char *strlinha);
-//retorna o valor estatico de um tabuleiro apos jogada a lista de movimentos cabeca
-int estatico_pmovi(tabuleiro tabu, lista *lpv);
+//retorna o valor estatico de um tabuleiro apos jogada a melhor linha de movimentos
+int estatico_pmovi(tabuleiro tabu);
 //dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
 void pega2moves(char *linha2, char *linha);
 /* pega total de lances em strlance + 1 */
@@ -403,10 +400,10 @@ void conta_linhas_livro(void);
 // computador joga ----------------------------------------------------------
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
-//retorna (int) valor, e pv da melhor variante. Quem chama que cuida de *pv.
-int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv, lista **pv);
-//retorna verdadeiro se (prof>nivel) ou (prof==nivel e nao houve captura ou xeque) ou (houve Empate!)
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor, lista **pv);
+//retorna (int) valor. Escreve mel[prof] com a melhor linha.
+int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
+//retorna verdadeiro se (prof>nivel) ou (prof>=MAX_PROF) ou (tempo estourou) ou (!profflag)
+int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor);
 //retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
 //joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
@@ -430,8 +427,6 @@ void lst_furafila(lista *l, no *n); // desencaixa no e reinsere na cabeca da lis
 void lst_recria(lista **pl); // zera arena e recria lista do inicio
 void lst_parte(lista *l); // particiona: capturas e especiais primeiro
 void lst_ordem(lista *l); // ordena por valor_estatico decrescente
-lista *lst_copia(arena *a, lista *src); // copia lista src para arena a
-lista *pv_constroi(arena *a, movimento ummovi, lista *plan); // constroi PV: ummovi + plan
 
 // prototipos listas dinamicas -----------------------------------------------------------
 //insere tabuleiro na arena pltab. Retorna contagem de repeticao (>=3 empate)
