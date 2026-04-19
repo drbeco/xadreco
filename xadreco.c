@@ -307,6 +307,7 @@ int OFERECEREMPATE = 0;
 /* prototipos gerais */ /* general prototypes */
 //imprime o tabuleiro
 void imptab(tabuleiro tabu);
+void mostra_tabu(tabuleiro tabu);
 //mostra na tela informacoes do jogo e analises
 void mostra_lances(tabuleiro tabu);
 //transforma lances int 0077 em char tipo a1h8
@@ -837,6 +838,37 @@ void imptab(tabuleiro tabu)
             OFERECEREMPATE = 0;
         }
     }
+}
+
+//mostra tabuleiro em ascii no stderr (debug)
+void mostra_tabu(tabuleiro tabu)
+{
+    int col, row, p, ap;
+    char c;
+
+    fprintf(stderr, "  a b c d e f g h\n");
+    for(row = 7; row >= 0; row--)
+    {
+        fprintf(stderr, "%d ", row + 1);
+        for(col = 0; col < 8; col++)
+        {
+            p = tabu.tab[SQ(col, row)];
+            ap = abs(p);
+            if(ap == 0) c = '.';
+            else if(ap == PEAO) c = 'P';
+            else if(ap == CAVALO) c = 'N';
+            else if(ap == BISPO) c = 'B';
+            else if(ap == TORRE) c = 'R';
+            else if(ap == DAMA) c = 'Q';
+            else if(ap == REI) c = 'K';
+            else c = '?';
+            if(p > 0) c += 32; /* pretas minuscula */
+            fprintf(stderr, "%c ", c);
+        }
+        fprintf(stderr, "%d\n", row + 1);
+    }
+    fprintf(stderr, "  a b c d e f g h\n");
+    fprintf(stderr, "vez=%s\n", tabu.vez == -1 ? "brancas" : "pretas");
 }
 
 //int para char: de/pa (0-63) para string "e2e4"
@@ -3891,21 +3923,22 @@ void livro_linha(int mnum, char *linha)
     //posicao inicial
     tabuleiro tab =
     {
-        {   /* tab[64]: col 0-7, each col has rows 0-7 */
-            -TORRE, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, TORRE,   /* a1-a8 */
-            -CAVALO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, CAVALO, /* b1-b8 */
-            -BISPO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, BISPO,   /* c1-c8 */
-            -DAMA, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, DAMA,     /* d1-d8 */
-            -REI, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, REI,       /* e1-e8 */
-            -BISPO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, BISPO,   /* f1-f8 */
-            -CAVALO, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, CAVALO, /* g1-g8 */
-            -TORRE, -PEAO, VAZIA, VAZIA, VAZIA, VAZIA, PEAO, TORRE    /* h1-h8 */
+        {   /* tab[64]: SQ(col,row)=col+row*8, rank by rank a-h */
+            -TORRE, -CAVALO, -BISPO, -DAMA, -REI, -BISPO, -CAVALO, -TORRE,  /* rank 1: a1-h1 */
+            -PEAO,  -PEAO,   -PEAO,  -PEAO, -PEAO,-PEAO,  -PEAO,   -PEAO,  /* rank 2: a2-h2 */
+            VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 3 */
+            VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 4 */
+            VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 5 */
+            VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 6 */
+            PEAO,   PEAO,    PEAO,   PEAO,  PEAO,  PEAO,   PEAO,    PEAO,   /* rank 7: a7-h7 */
+            TORRE,  CAVALO,  BISPO,  DAMA,  REI,   BISPO,  CAVALO,  TORRE   /* rank 8: a8-h8 */
         },
         -1, -1, 1, 1, 0, 0,
         0, 0,
         0, 0
     };
     melhor.tamanho = 0;
+    if(debug) mostra_tabu(tab);
     while(linha[n] != '\0')
     {
         n++;
