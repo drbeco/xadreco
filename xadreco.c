@@ -2625,9 +2625,10 @@ char analisa(tabuleiro *tabu)
     IFDEBUG("analisa()");
     tabuleiro tanalise;
     int nv = 0;
-    int val = -LIMITE;
+    int val;
     // lances calc. em maior nivel tem mais importancia?
     //mudou para logo abaixo do scanf de humajoga
+    val = (tabu->vez == brancas) ? -LIMITE : +LIMITE;
     copitab(&tanalise, tabu);
     limpa_pensa();
     if(debug == 2)
@@ -2642,7 +2643,7 @@ char analisa(tabuleiro *tabu)
         usalivro(*tabu);
     if(melhor.tamanho > 0)
     {
-        printf("%3d %+6d %3d %7d ", nv, melhor.valor, (int)difclocks(), totalnodo);
+        printf("%3d %+6d %3d %7d ", nv, (tabu->vez == brancas) ? melhor.valor : -melhor.valor, (int)difclocks(), totalnodo);
         imprime_linha(&melhor, tabu->meionum + 1, -tabu->vez);
     }
     else
@@ -2651,7 +2652,7 @@ char analisa(tabuleiro *tabu)
         lst_recria(&plmov);
         geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
         totalnodo = 0;
-        while(val < XEQUEMATE)
+        while(abs(val) < XEQUEMATE) // enquanto nao achou mate para nenhum lado
         {
             totalnodonivel = 0;
             profflag = 1;
@@ -2660,7 +2661,8 @@ char analisa(tabuleiro *tabu)
             lst_ordem(plmov);
             if(abs(val) != FIMTEMPO && abs(val) != LIMITE)
             {
-                printf("%3d %+6d %3d %7d ", nv, val, (int)difclocks(), totalnodo);
+                // XBoard: score do ponto de vista da engine
+                printf("%3d %+6d %3d %7d ", nv, (tabu->vez == brancas) ? val : -val, (int)difclocks(), totalnodo);
                 imprime_linha(&mel[0], tabu->meionum + 1, -tabu->vez);
             }
             if(debug == 2)
@@ -4281,7 +4283,7 @@ void limpa_pensa(void)
 {
     IFDEBUG("limpa_pensa()");
     melhor.tamanho = 0;
-    melhor.valor = -LIMITE;
+    melhor.valor = 0; // neutro; compjoga/analisa inicializa baseado na cor
     //conferir
     profflag = 1;
     //    totalnodo=0;
