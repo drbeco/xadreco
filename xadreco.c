@@ -126,6 +126,13 @@
 // geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
 // profundidade maxima de busca (limita mel[] e melhor)
 #define MAX_PROF 64
+// Macros para cores e valores de pecas e casas
+#define EHBRANCA(p) ((p) > 0)    // peca eh branca? PLAN12: ((p)>0 && !((p)&8))
+#define EHPRETA(p)  ((p) < 0)    // peca eh preta? PLAN12: ((p)&8)
+#define EHVAZIA(p)  ((p) == 0)   // casa vazia?
+#define TIPO(p)     (abs(p))     // tipo de peca: PEAO..REI. PLAN12: ((p)&7)
+#define COR(p)      (sinal(p))   // cor: +1=branca, -1=preta, 0=vazia. PLAN12:((p)&8)
+#define DAVEZ(p, v) ((p) * (v))  // peca da cor da vez. PLAN12: ((p)|(v))
 // tamanho das arenas em bytes
 #define ARENA_TAB  (2 * 1024 * 1024)
 #define ARENA_MOV  (2 * 1024 * 1024)
@@ -275,10 +282,10 @@ double tdifs; // diferenca em segundos tdifs=difftime(t2,t1), calcular o tempo g
 //3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min por jogo (de 100 lances)
 double tempomovclock; //em segundos
 double tempomovclockmax; // max allowed
-//pecas brancas sao negativas
-const int brancas = -1;
-//pecas pretas sao positivas
-const int pretas = 1;
+//pecas brancas sao positivas
+const int brancas = 1;
+//pecas pretas sao negativas
+const int pretas = -1;
 //para mostrar um rostinho sorrindo (sem uso)
 unsigned char gira = (unsigned char) 0;
 //Nome do arquivo de log
