@@ -2428,12 +2428,24 @@ char compjoga(tabuleiro *tabu)
     int i;
     int nv = 1;
     int melhorvalor1;
+    int melhorou;
+    int engine_val;
     int moveto;
     movimento *succ;
-    int val = -LIMITE;
+    int val;
     no *n;
     limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
-    melhorvalor1 = -LIMITE;
+    // valores absolutos: positivo=bom para brancas
+    if(tabu->vez == brancas)
+    {
+        melhorvalor1 = -LIMITE; // brancas quer o maximo
+        val = -LIMITE;
+    }
+    else
+    {
+        melhorvalor1 = +LIMITE; // pretas quer o minimo
+        val = +LIMITE;
+    }
 
     // debug e inicializacoes -----------------------------------------------
     if(debug == 2)  //nivel extra de debug
@@ -2491,7 +2503,7 @@ char compjoga(tabuleiro *tabu)
         } //end if randomchess
         else
         {
-            while(val < XEQUEMATE)
+            while(abs(val) < XEQUEMATE) // enquanto nao achou mate para nenhum lado
             {
                 totalnodonivel = 0;
                 profflag = 1;
@@ -2508,10 +2520,15 @@ char compjoga(tabuleiro *tabu)
                 }
                 if(difclocks() < tempomovclock)
                 {
-                    memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
-                    melhor.tamanho = mel[0].tamanho;
-                    melhor.valor = val;
-                    melhorvalor1 = val;
+                    // salva melhor se iteracao completa melhorou
+                    melhorou = (tabu->vez == brancas) ? (val > melhorvalor1) : (val < melhorvalor1);
+                    if(melhorou || melhor.tamanho == 0)
+                    {
+                        memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
+                        melhor.tamanho = mel[0].tamanho;
+                        melhor.valor = val;
+                        melhorvalor1 = val;
+                    }
                 }
                 else
                     if(melhor.tamanho > 0) /* time exceeded and we have a move: stop now */
@@ -2526,7 +2543,8 @@ char compjoga(tabuleiro *tabu)
                 }
                 if(mostrapensando && abs(val) != FIMTEMPO && abs(val) != LIMITE)
                 {
-                    printf("%3d %+6d %3d %7d ", nv, val, (int)difclocks(), totalnodo);
+                    // XBoard: score do ponto de vista da engine (positivo=engine ganhando)
+                    printf("%3d %+6d %3d %7d ", nv, (tabu->vez == brancas) ? val : -val, (int)difclocks(), totalnodo);
                     imprime_linha(&mel[0], tabu->meionum + 1, -tabu->vez);
                 }
                 // termino do laco infinito baseado no tempo
@@ -2548,7 +2566,8 @@ char compjoga(tabuleiro *tabu)
     if(debug == 2)
         fclose(fmini);
     //Utilizado: ABANDONA==-2730, alterado quando contra outra engine
-    if(melhor.valor < ABANDONA && ofereci <= 0)
+    //resigna se estiver perdendo muito (absoluto: brancas negativo, pretas positivo)
+    if((tabu->vez == brancas && melhor.valor < ABANDONA) || (tabu->vez == pretas && melhor.valor > -ABANDONA))
     {
         printdbg(debug, "# xadreco : resign. value: %+.2f\n", melhor.valor / 100.0);
         --ofereci;
@@ -2571,17 +2590,16 @@ char compjoga(tabuleiro *tabu)
         }
     }
 
-    //oferecer empate: melhor.valor esta invertido na vez.
-    if(melhor.valor < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
+    //oferecer empate: valor absoluto, engine perde se brancas negativo ou pretas positivo
+    engine_val = (tabu->vez == brancas) ? melhor.valor : -melhor.valor; // engine perspective
+    if(engine_val < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
     {
-        //atencao: oferecer pode significar aceitar, se for feito logo apos uma oferta recebida.
         printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", melhor.valor / 100.0);
         /* printf2("offer draw\n"); */
         OFERECEREMPATE = 1;
         --ofereci;
     }
-    //oferecer empate: melhor.valor esta invertido na vez.
-    if(melhor.valor < QUANTO_EMPATE2 && tabu->meionum >= MOVE_EMPATE2 && ofereci > 0)
+    if(engine_val < QUANTO_EMPATE2 && tabu->meionum >= MOVE_EMPATE2 && ofereci > 0)
     {
         printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", melhor.valor / 100.0);
         /* printf2("offer draw\n"); */
