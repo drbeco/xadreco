@@ -2722,6 +2722,10 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             plmov->a->usado = saved;  //rewind arena
         return child_val;
     }
+    // minimax classico: brancas maximizam, pretas minimizam
+    // alfa = lower bound (melhor para brancas), beta = upper bound (melhor para pretas)
+    // valores absolutos: positivo = bom para brancas
+    novo_valor = (atual.vez == brancas) ? -LIMITE : +LIMITE; // best inicial
     while(n)
     {
         succ = (movimento *)n->info;
@@ -2748,50 +2752,64 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             lance2movi(m, succ->de, succ->pa, succ->especial);
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
         }
-        child_val = minimax(tab, prof + 1, -beta, -alfa, niv);
+        child_val = minimax(tab, prof + 1, alfa, beta, niv); // sem inversao de janela
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
-        novo_valor = -child_val;
-        if(novo_valor > alfa)
+        if(atual.vez == brancas) // MAXIMIZA
         {
-            alfa = novo_valor;
-            mel[prof].linha[0] = *succ;
-            memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0],
-                   mel[prof + 1].tamanho * sizeof(movimento));
-            mel[prof].tamanho = mel[prof + 1].tamanho + 1;
+            if(child_val > novo_valor)
+            {
+                novo_valor = child_val;
+                mel[prof].linha[0] = *succ;
+                memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
+                mel[prof].tamanho = mel[prof + 1].tamanho + 1;
+            }
+            if(novo_valor > alfa)
+                alfa = novo_valor;
+        }
+        else // MINIMIZA
+        {
+            if(child_val < novo_valor)
+            {
+                novo_valor = child_val;
+                mel[prof].linha[0] = *succ;
+                memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
+                mel[prof].tamanho = mel[prof + 1].tamanho + 1;
+            }
+            if(novo_valor < beta)
+                beta = novo_valor;
+        }
+        // corte alfa-beta (comum a ambos)
+        if(alfa >= beta)
+        {
+            if(debug == 2)
+            {
+                lance2movi(m, succ->de, succ->pa, succ->especial);
+                fprintf(fmini, "#\n# succ: alfa>=beta (%+.2f>=%+.2f) %s Corte!", alfa / 100.0, beta / 100.0, m);
+            }
+            break;
         }
         if(debug == 2 && prof == 0)
         {
             lance2movi(m, succ->de, succ->pa, succ->especial);
-            fprintf(fmini, "#\n# novo_valor=%+.2f", novo_valor / 100.0);
+            fprintf(fmini, "#\n# child_val=%+.2f best=%+.2f", child_val / 100.0, novo_valor / 100.0);
             if(mel[prof].tamanho > 0)
             {
                 fprintf(fmini, "#\n# melhor_caminho=");
                 imprime_linha(&mel[prof], 1, 2);
             }
         }
-        //implementar o NULL-MOVE
-        if(novo_valor >= beta) //corte alfa-beta! Conferido 2026-04-15 (alfa==passo, beta==uso, para brancas)
-        {
-            alfa = novo_valor; // fail-soft: retorna o valor real, nao o bound
-            if(debug == 2)
-            {
-                lance2movi(m, succ->de, succ->pa, succ->especial);
-                fprintf(fmini, "#\n# succ: novo_valor>=beta (%+.2f>=%+.2f) %s (%d%d%d%d) Corte Alfa/Beta!", novo_valor / 100.0, beta / 100.0, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
-            }
-            break; //faz o corte alfa-beta!
-        }
         if(prof == 0)
-            succ->valor_estatico = novo_valor;
+            succ->valor_estatico = (atual.vez == brancas) ? child_val : -child_val; // para lst_ordem (descending)
         n = n->prox;
         contamov++;
-        if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)	//tentando com 60%
+        if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)
             break;
     } //while(n)
     if(prof != 0)
         plmov->a->usado = saved;  //rewind arena
     if(debug == 2)
         fprintf(fmini, "#\n#------------------------------------------END Minimax prof: %d", prof);
-    return alfa;
+    return novo_valor;
 }
 
 int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
