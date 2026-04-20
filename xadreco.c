@@ -240,6 +240,25 @@ lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequ
 resultado mel[MAX_PROF];
 // melhor linha salva entre iteracoes (o pote de mel)
 resultado melhor;
+// posicao inicial do tabuleiro (constante unica, evita duplicacao)
+const tabuleiro TAB_INICIO =
+{
+    {   /* tab[64]: SQ(col,row)=col+row*8, rank by rank a-h */
+        TORRE,  CAVALO,  BISPO,  DAMA,  REI,   BISPO,  CAVALO,  TORRE,   /* rank 1: a1-h1 brancas */
+        PEAO,   PEAO,    PEAO,   PEAO,  PEAO,  PEAO,   PEAO,    PEAO,   /* rank 2: a2-h2 brancas */
+        VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 3 */
+        VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 4 */
+        VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 5 */
+        VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 6 */
+        -PEAO,  -PEAO,   -PEAO,  -PEAO, -PEAO, -PEAO,  -PEAO,  -PEAO,  /* rank 7: a7-h7 pretas */
+        -TORRE, -CAVALO, -BISPO, -DAMA, -REI,  -BISPO, -CAVALO, -TORRE  /* rank 8: a8-h8 pretas */
+    },
+    1, -1, 1, 1, 0, 0, // vez=brancas, peao_pulou=-1, roqueb=1, roquep=1, empate_50=0, situa=0
+    0, 0,              // de=0, pa=0
+    0, 0,              // especial=0, meionum=0
+    {SQ(4, 0), SQ(4, 7)} // rei_pos: white e1, black e8
+};
+
 // outros globais ------------------------------------
 //my rating and opponent rating
 int myrating, opprating;
@@ -331,8 +350,8 @@ int irand_minmax(int min, int max);
 void sai(int error);
 //para inicializar alguns valores no inicio do programa
 void inicia(tabuleiro *tabu);
-//coloca as pecas na posicao inicial
-void coloca_pecas(tabuleiro *tabu);
+//zera pecas do tabuleiro para setboard preencher via FEN
+void zera_pecas(tabuleiro *tabu);
 //testa posicao dada. devera ser melhorado.
 void testapos(char *pieces, char *color, char *castle, char *enpassant, char *halfmove, char *fullmove);
 //retorna um lance do jogo de teste
@@ -628,7 +647,6 @@ int main(int argc, char *argv[])
     conta_linhas_livro(); /* atualiza LINHASBOAS; assume que livro nao cresce durante jogo */
     inicia(&tabu);  // zera variaveis
     assert(tabu.vez == brancas && "board not initialized");
-    coloca_pecas(&tabu);  //coloca pecas na posicao inicial
     tab_insere(tabu);
     assert(pltab != NULL && pltab->cabeca != NULL && "board history null");
     //------------------------------------------------------------------------------
@@ -678,42 +696,34 @@ int main(int argc, char *argv[])
         switch(res)
         {
             case 'w': //Novo jogo
-                // novo jogo
                 inicia(&tabu);  // zera variaveis
-                coloca_pecas(&tabu);  //coloca pecas na posicao inicial
                 tab_insere(tabu);
                 break;
-            //            continue;
             case '*':
                 strcpy(ultimo_resultado, "* {Game was unfinished}");
                 printf2("* {Game was unfinished}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'M':
                 strcpy(ultimo_resultado, "0-1 {Black mates}");
                 printf2("0-1 {Black mates}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'm':
                 strcpy(ultimo_resultado, "1-0 {White mates}");
                 printf2("1-0 {White mates}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'a':
                 strcpy(ultimo_resultado, "1/2-1/2 {Stalemate}");
                 printf2("1/2-1/2 {Stalemate}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'p':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by endless checks}");
                 printf2("1/2-1/2 {Draw by endless checks}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'c':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by mutual agreement}");  //aceitar empate
                 printdbg(debug, "# xadreco : offer draw, draw accepted\n");
@@ -721,49 +731,41 @@ int main(int argc, char *argv[])
                 printf2("1/2-1/2 {Draw by mutual agreement}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'i':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by insufficient mating material}");
                 printf2("1/2-1/2 {Draw by insufficient mating material}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case '5':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by fifty moves rule}");
                 printf2("1/2-1/2 {Draw by fifty moves rule}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'r':
                 strcpy(ultimo_resultado, "1/2-1/2 {Draw by triple repetition}");
                 printf2("1/2-1/2 {Draw by triple repetition}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'T':
                 strcpy(ultimo_resultado, "0-1 {White flag fell}");
                 printf2("0-1 {White flag fell}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 't':
                 strcpy(ultimo_resultado, "1-0 {Black flag fell}");
                 printf2("1-0 {Black flag fell}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'B':
                 strcpy(ultimo_resultado, "0-1 {White resigns}");
                 printf2("0-1 {White resigns}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'b':
                 strcpy(ultimo_resultado, "1-0 {Black resigns}");
                 printf2("1-0 {Black resigns}\n");
                 primeiro = segundo = 'h';
                 break;
-            //            continue;
             case 'e': //se existe um resultado, envia ele para finalizar a partida
                 if(ultimo_resultado[0] != '\0')
                 {
@@ -791,7 +793,6 @@ int main(int argc, char *argv[])
                     primeiro = segundo = 'h';
                 }
                 break;
-            //            continue;
             case 'x': //xeque: joga novamente
             case 'y': //retorna y: simplesmente gira o laco para jogar de novo. Troca de adv.
             default: //'-' para tudo certo...
@@ -2027,7 +2028,7 @@ char humajoga(tabuleiro *tabu)
 //                continue;
 //            }
             inicia(tabu);
-            setboard = 1;
+            zera_pecas(tabu); // limpa pecas para FEN preencher
             //o jogo e editado
             //Posicao FEN
             scanf2(movinito);  //trava se colocar uma posicao FEN invalida!
@@ -3841,23 +3842,7 @@ void livro_linha(int mnum, char *linha)
     int n = 0, de, pa, i, conta = 0;
     movimento mval;
     //posicao inicial
-    tabuleiro tab =
-    {
-        {   /* tab[64]: SQ(col,row)=col+row*8, rank by rank a-h */
-            TORRE,  CAVALO,  BISPO,  DAMA,  REI,   BISPO,  CAVALO,  TORRE,   /* rank 1: a1-h1 brancas */
-            PEAO,   PEAO,    PEAO,   PEAO,  PEAO,  PEAO,   PEAO,    PEAO,   /* rank 2: a2-h2 brancas */
-            VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 3 */
-            VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 4 */
-            VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 5 */
-            VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 6 */
-            -PEAO,  -PEAO,   -PEAO,  -PEAO, -PEAO, -PEAO,  -PEAO,  -PEAO,  /* rank 7: a7-h7 pretas */
-            -TORRE, -CAVALO, -BISPO, -DAMA, -REI,  -BISPO, -CAVALO, -TORRE  /* rank 8: a8-h8 pretas */
-        },
-        1, -1, 1, 1, 0, 0, // vez=brancas, peao_pulou=-1, roqueb=1, roquep=1, empate_50=0, situa=0
-        0, 0,
-        0, 0,
-        {SQ(4, 0), SQ(4, 7)}
-    };
+    tabuleiro tab = TAB_INICIO;
     melhor.tamanho = 0;
     while(linha[n] != '\0')
     {
@@ -4204,36 +4189,17 @@ void sai(int error)
 //inicializa variaveis do programa. (new game)
 void inicia(tabuleiro *tabu)
 {
-    int i, j;
+    *tabu = TAB_INICIO; // tabuleiro completo: pecas + estado inicial
+    // globais do jogo:
     pausa = 'n';
     melhor.tamanho = 0;
     melhor.valor = 0;
     lst_recria(&plmov);
     lst_recria(&pltab);
     ofereci = 1; //computador pode oferecer 1 empate
-    USALIVRO = 0;
-    if(LINHASBOAS > 0)
-        USALIVRO = 1;
-    //use o livro nas posicoes iniciais
-    setboard = 0; //setboard command
-//    if (setboard == 1) //se for -1, deixa aparecer o primeiro.
-//        setboard = 0;
-    tabu->roqueb = 1; // inicializar variaveis do roque e peao_pulou
-    tabu->roquep = 1; //0:mexeu R e/ou 2T. 1:pode dos 2 lados. 2:mexeu TR. 3:mexeu TD.
-    tabu->peao_pulou = -1; //-1:o adversario nao andou duas com peao. //0-7:coluna do peao que andou duas.
-    tabu->vez = brancas;
-    tabu->empate_50 = 0.0;
-    tabu->meionum = 0;
+    USALIVRO = (LINHASBOAS > 0);
+    setboard = 0;
     ultimo_resultado[0] = '\0';
-    tabu->situa = 0;
-    tabu->especial = 0;
-    tabu->de = 0;
-    tabu->pa = 0;
-    tabu->rei_pos[0] = 0;
-    tabu->rei_pos[1] = 0;
-    for(i = 0; i < 8; i++)
-        for(j = 0; j < 8; j++)
-            tabu->tab[SQ(i, j)] = VAZIA;
     primeiro = 'h'; //humano inicia, com comandos para acertar detalhes do jogo
     segundo = 'c'; //computador espera para saber se jogara de brancas ou pretas
     nivel = 3; // sem uso depois de colocar busca em amplitude (uso no debug apenas)
@@ -4255,27 +4221,13 @@ void inicia(tabuleiro *tabu)
     OFERECEREMPATE = 0;
 }
 
-//coloca as peoes na posicao inicial
-void  coloca_pecas(tabuleiro *tabu)
+//zera pecas do tabuleiro (para setboard preencher via FEN)
+void zera_pecas(tabuleiro *tabu)
 {
-    int i;
-    for(i = 0; i < 8; i++)  //i = column
-    {
-        tabu->tab[SQ(i, 1)] = PEAO;
-        tabu->tab[SQ(i, 6)] = -PEAO;
-    }
-    tabu->tab[SQ(0, 0)] = tabu->tab[SQ(7, 0)] = TORRE;
-    tabu->tab[SQ(0, 7)] = tabu->tab[SQ(7, 7)] = -TORRE;
-    tabu->tab[SQ(1, 0)] = tabu->tab[SQ(6, 0)] = CAVALO;
-    tabu->tab[SQ(1, 7)] = tabu->tab[SQ(6, 7)] = -CAVALO;
-    tabu->tab[SQ(2, 0)] = tabu->tab[SQ(5, 0)] = BISPO;
-    tabu->tab[SQ(2, 7)] = tabu->tab[SQ(5, 7)] = -BISPO;
-    tabu->tab[SQ(3, 0)] = DAMA;
-    tabu->tab[SQ(4, 0)] = REI;
-    tabu->tab[SQ(3, 7)] = -DAMA;
-    tabu->tab[SQ(4, 7)] = -REI;
-    tabu->rei_pos[0] = SQ(4, 0); // white king e1
-    tabu->rei_pos[1] = SQ(4, 7); // black king e8
+    memset(tabu->tab, 0, 64 * sizeof(int));
+    tabu->rei_pos[0] = 0;
+    tabu->rei_pos[1] = 0;
+    setboard = 1;
 }
 
 //limpa algumas variaveis para iniciar ponderacao
