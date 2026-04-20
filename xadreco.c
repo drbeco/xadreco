@@ -3055,14 +3055,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         for(j = 0; j < 8; j++)
         {
             peca = tabu.tab[SQ(i, j)];
-            if(abs(peca) != REI)
+            if(TIPO(peca) != REI)
                 continue;
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
             ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
-            if(peca < 0)
+            if(EHBRANCA(peca))
                 //caso REI branco
             {
                 totp += ordem[k][5] * 20;
@@ -3086,14 +3086,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         for(j = 0; j < 8; j++)
         {
             peca = tabu.tab[SQ(i, j)];
-            if(abs(peca) != DAMA)
+            if(TIPO(peca) != DAMA)
                 continue;
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
             ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
-            if(peca < 0)
+            if(EHBRANCA(peca))
             {
                 //caso peca branca
                 //pretas ganham 5 pontos por ataque nela
@@ -3101,14 +3101,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 //dama branca no ataque ganha bonus
                 if(j > 4 && tabu.meionum > 30)
                     totb += 90;
-                pecab += peca;
+                pecab += TIPO(peca);
             }
             else
             {
                 totb += ordem[k][3] * 20;
                 if(j < 3 && tabu.meionum > 30)
                     totp += 90;
-                pecap += peca;
+                pecap += TIPO(peca);
             }
             k++;
         }
@@ -3117,14 +3117,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         for(j = 0; j < 8; j++)
         {
             peca = tabu.tab[SQ(i, j)];
-            if(abs(peca) != TORRE)
+            if(TIPO(peca) != TORRE)
                 continue;
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
             ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
-            if(peca < 0)
+            if(EHBRANCA(peca))
             {
                 //caso peca branca
                 //pretas ganham 5 pontos por ataque nela
@@ -3132,14 +3132,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 //torre branca no ataque ganha bonus
                 if(j > 4)
                     totb += 90;
-                pecab += peca;
+                pecab += TIPO(peca);
             }
             else
             {
                 totb += ordem[k][3] * 20;
                 if(j < 3)
                     totp += 90;
-                pecap += peca;
+                pecap += TIPO(peca);
             }
             k++;
         }
@@ -3148,24 +3148,24 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         for(j = 0; j < 8; j++)
         {
             peca = tabu.tab[SQ(i, j)];
-            if(abs(peca) != BISPO)
+            if(TIPO(peca) != BISPO)
                 continue;
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
             ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
-            if(peca < 0)
+            if(EHBRANCA(peca))
             {
                 //caso peca branca
                 totp += ordem[k][5] * 10;
-                pecab += peca;
+                pecab += TIPO(peca);
             }
             //pretas ganham pontos por ataque nela
             else
             {
                 totb += ordem[k][3] * 10;
-                pecap += peca;
+                pecap += TIPO(peca);
             }
             k++;
         }
@@ -3174,24 +3174,24 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         for(j = 0; j < 8; j++)
         {
             peca = tabu.tab[SQ(i, j)];
-            if(abs(peca) != CAVALO)
+            if(TIPO(peca) != CAVALO)
                 continue;
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
             ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
-            if(peca < 0)
+            if(EHBRANCA(peca))
             {
                 //caso peca branca
                 totp += ordem[k][5] * 10;
-                pecab += peca;
+                pecab += TIPO(peca);
             }
             //pretas ganham 5 pontos por ataque nela
             else
             {
                 totb += ordem[k][3] * 10;
-                pecap += peca;
+                pecap += TIPO(peca);
             }
             k++;
         }
@@ -3200,24 +3200,24 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         for(j = 0; j < 8; j++)
         {
             peca = tabu.tab[SQ(i, j)];
-            if(abs(peca) != PEAO)
+            if(TIPO(peca) != PEAO)
                 continue;
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
             ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
-            if(peca < 0)
+            if(EHBRANCA(peca))
             {
                 //caso peca branca
                 totp += ordem[k][5] * 10;
-                pecab += peca;
+                pecab += TIPO(peca);
             }
             //pretas ganham 5 pontos por ataque nela
             else
             {
                 totb += ordem[k][3] * 10;
-                pecap += peca;
+                pecap += TIPO(peca);
             }
             k++;
         }
@@ -3227,15 +3227,13 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //as pecas estao em ordem de valor
 
     //--------------------------- lazy evaluation
-    //ponto de vista branco (branco eh negativo, preto eh positivo)
-    //inverte sinal
-    pecab = (-pecab);
+    //ponto de vista branco (branco eh positivo, preto eh negativo)
     material = (int)((1.0 + 75.0 / (float)(pecab + pecap)) * (float)(pecab - pecap));
     if(tabu.vez == pretas)
         material = (-material);
 
     //hanging piece: se a peca que acabou de mover esta atacada, penaliza
-    peca_movida = abs(tabu.tab[tabu.pa]);
+    peca_movida = TIPO(tabu.tab[tabu.pa]);
     if(peca_movida != REI && peca_movida != 0
        && ataca(tabu.vez, COL(tabu.pa), ROW(tabu.pa), tabu))
         material += peca_movida; // pendurada: lado da vez pode recapturar (positivo = bom para vez)
@@ -3267,7 +3265,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         i = ordem[k][0];
         j = ordem[k][1];
         peca = ordem[k][2];
-        if(peca < 0)
+        if(EHBRANCA(peca))
         {
             //se peca branca:
             //totb += abs(peca);
@@ -3281,7 +3279,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 totp += (ordem[k][5] - ordem[k][3]) * 10;
             else
                 totb += (ordem[k][3] - ordem[k][5] + 1) * 10;
-            if(ordem[k][6] < -peca)
+            if(ordem[k][6] < TIPO(peca))
                 totp += 50;
         }
         else
@@ -3327,11 +3325,11 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         //            continue;
         tabu.tab[SQ(i, j)] = VAZIA;
         //imagina se essa peca nao existisse?
-        if(peca < 0)
+        if(EHBRANCA(peca))
         {
             qtdp = qataca(pretas, i, j, tabu, &menorp);
-            if(qtdp > ordem[k][5] && menorp < abs(peca))
-                totb -= (abs(peca) / 7);
+            if(qtdp > ordem[k][5] && menorp < TIPO(peca))
+                totb -= (TIPO(peca) / 7);
         }
         else
         {
@@ -3348,11 +3346,11 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     {
         if(ordem[k][0] == -1)
             break;
-        if(abs(ordem[k][2]) != PEAO)
+        if(TIPO(ordem[k][2]) != PEAO)
             continue;
         i = ordem[k][0];
         j = ordem[k][1];
-        if(ordem[k][2] == -PEAO)  //Peao branco (white pawn)
+        if(ordem[k][2] == DACOR(PEAO, brancas))  //Peao branco (white pawn)
         {
             //faltando 4 casas ou menos para promover ganha +1
             if(j > 2)
@@ -3402,9 +3400,9 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         {
             if(tabu.tab[SQ(i, j)] == VAZIA)
                 continue;
-            if(tabu.tab[SQ(i, j)] == -PEAO)
+            if(tabu.tab[SQ(i, j)] == DACOR(PEAO, brancas))
                 peaob++;
-            if(tabu.tab[SQ(i, j)] == PEAO)
+            if(tabu.tab[SQ(i, j)] == DACOR(PEAO, pretas))
                 peaop++;
         }
         //peaob e peaop tem o total de peoes na coluna (um so, dobrado, trip...)
@@ -3499,52 +3497,52 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //TODO usar flag para lembrar se ja mexeu, senao vai e volta
     if(tabu.meionum < 32 && setboard != 1)
     {
-        if(tabu.tab[SQ(3, 0)] == -DAMA)
+        if(tabu.tab[SQ(3, 0)] == DACOR(DAMA, brancas))
             totb += 50;
-        if(tabu.tab[SQ(3, 7)] == DAMA)
+        if(tabu.tab[SQ(3, 7)] == DACOR(DAMA, pretas))
             totp += 50;
     }
     //bonificacao para quem fez roque na abertura
     //TODO usar flag para saber se fez roque mesmo
     if(tabu.meionum < 32 && setboard != 1)
     {
-        if(tabu.tab[SQ(6, 0)] == -REI && tabu.tab[SQ(5, 0)] == -TORRE) //brancas com roque pequeno
+        if(tabu.tab[SQ(6, 0)] == DACOR(REI, brancas) && tabu.tab[SQ(5, 0)] == DACOR(TORRE, brancas)) //brancas com roque pequeno
             totb += 70;
-        if(tabu.tab[SQ(2, 0)] == -REI && tabu.tab[SQ(3, 0)] == -TORRE) //brancas com roque grande
+        if(tabu.tab[SQ(2, 0)] == DACOR(REI, brancas) && tabu.tab[SQ(3, 0)] == DACOR(TORRE, brancas)) //brancas com roque grande
             totb += 50;
-        if(tabu.tab[SQ(6, 7)] == REI && tabu.tab[SQ(5, 7)] == TORRE) //pretas com roque pequeno
+        if(tabu.tab[SQ(6, 7)] == DACOR(REI, pretas) && tabu.tab[SQ(5, 7)] == DACOR(TORRE, pretas)) //pretas com roque pequeno
             totp += 70;
-        if(tabu.tab[SQ(2, 7)] == REI && tabu.tab[SQ(3, 7)] == TORRE) //pretas com roque grande
+        if(tabu.tab[SQ(2, 7)] == DACOR(REI, pretas) && tabu.tab[SQ(3, 7)] == DACOR(TORRE, pretas)) //pretas com roque grande
             totp += 50;
     }
     //bonificacao para rei protegido na abertura com os peoes do Escudo Real
     if(tabu.meionum < 60 && setboard != 1)
     {
-        if(tabu.tab[SQ(6, 0)] == -REI &&
+        if(tabu.tab[SQ(6, 0)] == DACOR(REI, brancas) &&
                 //brancas com roque pequeno
-                tabu.tab[SQ(6, 1)] == -PEAO &&
-                tabu.tab[SQ(7, 1)] == -PEAO && tabu.tab[SQ(7, 0)] == VAZIA)
+                tabu.tab[SQ(6, 1)] == DACOR(PEAO, brancas) &&
+                tabu.tab[SQ(7, 1)] == DACOR(PEAO, brancas) && tabu.tab[SQ(7, 0)] == VAZIA)
             //apenas peoes g e h
             totb += 60;
-        if(tabu.tab[SQ(2, 0)] == -REI &&
+        if(tabu.tab[SQ(2, 0)] == DACOR(REI, brancas) &&
                 //brancas com roque grande
-                tabu.tab[SQ(0, 1)] == -PEAO &&
-                tabu.tab[SQ(1, 1)] == -PEAO &&
-                tabu.tab[SQ(2, 1)] == -PEAO &&
+                tabu.tab[SQ(0, 1)] == DACOR(PEAO, brancas) &&
+                tabu.tab[SQ(1, 1)] == DACOR(PEAO, brancas) &&
+                tabu.tab[SQ(2, 1)] == DACOR(PEAO, brancas) &&
                 tabu.tab[SQ(0, 0)] == VAZIA && tabu.tab[SQ(1, 0)] == VAZIA)
             //peoes a, b e c
             totb += 50;
-        if(tabu.tab[SQ(6, 7)] == REI &&
+        if(tabu.tab[SQ(6, 7)] == DACOR(REI, pretas) &&
                 //pretas com roque pequeno
-                tabu.tab[SQ(6, 6)] == PEAO &&
-                tabu.tab[SQ(7, 6)] == PEAO && tabu.tab[SQ(7, 7)] == VAZIA)
+                tabu.tab[SQ(6, 6)] == DACOR(PEAO, pretas) &&
+                tabu.tab[SQ(7, 6)] == DACOR(PEAO, pretas) && tabu.tab[SQ(7, 7)] == VAZIA)
             //apenas peoes g e h
             totp += 60;
-        if(tabu.tab[SQ(2, 7)] == REI &&
+        if(tabu.tab[SQ(2, 7)] == DACOR(REI, pretas) &&
                 //pretas com roque grande
-                tabu.tab[SQ(0, 6)] == PEAO &&
-                tabu.tab[SQ(1, 6)] == PEAO &&
-                tabu.tab[SQ(2, 6)] == PEAO &&
+                tabu.tab[SQ(0, 6)] == DACOR(PEAO, pretas) &&
+                tabu.tab[SQ(1, 6)] == DACOR(PEAO, pretas) &&
+                tabu.tab[SQ(2, 6)] == DACOR(PEAO, pretas) &&
                 tabu.tab[SQ(0, 7)] == VAZIA && tabu.tab[SQ(1, 7)] == VAZIA)
             //peoes a, b e c
             totp += 50;
@@ -3553,38 +3551,38 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     if(tabu.meionum < 16 && setboard != 1)
     {
         //caso das brancas------------------
-        if(tabu.tab[SQ(5, 1)] != -PEAO)
+        if(tabu.tab[SQ(5, 1)] != DACOR(PEAO, brancas))
             //PBR
             totb -= 50;
-        if(tabu.tab[SQ(6, 1)] != -PEAO)
+        if(tabu.tab[SQ(6, 1)] != DACOR(PEAO, brancas))
             //PCR
             totb -= 40;
-        if(tabu.tab[SQ(7, 1)] != -PEAO)
+        if(tabu.tab[SQ(7, 1)] != DACOR(PEAO, brancas))
             //PTR
             totb -= 30;
-        if(tabu.tab[SQ(0, 1)] != -PEAO)
+        if(tabu.tab[SQ(0, 1)] != DACOR(PEAO, brancas))
             //PTD
             totb -= 30;
-        if(tabu.tab[SQ(1, 1)] != -PEAO)
+        if(tabu.tab[SQ(1, 1)] != DACOR(PEAO, brancas))
             //PCD
             totb -= 40;
         //              if(tabu.tab[SQ(2,1)]==VAZIA)
         //PBD   nao eh penalizado!
         //                      totb-=10;
         //caso das pretas-------------------
-        if(tabu.tab[SQ(5, 6)] != PEAO)
+        if(tabu.tab[SQ(5, 6)] != DACOR(PEAO, pretas))
             //PBR
             totp -= 50;
-        if(tabu.tab[SQ(6, 6)] != PEAO)
+        if(tabu.tab[SQ(6, 6)] != DACOR(PEAO, pretas))
             //PCR
             totp -= 40;
-        if(tabu.tab[SQ(7, 6)] != PEAO)
+        if(tabu.tab[SQ(7, 6)] != DACOR(PEAO, pretas))
             //PTR
             totp -= 30;
-        if(tabu.tab[SQ(0, 6)] != PEAO)
+        if(tabu.tab[SQ(0, 6)] != DACOR(PEAO, pretas))
             //PTD
             totp -= 30;
-        if(tabu.tab[SQ(1, 6)] != PEAO)
+        if(tabu.tab[SQ(1, 6)] != DACOR(PEAO, pretas))
             //PCD
             totp -= 40;
         //PBD   nao eh penalizado!
