@@ -2099,53 +2099,53 @@ char humajoga(tabuleiro *tabu)
                 switch(movinito[k])  //KkQqRrBbNnPp
                 {
                     case 'K':
-                        tabu->tab[SQ(i, j)] = -REI;
+                        tabu->tab[SQ(i, j)] = REI;
                         tabu->rei_pos[0] = SQ(i, j);
                         i++;
                         break;
                     case 'k':
-                        tabu->tab[SQ(i, j)] = REI;
+                        tabu->tab[SQ(i, j)] = -REI;
                         tabu->rei_pos[1] = SQ(i, j);
                         i++;
                         break;
                     case 'Q':
-                        tabu->tab[SQ(i, j)] = -DAMA;
-                        i++;
-                        break;
-                    case 'q':
                         tabu->tab[SQ(i, j)] = DAMA;
                         i++;
                         break;
-                    case 'R':
-                        tabu->tab[SQ(i, j)] = -TORRE;
+                    case 'q':
+                        tabu->tab[SQ(i, j)] = -DAMA;
                         i++;
                         break;
-                    case 'r':
+                    case 'R':
                         tabu->tab[SQ(i, j)] = TORRE;
                         i++;
                         break;
-                    case 'B':
-                        tabu->tab[SQ(i, j)] = -BISPO;
+                    case 'r':
+                        tabu->tab[SQ(i, j)] = -TORRE;
                         i++;
                         break;
-                    case 'b':
+                    case 'B':
                         tabu->tab[SQ(i, j)] = BISPO;
                         i++;
                         break;
-                    case 'N':
-                        tabu->tab[SQ(i, j)] = -CAVALO;
+                    case 'b':
+                        tabu->tab[SQ(i, j)] = -BISPO;
                         i++;
                         break;
-                    case 'n':
+                    case 'N':
                         tabu->tab[SQ(i, j)] = CAVALO;
                         i++;
                         break;
+                    case 'n':
+                        tabu->tab[SQ(i, j)] = -CAVALO;
+                        i++;
+                        break;
                     case 'P':
-                        tabu->tab[SQ(i, j)] = -PEAO;
+                        tabu->tab[SQ(i, j)] = PEAO;
                         i++;
                         break;
                     case 'p':
-                        tabu->tab[SQ(i, j)] = PEAO;
+                        tabu->tab[SQ(i, j)] = -PEAO;
                         i++;
                         break;
                     case '/':
@@ -3952,14 +3952,14 @@ void livro_linha(int mnum, char *linha)
     tabuleiro tab =
     {
         {   /* tab[64]: SQ(col,row)=col+row*8, rank by rank a-h */
-            -TORRE, -CAVALO, -BISPO, -DAMA, -REI, -BISPO, -CAVALO, -TORRE,  /* rank 1: a1-h1 */
-            -PEAO,  -PEAO,   -PEAO,  -PEAO, -PEAO,-PEAO,  -PEAO,   -PEAO,  /* rank 2: a2-h2 */
+            TORRE,  CAVALO,  BISPO,  DAMA,  REI,   BISPO,  CAVALO,  TORRE,   /* rank 1: a1-h1 brancas */
+            PEAO,   PEAO,    PEAO,   PEAO,  PEAO,  PEAO,   PEAO,    PEAO,   /* rank 2: a2-h2 brancas */
             VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 3 */
             VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 4 */
             VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 5 */
             VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 6 */
-            PEAO,   PEAO,    PEAO,   PEAO,  PEAO,  PEAO,   PEAO,    PEAO,   /* rank 7: a7-h7 */
-            TORRE,  CAVALO,  BISPO,  DAMA,  REI,   BISPO,  CAVALO,  TORRE   /* rank 8: a8-h8 */
+            -PEAO,  -PEAO,   -PEAO,  -PEAO, -PEAO, -PEAO,  -PEAO,  -PEAO,  /* rank 7: a7-h7 pretas */
+            -TORRE, -CAVALO, -BISPO, -DAMA, -REI,  -BISPO, -CAVALO, -TORRE  /* rank 8: a8-h8 pretas */
         },
         -1, -1, 1, 1, 0, 0,
         0, 0,
@@ -4369,19 +4369,19 @@ void  coloca_pecas(tabuleiro *tabu)
     int i;
     for(i = 0; i < 8; i++)  //i = column
     {
-        tabu->tab[SQ(i, 1)] = -PEAO;
-        tabu->tab[SQ(i, 6)] = PEAO;
+        tabu->tab[SQ(i, 1)] = PEAO;
+        tabu->tab[SQ(i, 6)] = -PEAO;
     }
-    tabu->tab[SQ(0, 0)] = tabu->tab[SQ(7, 0)] = -TORRE;
-    tabu->tab[SQ(0, 7)] = tabu->tab[SQ(7, 7)] = TORRE;
-    tabu->tab[SQ(1, 0)] = tabu->tab[SQ(6, 0)] = -CAVALO;
-    tabu->tab[SQ(1, 7)] = tabu->tab[SQ(6, 7)] = CAVALO;
-    tabu->tab[SQ(2, 0)] = tabu->tab[SQ(5, 0)] = -BISPO;
-    tabu->tab[SQ(2, 7)] = tabu->tab[SQ(5, 7)] = BISPO;
-    tabu->tab[SQ(3, 0)] = -DAMA;
-    tabu->tab[SQ(4, 0)] = -REI;
-    tabu->tab[SQ(3, 7)] = DAMA;
-    tabu->tab[SQ(4, 7)] = REI;
+    tabu->tab[SQ(0, 0)] = tabu->tab[SQ(7, 0)] = TORRE;
+    tabu->tab[SQ(0, 7)] = tabu->tab[SQ(7, 7)] = -TORRE;
+    tabu->tab[SQ(1, 0)] = tabu->tab[SQ(6, 0)] = CAVALO;
+    tabu->tab[SQ(1, 7)] = tabu->tab[SQ(6, 7)] = -CAVALO;
+    tabu->tab[SQ(2, 0)] = tabu->tab[SQ(5, 0)] = BISPO;
+    tabu->tab[SQ(2, 7)] = tabu->tab[SQ(5, 7)] = -BISPO;
+    tabu->tab[SQ(3, 0)] = DAMA;
+    tabu->tab[SQ(4, 0)] = REI;
+    tabu->tab[SQ(3, 7)] = -DAMA;
+    tabu->tab[SQ(4, 7)] = -REI;
     tabu->rei_pos[0] = SQ(4, 0); // white king e1
     tabu->rei_pos[1] = SQ(4, 7); // black king e8
 }
