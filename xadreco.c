@@ -857,7 +857,7 @@ void mostra_tabu(tabuleiro tabu)
         for(col = 0; col < 8; col++)
         {
             p = tabu.tab[SQ(col, row)];
-            ap = abs(p);
+            ap = TIPO(p);
             if(ap == 0) c = '.';
             else if(ap == PEAO) c = 'P';
             else if(ap == CAVALO) c = 'N';
@@ -866,13 +866,13 @@ void mostra_tabu(tabuleiro tabu)
             else if(ap == DAMA) c = 'Q';
             else if(ap == REI) c = 'K';
             else c = '?';
-            if(p > 0) c += 32; /* pretas minuscula */
+            if(EHPRETA(p)) c += 32; /* pretas minuscula */
             fprintf(stderr, "%c ", c);
         }
         fprintf(stderr, "%d\n", row + 1);
     }
     fprintf(stderr, "  a b c d e f g h\n");
-    fprintf(stderr, "vez=%s\n", tabu.vez == -1 ? "brancas" : "pretas");
+    fprintf(stderr, "vez=%s\n", tabu.vez == brancas ? "brancas" : "pretas");
 }
 
 //int para char: de/pa (0-63) para string "e2e4"
