@@ -133,6 +133,7 @@
 #define TIPO(p)     (abs(p))     // tipo de peca: PEAO..REI. PLAN12: ((p)&7)
 #define COR(p)      (sinal(p))   // cor: +1=branca, -1=preta, 0=vazia. PLAN12:((p)&8)
 #define DACOR(p, c) ((p) * (c))  // peca da cor c. PLAN12: ((p)|(c))
+#define ICOR(c)     ((1 - (c)) / 2) // indice 0=branca, 1=preta. PLAN12: ((c)>>3)
 // tamanho das arenas em bytes
 #define ARENA_TAB  (2 * 1024 * 1024)
 #define ARENA_MOV  (2 * 1024 * 1024)
@@ -968,9 +969,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     for(i = i0; i <= i1; i++)  //#coluna
         for(j = j0; j <= j1; j++)  //#linha
         {
-            if((tabu.tab[SQ(i, j)]) * (tabu.vez) <= 0) //casa vazia, ou cor errada:
-                continue; // (+)*(-)==(-) , (-)*(+)==(-)
-            peca = abs(tabu.tab[SQ(i, j)]);
+            if(EHVAZIA(tabu.tab[SQ(i, j)]) || COR(tabu.tab[SQ(i, j)]) != tabu.vez)
+                continue; //casa vazia, ou cor errada
+            peca = TIPO(tabu.tab[SQ(i, j)]);
             switch(peca)
             {
                 case REI:
@@ -979,14 +980,14 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         {
                             if(lin < 0 || lin > 7 || col < 0 || col > 7)
                                 continue; //casa de indice invalido
-                            if(sinal(tabu.tab[SQ(col, lin)]) == tabu.vez)
+                            if(COR(tabu.tab[SQ(col, lin)]) == tabu.vez)
                                 continue; //casa possui peca da mesma cor ou o proprio rei
                             if(ataca(adv(tabu.vez), col, lin, tabu))
                                 continue; //adversario esta protegendo a casa
                             copitab(&tabaux, &tabu);
                             tabaux.tab[SQ(i, j)] = VAZIA;
                             tabaux.tab[SQ(col, lin)] = DACOR(REI, tabu.vez);
-                            tabaux.rei_pos[(tabu.vez + 1) / 2] = SQ(col, lin);
+                            tabaux.rei_pos[ICOR(tabu.vez)] = SQ(col, lin);
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
                                 //pp contem -1 ou coluna do peao que andou duas neste lance
@@ -1015,7 +1016,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         else
                         {
                             //roque de brancas
-                            if(tabu.roqueb != 2 && tabu.tab[SQ(7, 0)] == -TORRE)
+                            if(tabu.roqueb != 2 && tabu.tab[SQ(7, 0)] == DACOR(TORRE, brancas))
                             {
                                 //Nao mexeu TR (e ela esta la Adv poderia ter comido antes de mexer)
                                 // roque pequeno
@@ -1043,7 +1044,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     }
                                 } // roque grande
                             } //mexeu TR
-                            if(tabu.roqueb != 3 && tabu.tab[SQ(0, 0)] == -TORRE) //Nao mexeu TD (e a torre existe!)
+                            if(tabu.roqueb != 3 && tabu.tab[SQ(0, 0)] == DACOR(TORRE, brancas)) //Nao mexeu TD (e a torre existe!)
                             {
                                 if(tabu.tab[SQ(1, 0)] == VAZIA && tabu.tab[SQ(2, 0)] == VAZIA && tabu.tab[SQ(3, 0)] == VAZIA) //b1,c1,d1
                                 {
@@ -1070,7 +1071,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             break;
                         else //roque de pretas
                         {
-                            if(tabu.roquep != 2 && tabu.tab[SQ(7, 7)] == TORRE) //Nao mexeu TR (e a torre nao foi capturada)
+                            if(tabu.roquep != 2 && tabu.tab[SQ(7, 7)] == DACOR(TORRE, pretas)) //Nao mexeu TR (e a torre nao foi capturada)
                             {
                                 // roque pequeno
                                 if(tabu.tab[SQ(5, 7)] == VAZIA && tabu.tab[SQ(6, 7)] == VAZIA) //f8,g8
@@ -1092,7 +1093,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     }
                                 } // roque grande.
                             } //mexeu TR
-                            if(tabu.roquep != 3 && tabu.tab[SQ(0, 7)] == TORRE) //Nao mexeu TD (e a torre esta la)
+                            if(tabu.roquep != 3 && tabu.tab[SQ(0, 7)] == DACOR(TORRE, pretas)) //Nao mexeu TD (e a torre esta la)
                             {
                                 if(tabu.tab[SQ(1, 7)] == VAZIA && tabu.tab[SQ(2, 7)] == VAZIA && tabu.tab[SQ(3, 7)] == VAZIA) //b8,c8,d8
                                 {
@@ -1326,7 +1327,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 continue;
                             if(i + col < 0 || i + col > 7 || j + lin < 0 || j + lin > 7)
                                 continue;
-                            if(sinal(tabu.tab[SQ(i + col, j + lin)]) == tabu.vez)
+                            if(COR(tabu.tab[SQ(i + col, j + lin)]) == tabu.vez)
                                 continue; //casa possui peca da mesma cor.
                             copitab(&tabaux, &tabu);
                             tabaux.tab[SQ(i, j)] = VAZIA;
@@ -1359,7 +1360,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             m = 0; //m=idem para a vertical
                             do
                             {
-                                if(col >= 0 && col <= 7 && sinal(tabu.tab[SQ(col, j)]) != tabu.vez && l == 0)  //gira col, mantem lin
+                                if(col >= 0 && col <= 7 && COR(tabu.tab[SQ(col, j)]) != tabu.vez && l == 0)  //gira col, mantem lin
                                 {
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
@@ -1409,7 +1410,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 else
                                     //nao inclui mais nenhuma casa desta linha; A casa esta fora do tabuleiro, ou tem peca de mesma cor ou capturou
                                     l = 1;
-                                if(lin >= 0 && lin <= 7 && sinal(tabu.tab[SQ(i, lin)]) != tabu.vez && m == 0)  //gira lin, mantem col
+                                if(lin >= 0 && lin <= 7 && COR(tabu.tab[SQ(i, lin)]) != tabu.vez && m == 0)  //gira lin, mantem col
                                 {
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
@@ -1474,7 +1475,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             {
                                 col += k;
                                 lin += l;
-                                while(col >= 0 && col <= 7 && lin >= 0 && lin <= 7 && sinal(tabu.tab[SQ(col, lin)]) != tabu.vez && flag == 0)
+                                while(col >= 0 && col <= 7 && lin >= 0 && lin <= 7 && COR(tabu.tab[SQ(col, lin)]) != tabu.vez && flag == 0)
                                 {
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
@@ -1701,7 +1702,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
 //fim de int ataca(int cor, int col, int lin, tabuleiro tabu)
 int xeque_rei_das(int cor, tabuleiro tabu)
 {
-    int sq = tabu.rei_pos[(cor + 1) / 2];
+    int sq = tabu.rei_pos[ICOR(cor)];
 
     return ataca(adv(cor), COL(sq), ROW(sq), tabu);
 }
@@ -2992,7 +2993,7 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     tabu->tab[movi.pa] = tabu->tab[movi.de];
     tabu->tab[movi.de] = VAZIA;
     if(TIPO(tabu->tab[movi.pa]) == REI)
-        tabu->rei_pos[(tabu->vez + 1) / 2] = movi.pa; // vez ainda nao inverteu
+        tabu->rei_pos[ICOR(tabu->vez)] = movi.pa; // vez ainda nao inverteu
     tabu->de = movi.de;
     tabu->pa = movi.pa;
     tabu->meionum++;
