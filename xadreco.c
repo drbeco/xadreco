@@ -132,7 +132,7 @@
 #define EHVAZIA(p)  ((p) == 0)   // casa vazia?
 #define TIPO(p)     (abs(p))     // tipo de peca: PEAO..REI. PLAN12: ((p)&7)
 #define COR(p)      (sinal(p))   // cor: +1=branca, -1=preta, 0=vazia. PLAN12:((p)&8)
-#define DAVEZ(p, v) ((p) * (v))  // peca da cor da vez. PLAN12: ((p)|(v))
+#define DACOR(p, c) ((p) * (c))  // peca da cor c. PLAN12: ((p)|(c))
 // tamanho das arenas em bytes
 #define ARENA_TAB  (2 * 1024 * 1024)
 #define ARENA_MOV  (2 * 1024 * 1024)
@@ -985,7 +985,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 continue; //adversario esta protegendo a casa
                             copitab(&tabaux, &tabu);
                             tabaux.tab[SQ(i, j)] = VAZIA;
-                            tabaux.tab[SQ(col, lin)] = REI * tabu.vez;
+                            tabaux.tab[SQ(col, lin)] = DACOR(REI, tabu.vez);
                             tabaux.rei_pos[(tabu.vez + 1) / 2] = SQ(col, lin);
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
@@ -1126,7 +1126,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             {
                                 if(j == 4)  //E tambem esta na linha certa. Peao branco vai comer enpassant!
                                 {
-                                    tabaux.tab[SQ(tabu.peao_pulou, 5)] = -PEAO;
+                                    tabaux.tab[SQ(tabu.peao_pulou, 5)] = DACOR(PEAO, brancas);
                                     tabaux.tab[SQ(tabu.peao_pulou, 4)] = VAZIA;
                                     tabaux.tab[SQ(i, 4)] = VAZIA;
                                     if(!xeque_rei_das(brancas, tabaux))   //nao deixa rei branco em xeque
@@ -1141,7 +1141,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             {
                                 if(j == 3)  // Esta na linha certa. Peao preto vai comer enpassant!
                                 {
-                                    tabaux.tab[SQ(tabu.peao_pulou, 2)] = PEAO;
+                                    tabaux.tab[SQ(tabu.peao_pulou, 2)] = DACOR(PEAO, pretas);
                                     tabaux.tab[SQ(tabu.peao_pulou, 3)] = VAZIA;
                                     tabaux.tab[SQ(i, 3)] = VAZIA;
                                     if(!xeque_rei_das(pretas, tabaux))
@@ -1163,7 +1163,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(tabu.tab[SQ(i, j + 1)] == VAZIA)
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
-                                tabaux.tab[SQ(i, j + 1)] = -PEAO;
+                                tabaux.tab[SQ(i, j + 1)] = DACOR(PEAO, brancas);
                                 if(!xeque_rei_das(brancas, tabaux))
                                 {
                                     if(j + 1 == 7)  //se promoveu
@@ -1190,7 +1190,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(tabu.tab[SQ(i, j - 1)] == VAZIA)
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
-                                tabaux.tab[SQ(i, j - 1)] = PEAO;
+                                tabaux.tab[SQ(i, j - 1)] = DACOR(PEAO, pretas);
                                 if(!xeque_rei_das(pretas, tabaux))
                                 {
                                     if(j - 1 == 0)  //se promoveu
@@ -1218,7 +1218,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(tabu.tab[SQ(i, 2)] == VAZIA && tabu.tab[SQ(i, 3)] == VAZIA)
                             {
                                 tabaux.tab[SQ(i, 1)] = VAZIA;
-                                tabaux.tab[SQ(i, 3)] = -PEAO;
+                                tabaux.tab[SQ(i, 3)] = DACOR(PEAO, brancas);
                                 if(!xeque_rei_das(brancas, tabaux))
                                 {
                                     ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
@@ -1236,7 +1236,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(tabu.tab[SQ(i, 5)] == VAZIA && tabu.tab[SQ(i, 4)] == VAZIA)
                             {
                                 tabaux.tab[SQ(i, 6)] = VAZIA;
-                                tabaux.tab[SQ(i, 4)] = PEAO;
+                                tabaux.tab[SQ(i, 4)] = DACOR(PEAO, pretas);
                                 if(!xeque_rei_das(pretas, tabaux))
                                 {
                                     ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
@@ -1257,10 +1257,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         do //diagonal esquerda e direita do peao.
                         {
                             //peca preta
-                            if(tabu.tab[SQ(k, j + 1)] > 0)
+                            if(EHPRETA(tabu.tab[SQ(k, j + 1)]))
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
-                                tabaux.tab[SQ(k, j + 1)] = -PEAO;
+                                tabaux.tab[SQ(k, j + 1)] = DACOR(PEAO, brancas);
                                 if(!xeque_rei_das(brancas, tabaux))
                                 {
                                     if(j + 1 == 7)  //se promoveu comendo
@@ -1289,10 +1289,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             k = i + 1;
                         do //diagonal esquerda e direita do peao.
                         {
-                            if(tabu.tab[SQ(k, j - 1)] < 0) //peca branca
+                            if(EHBRANCA(tabu.tab[SQ(k, j - 1)])) //peca branca
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
-                                tabaux.tab[SQ(k, j - 1)] = PEAO;
+                                tabaux.tab[SQ(k, j - 1)] = DACOR(PEAO, pretas);
                                 if(!xeque_rei_das(pretas, tabaux))
                                 {
                                     //4:dama, 5:cavalo, 6:torre, 7:bispo
@@ -1330,7 +1330,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 continue; //casa possui peca da mesma cor.
                             copitab(&tabaux, &tabu);
                             tabaux.tab[SQ(i, j)] = VAZIA;
-                            tabaux.tab[SQ(i + col, j + lin)] = CAVALO * tabu.vez;
+                            tabaux.tab[SQ(i + col, j + lin)] = DACOR(CAVALO, tabu.vez);
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
                                 if(tabu.tab[SQ(col + i, lin + j)] == VAZIA)
@@ -1364,7 +1364,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
                                     tabaux.tab[SQ(i, j)] = VAZIA;
-                                    tabaux.tab[SQ(col, j)] = peca * tabu.vez;
+                                    tabaux.tab[SQ(col, j)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
                                         rr = 1; //ainda pode fazer roque
@@ -1414,7 +1414,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
                                     tabaux.tab[SQ(i, j)] = VAZIA;
-                                    tabaux.tab[SQ(i, lin)] = peca * tabu.vez;
+                                    tabaux.tab[SQ(i, lin)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
                                         rr = 1; //ainda pode fazer roque
@@ -1479,7 +1479,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
                                     tabaux.tab[SQ(i, j)] = VAZIA;
-                                    tabaux.tab[SQ(col, lin)] = peca * tabu.vez;
+                                    tabaux.tab[SQ(col, lin)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
                                         //preenche a estrutura movimento
@@ -2923,24 +2923,24 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     char res;
 
     if(movi.especial == 7)  //promocao do peao: BISPO
-        tabu->tab[movi.de] = BISPO * tabu->vez;
+        tabu->tab[movi.de] = DACOR(BISPO, tabu->vez);
     if(movi.especial == 6)  //promocao do peao: TORRE
-        tabu->tab[movi.de] = TORRE * tabu->vez;
+        tabu->tab[movi.de] = DACOR(TORRE, tabu->vez);
     if(movi.especial == 5)  //promocao do peao: CAVALO
-        tabu->tab[movi.de] = CAVALO * tabu->vez;
+        tabu->tab[movi.de] = DACOR(CAVALO, tabu->vez);
     if(movi.especial == 4)  //promocao do peao: DAMA
-        tabu->tab[movi.de] = DAMA * tabu->vez;
+        tabu->tab[movi.de] = DACOR(DAMA, tabu->vez);
     if(movi.especial == 3)  //comeu en passant
         tabu->tab[SQ(tabu->peao_pulou, ROW(movi.de))] = VAZIA;
     if(movi.especial == 2)  //roque grande
     {
         tabu->tab[SQ(0, ROW(movi.de))] = VAZIA;
-        tabu->tab[SQ(3, ROW(movi.de))] = TORRE * tabu->vez;
+        tabu->tab[SQ(3, ROW(movi.de))] = DACOR(TORRE, tabu->vez);
     }
     if(movi.especial == 1)  //roque pequeno
     {
         tabu->tab[SQ(7, ROW(movi.de))] = VAZIA;
-        tabu->tab[SQ(5, ROW(movi.de))] = TORRE * tabu->vez;
+        tabu->tab[SQ(5, ROW(movi.de))] = DACOR(TORRE, tabu->vez);
     }
     if(movi.flag_50)  //empate de 50 lances sem mover peao ou capturar
         tabu->empate_50 = 0;
@@ -2991,7 +2991,7 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     tabu->peao_pulou = movi.peao_pulou;
     tabu->tab[movi.pa] = tabu->tab[movi.de];
     tabu->tab[movi.de] = VAZIA;
-    if(abs(tabu->tab[movi.pa]) == REI)
+    if(TIPO(tabu->tab[movi.pa]) == REI)
         tabu->rei_pos[(tabu->vez + 1) / 2] = movi.pa; // vez ainda nao inverteu
     tabu->de = movi.de;
     tabu->pa = movi.pa;
