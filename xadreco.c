@@ -2372,29 +2372,27 @@ char situacao(tabuleiro tabu)
     for(i = 0; i < 8; i++)  //insuficiencia de material
         for(j = 0; j < 8; j++)
         {
-            switch(tabu.tab[SQ(i, j)])
+            switch(TIPO(tabu.tab[SQ(i, j)]))
             {
                 case DAMA:
                 case TORRE:
                 case PEAO:
-                    insuf_branca += 3; //3: eh suficiente
-                    break;
-                case -DAMA:
-                case -TORRE:
-                case -PEAO:
-                    insuf_preta += 3; //3: eh suficiente
+                    if(EHBRANCA(tabu.tab[SQ(i, j)]))
+                        insuf_branca += 3;
+                    else
+                        insuf_preta += 3;
                     break;
                 case BISPO:
-                    insuf_branca += 2; //2: falta pelo menos mais um
-                    break;
-                case -BISPO:
-                    insuf_preta += 2; //2: falta pelo menos mais um
+                    if(EHBRANCA(tabu.tab[SQ(i, j)]))
+                        insuf_branca += 2;
+                    else
+                        insuf_preta += 2;
                     break;
                 case CAVALO:
-                    insuf_branca++; //1: falta pelo menos mais dois
-                    break;
-                case -CAVALO:
-                    insuf_preta++; //1: falta pelo menos mais dois
+                    if(EHBRANCA(tabu.tab[SQ(i, j)]))
+                        insuf_branca++;
+                    else
+                        insuf_preta++;
                     break;
             }
             if(insuf_branca > 2 || insuf_preta > 2)
