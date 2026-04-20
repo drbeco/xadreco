@@ -227,8 +227,10 @@ resultado;
 //valor das pecas (positivo==pretas)
 enum piece_values
 {
-    REI = 10000, DAMA = 900, TORRE = 500, BISPO = 325, CAVALO = 300, PEAO = 100, VAZIA = 0, NULA = -1
+    VAZIA = 0, PEAO = 1, CAVALO = 2, BISPO = 3, TORRE = 4, DAMA = 5, REI = 6, NULA = 7
 };
+
+int val[] = {0, 100, 300, 325, 500, 900, 10000}; // centipawn lookup by TIPO index
 
 /* ---------------------------------------------------------------------- */
 /* globals */
@@ -3121,14 +3123,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 //dama branca no ataque ganha bonus
                 if(j > 4 && tabu.meionum > 30)
                     totb += 90;
-                pecab += TIPO(peca);
+                pecab += val[TIPO(peca)];
             }
             else
             {
                 totb += ordem[k][3] * 20;
                 if(j < 3 && tabu.meionum > 30)
                     totp += 90;
-                pecap += TIPO(peca);
+                pecap += val[TIPO(peca)];
             }
             k++;
         }
@@ -3152,14 +3154,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 //torre branca no ataque ganha bonus
                 if(j > 4)
                     totb += 90;
-                pecab += TIPO(peca);
+                pecab += val[TIPO(peca)];
             }
             else
             {
                 totb += ordem[k][3] * 20;
                 if(j < 3)
                     totp += 90;
-                pecap += TIPO(peca);
+                pecap += val[TIPO(peca)];
             }
             k++;
         }
@@ -3179,13 +3181,13 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             {
                 //caso peca branca
                 totp += ordem[k][5] * 10;
-                pecab += TIPO(peca);
+                pecab += val[TIPO(peca)];
             }
             //pretas ganham pontos por ataque nela
             else
             {
                 totb += ordem[k][3] * 10;
-                pecap += TIPO(peca);
+                pecap += val[TIPO(peca)];
             }
             k++;
         }
@@ -3205,13 +3207,13 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             {
                 //caso peca branca
                 totp += ordem[k][5] * 10;
-                pecab += TIPO(peca);
+                pecab += val[TIPO(peca)];
             }
             //pretas ganham 5 pontos por ataque nela
             else
             {
                 totb += ordem[k][3] * 10;
-                pecap += TIPO(peca);
+                pecap += val[TIPO(peca)];
             }
             k++;
         }
@@ -3231,13 +3233,13 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             {
                 //caso peca branca
                 totp += ordem[k][5] * 10;
-                pecab += TIPO(peca);
+                pecab += val[TIPO(peca)];
             }
             //pretas ganham 5 pontos por ataque nela
             else
             {
                 totb += ordem[k][3] * 10;
-                pecap += TIPO(peca);
+                pecap += val[TIPO(peca)];
             }
             k++;
         }
@@ -3258,9 +3260,9 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     {
         // peca pendurada: quem moveu perde valor. Absoluto: positivo = bom para brancas.
         if(EHBRANCA(tabu.tab[tabu.pa]))
-            material -= peca_movida; // peca branca pendurada, ruim para brancas
+            material -= val[peca_movida]; // peca branca pendurada, ruim para brancas
         else
-            material += peca_movida; // peca preta pendurada, bom para brancas
+            material += val[peca_movida]; // peca preta pendurada, bom para brancas
     }
 
     //lazy: material even with best positional bonus can't beat alfa
@@ -3353,14 +3355,14 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         if(EHBRANCA(peca))
         {
             qtdp = qataca(pretas, i, j, tabu, &menorp);
-            if(qtdp > ordem[k][5] && menorp < TIPO(peca))
-                totb -= (TIPO(peca) / 7);
+            if(qtdp > ordem[k][5] && menorp < val[TIPO(peca)])
+                totb -= (val[TIPO(peca)] / 7);
         }
         else
         {
             qtdb = qataca(brancas, i, j, tabu, &menorb);
-            if(qtdb > ordem[k][3] && menorb < peca)
-                totp -= (peca / 7);
+            if(qtdb > ordem[k][3] && menorb < val[TIPO(peca)])
+                totp -= (val[TIPO(peca)] / 7);
         }
         //perde uma fracao do valor da peca cravada;
         tabu.tab[SQ(i, j)] = peca;
@@ -3639,7 +3641,7 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
     int icol, ilin, casacol, casalin;
     int total = 0;
     int p; // peca encontrada na direcao
-    *menor = REI;
+    *menor = val[REI];
     //torre ou dama atacam a casa...
     for(icol = col - 1; icol >= 0; icol--)  //desce coluna
     {
@@ -3649,8 +3651,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             total++;
             p = TIPO(tabu.tab[SQ(icol, lin)]);
-            if(p < *menor)
-                *menor = p;
+            if(val[p] < *menor)
+                *menor = val[p];
         }
         break;
     }
@@ -3662,8 +3664,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             total++;
             p = TIPO(tabu.tab[SQ(icol, lin)]);
-            if(p < *menor)
-                *menor = p;
+            if(val[p] < *menor)
+                *menor = val[p];
         }
         break;
     }
@@ -3675,8 +3677,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             total++;
             p = TIPO(tabu.tab[SQ(col, ilin)]);
-            if(p < *menor)
-                *menor = p;
+            if(val[p] < *menor)
+                *menor = val[p];
         }
         break;
     }
@@ -3688,8 +3690,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             total++;
             p = TIPO(tabu.tab[SQ(col, ilin)]);
-            if(p < *menor)
-                *menor = p;
+            if(val[p] < *menor)
+                *menor = val[p];
         }
         break;
     }
@@ -3705,8 +3707,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             if(tabu.tab[SQ(col + icol, lin + ilin)] == DACOR(CAVALO, cor))
             {
                 total++;
-                if(CAVALO < *menor)
-                    *menor = CAVALO;
+                if(val[CAVALO] < *menor)
+                    *menor = val[CAVALO];
             }
         }
     // bispo ou dama atacam casa...
@@ -3758,15 +3760,15 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             if(col - 1 >= 0)
                 if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, brancas))
                 {
-                    if(PEAO < *menor)
-                        *menor = PEAO;
+                    if(val[PEAO] < *menor)
+                        *menor = val[PEAO];
                     total++;
                 }
             if(col + 1 <= 7)
                 if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, brancas))
                 {
-                    if(PEAO < *menor)
-                        *menor = PEAO;
+                    if(val[PEAO] < *menor)
+                        *menor = val[PEAO];
                     total++;
                 }
         }
@@ -3779,15 +3781,15 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             if(col - 1 >= 0)
                 if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, pretas))
                 {
-                    if(PEAO < *menor)
-                        *menor = PEAO;
+                    if(val[PEAO] < *menor)
+                        *menor = val[PEAO];
                     total++;
                 }
             if(col + 1 <= 7)
                 if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, pretas))
                 {
-                    if(PEAO < *menor)
-                        *menor = PEAO;
+                    if(val[PEAO] < *menor)
+                        *menor = val[PEAO];
                     total++;
                 }
         }
