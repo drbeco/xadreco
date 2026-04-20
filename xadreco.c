@@ -2501,9 +2501,6 @@ char compjoga(tabuleiro *tabu)
                     fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
                 }
                 val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv);
-                printdbg(debug, "# nv=%d tab=%zu/%zu mov=%zu/%zu\n",
-                    nv, pltab->a->usado, pltab->a->total,
-                    plmov->a->usado, plmov->a->total);
                 if(mel[0].tamanho == 0)
                 {
                     //sem lances, pode ser que queira avancar apos mate.
