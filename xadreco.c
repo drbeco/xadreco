@@ -3622,107 +3622,60 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
     //menor == e a menor peca da "cor" que ataca a casa (less valued piece attacking the square)
     int icol, ilin, casacol, casalin;
     int total = 0;
+    int p; // peca encontrada na direcao
     *menor = REI;
     //torre ou dama atacam a casa...
     for(icol = col - 1; icol >= 0; icol--)  //desce coluna
     {
         if(tabu.tab[SQ(icol, lin)] == VAZIA)
             continue;
-        if(cor == brancas)
-            if(tabu.tab[SQ(icol, lin)] == -TORRE || tabu.tab[SQ(icol, lin)] == -DAMA)
-            {
-                total++;
-                if(-tabu.tab[SQ(icol, lin)] < *menor)
-                    *menor = -tabu.tab[SQ(icol, lin)];
-                break;
-            }
-            else
-                break;
-        else // pretas atacam a casa
-            if(tabu.tab[SQ(icol, lin)] == TORRE || tabu.tab[SQ(icol, lin)] == DAMA)
-            {
-                total++;
-                if(tabu.tab[SQ(icol, lin)] < *menor)
-                    *menor = tabu.tab[SQ(icol, lin)];
-                break;
-            }
-            else
-                break;
+        if(tabu.tab[SQ(icol, lin)] == DACOR(TORRE, cor) || tabu.tab[SQ(icol, lin)] == DACOR(DAMA, cor))
+        {
+            total++;
+            p = TIPO(tabu.tab[SQ(icol, lin)]);
+            if(p < *menor)
+                *menor = p;
+        }
+        break;
     }
     for(icol = col + 1; icol < 8; icol++)  //sobe coluna
     {
         if(tabu.tab[SQ(icol, lin)] == VAZIA)
             continue;
-        if(cor == brancas)
-            if(tabu.tab[SQ(icol, lin)] == -TORRE || tabu.tab[SQ(icol, lin)] == -DAMA)
-            {
-                total++;
-                if(-tabu.tab[SQ(icol, lin)] < *menor)
-                    *menor = -tabu.tab[SQ(icol, lin)];
-                break;
-            }
-            else
-                break;
-        else
-            if(tabu.tab[SQ(icol, lin)] == TORRE || tabu.tab[SQ(icol, lin)] == DAMA)
-            {
-                total++;
-                if(tabu.tab[SQ(icol, lin)] < *menor)
-                    *menor = tabu.tab[SQ(icol, lin)];
-                break;
-            }
-            else
-                break;
+        if(tabu.tab[SQ(icol, lin)] == DACOR(TORRE, cor) || tabu.tab[SQ(icol, lin)] == DACOR(DAMA, cor))
+        {
+            total++;
+            p = TIPO(tabu.tab[SQ(icol, lin)]);
+            if(p < *menor)
+                *menor = p;
+        }
+        break;
     }
     for(ilin = lin + 1; ilin < 8; ilin++)  // direita na linha
     {
         if(tabu.tab[SQ(col, ilin)] == VAZIA)
             continue;
-        if(cor == brancas)
-            if(tabu.tab[SQ(col, ilin)] == -TORRE || tabu.tab[SQ(col, ilin)] == -DAMA)
-            {
-                total++;
-                if(-tabu.tab[SQ(col, ilin)] < *menor)
-                    *menor = -tabu.tab[SQ(col, ilin)];
-                break;
-            }
-            else
-                break;
-        else
-            if(tabu.tab[SQ(col, ilin)] == TORRE || tabu.tab[SQ(col, ilin)] == DAMA)
-            {
-                total++;
-                if(tabu.tab[SQ(col, ilin)] < *menor)
-                    *menor = tabu.tab[SQ(col, ilin)];
-                break;
-            }
-            else
-                break;
+        if(tabu.tab[SQ(col, ilin)] == DACOR(TORRE, cor) || tabu.tab[SQ(col, ilin)] == DACOR(DAMA, cor))
+        {
+            total++;
+            p = TIPO(tabu.tab[SQ(col, ilin)]);
+            if(p < *menor)
+                *menor = p;
+        }
+        break;
     }
     for(ilin = lin - 1; ilin >= 0; ilin--)  // esquerda na linha
     {
         if(tabu.tab[SQ(col, ilin)] == VAZIA)
             continue;
-        if(cor == brancas)
-            if(tabu.tab[SQ(col, ilin)] == -TORRE || tabu.tab[SQ(col, ilin)] == -DAMA)
-            {
-                total++;
-                if(-tabu.tab[SQ(col, ilin)] < *menor)
-                    *menor = -tabu.tab[SQ(col, ilin)];
-                break;
-            }
-            else
-                break;
-        else //pecas pretas atacam
-            if(tabu.tab[SQ(col, ilin)] == TORRE || tabu.tab[SQ(col, ilin)] == DAMA)
-            {
-                total++;
-                if(tabu.tab[SQ(col, ilin)] < *menor)
-                    *menor = tabu.tab[SQ(col, ilin)];
-                break;
-            }
-            else
-                break;
+        if(tabu.tab[SQ(col, ilin)] == DACOR(TORRE, cor) || tabu.tab[SQ(col, ilin)] == DACOR(DAMA, cor))
+        {
+            total++;
+            p = TIPO(tabu.tab[SQ(col, ilin)]);
+            if(p < *menor)
+                *menor = p;
+        }
+        break;
     }
     // cavalo ataca casa...
     for(icol = -2; icol < 3; icol++)
@@ -3733,22 +3686,12 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             if(col + icol < 0 || col + icol > 7 || lin + ilin < 0
                     || lin + ilin > 7)
                 continue;
-            if(cor == brancas)  //cavalo branco ataca?
-                if(tabu.tab[SQ(col + icol, lin + ilin)] == -CAVALO)
-                {
-                    total++; //sim,ataca!
-                    if(CAVALO < *menor)
-                        *menor = CAVALO;
-                }
-                else
-                    continue;
-            else //cavalo preto ataca?
-                if(tabu.tab[SQ(col + icol, lin + ilin)] == CAVALO)
-                {
-                    if(CAVALO < *menor)
-                        *menor = CAVALO;
-                    total++; //sim,ataca!
-                }
+            if(tabu.tab[SQ(col + icol, lin + ilin)] == DACOR(CAVALO, cor))
+            {
+                total++;
+                if(CAVALO < *menor)
+                    *menor = CAVALO;
+            }
         }
     // bispo ou dama atacam casa...
     for(icol = -1; icol < 2; icol += 2)
@@ -3766,26 +3709,13 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             while(tabu.tab[SQ(casacol, casalin)] == 0);
 
             if(casacol >= 0 && casacol <= 7 && casalin >= 0 && casalin <= 7)
-            {
-                if(cor == brancas)
-                    if(tabu.tab[SQ(casacol, casalin)] == -BISPO || tabu.tab[SQ(casacol, casalin)] == -DAMA)
-                    {
-                        total++;
-                        if(-tabu.tab[SQ(casacol, casalin)] < *menor)
-                            *menor = -tabu.tab[SQ(casacol, casalin)];
-                        continue; //proxima diagonal
-                    }
-                    else
-                        continue; // achou peca, mas esta nao anda em diagonal ou e' peca propria
-                else //ataque de peca preta
-                    if(tabu.tab[SQ(casacol, casalin)] == BISPO || tabu.tab[SQ(casacol, casalin)] == DAMA)
-                    {
-                        total++;
-                        if(tabu.tab[SQ(casacol, casalin)] < *menor)
-                            *menor = tabu.tab[SQ(casacol, casalin)];
-                        continue; //proxima diagonal
-                    }
-            }
+                if(tabu.tab[SQ(casacol, casalin)] == DACOR(BISPO, cor) || tabu.tab[SQ(casacol, casalin)] == DACOR(DAMA, cor))
+                {
+                    total++;
+                    p = TIPO(tabu.tab[SQ(casacol, casalin)]);
+                    if(p < *menor)
+                        *menor = p;
+                }
         } // proxima diagonal
     // ataque de rei...
     // nao preciso colocar como *menor, pois e a maior e ja comeca com ele
@@ -3796,36 +3726,28 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
                 continue;
             if(icol < 0 || icol > 7 || ilin < 0 || ilin > 7)
                 continue;
-            if(cor == brancas)
-                if(tabu.tab[SQ(icol, ilin)] == -REI)
-                {
-                    total++;
-                    break;
-                }
-                else
-                    continue;
-            else
-                if(tabu.tab[SQ(icol, ilin)] == REI)
-                {
-                    total++;
-                    break;
-                }
+            if(tabu.tab[SQ(icol, ilin)] == DACOR(REI, cor))
+            {
+                total++;
+                break;
+            }
         }
-    // ataque de peao branco (white pawn attack)
+    // ataque de peao
     if(cor == brancas)
+        // peao branco ataca para baixo (lin-1)
     {
         if(lin > 1)
         {
             ilin = lin - 1;
             if(col - 1 >= 0)
-                if(tabu.tab[SQ(col - 1, ilin)] == -PEAO)
+                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, brancas))
                 {
                     if(PEAO < *menor)
                         *menor = PEAO;
                     total++;
                 }
             if(col + 1 <= 7)
-                if(tabu.tab[SQ(col + 1, ilin)] == -PEAO)
+                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, brancas))
                 {
                     if(PEAO < *menor)
                         *menor = PEAO;
@@ -3833,20 +3755,20 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
                 }
         }
     }
-    else //ataque de peao preto (black pawn attack)
+    else //peao preto ataca para cima (lin+1)
     {
         if(lin < 6)
         {
             ilin = lin + 1;
             if(col - 1 >= 0)
-                if(tabu.tab[SQ(col - 1, ilin)] == PEAO)
+                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, pretas))
                 {
                     if(PEAO < *menor)
                         *menor = PEAO;
                     total++;
                 }
             if(col + 1 <= 7)
-                if(tabu.tab[SQ(col + 1, ilin)] == PEAO)
+                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, pretas))
                 {
                     if(PEAO < *menor)
                         *menor = PEAO;
