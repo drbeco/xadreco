@@ -2436,16 +2436,11 @@ char compjoga(tabuleiro *tabu)
     no *n;
     limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
     // valores absolutos: positivo=bom para brancas
+    val = 0; // neutro: loop while(abs(val) < XEQUEMATE) precisa comecar abaixo de XEQUEMATE
     if(tabu->vez == brancas)
-    {
         melhorvalor1 = -LIMITE; // brancas quer o maximo
-        val = -LIMITE;
-    }
     else
-    {
         melhorvalor1 = +LIMITE; // pretas quer o minimo
-        val = +LIMITE;
-    }
 
     // debug e inicializacoes -----------------------------------------------
     if(debug == 2)  //nivel extra de debug
@@ -2459,6 +2454,7 @@ char compjoga(tabuleiro *tabu)
     if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usalivro(*tabu);
+        if(debug) fprintf(stderr, "# after usalivro: melhor.tamanho=%d melhor.valor=%d\n", melhor.tamanho, melhor.valor); //DEBUG-TMP
         if(melhor.tamanho == 0)
             USALIVRO = 0;
         melhorvalor1 = melhor.valor;
@@ -2513,6 +2509,7 @@ char compjoga(tabuleiro *tabu)
                     fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
                 }
                 val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv);
+                if(debug) fprintf(stderr, "# compjoga nv=%d val=%d mel[0].tamanho=%d\n", nv, val, mel[0].tamanho); //DEBUG-TMP
                 if(mel[0].tamanho == 0)
                 {
                     //sem lances, pode ser que queira avancar apos mate.
@@ -2608,6 +2605,7 @@ char compjoga(tabuleiro *tabu)
     }
     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
     //algum problema ocorreu que esta sem lances
+    if(debug) fprintf(stderr, "# compjoga: melhor.tamanho=%d melhor.valor=%d vez=%d\n", melhor.tamanho, melhor.valor, tabu->vez); //DEBUG-TMP
     if(melhor.tamanho == 0)
     {
         res = randommove(tabu);
@@ -2774,6 +2772,8 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         }
         child_val = minimax(tab, prof + 1, alfa, beta, niv); // sem inversao de janela
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
+        if(prof == 0 && debug) //DEBUG-TMP
+            fprintf(stderr, "# prof=0 child_val=%d novo_valor=%d vez=%d alfa=%d beta=%d\n", child_val, novo_valor, atual.vez, alfa, beta);
         if(atual.vez == brancas) // MAXIMIZA
         {
             if(child_val > novo_valor)
@@ -3853,7 +3853,7 @@ void livro_linha(int mnum, char *linha)
             -PEAO,  -PEAO,   -PEAO,  -PEAO, -PEAO, -PEAO,  -PEAO,  -PEAO,  /* rank 7: a7-h7 pretas */
             -TORRE, -CAVALO, -BISPO, -DAMA, -REI,  -BISPO, -CAVALO, -TORRE  /* rank 8: a8-h8 pretas */
         },
-        -1, -1, 1, 1, 0, 0,
+        1, -1, 1, 1, 0, 0, // vez=brancas, peao_pulou=-1, roqueb=1, roquep=1, empate_50=0, situa=0
         0, 0,
         0, 0,
         {SQ(4, 0), SQ(4, 7)}
