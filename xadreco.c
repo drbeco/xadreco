@@ -1541,65 +1541,36 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
     {
         if(tabu.tab[SQ(icol, lin)] == VAZIA)
             continue;
-        if(cor == brancas)
-            if(tabu.tab[SQ(icol, lin)] == -TORRE || tabu.tab[SQ(icol, lin)] == -DAMA)
-                return (1);
-            else
-                break;
-        else
-            // pretas atacam a casa
-            if(tabu.tab[SQ(icol, lin)] == TORRE || tabu.tab[SQ(icol, lin)] == DAMA)
-                return (1);
-            else
-                break;
+        if(tabu.tab[SQ(icol, lin)] == DACOR(TORRE, cor) || tabu.tab[SQ(icol, lin)] == DACOR(DAMA, cor))
+            return (1);
+        break;
     }
     for(icol = col + 1; icol < 8; icol++)
         //sobe coluna
     {
         if(tabu.tab[SQ(icol, lin)] == VAZIA)
             continue;
-        if(cor == brancas)
-            if(tabu.tab[SQ(icol, lin)] == -TORRE || tabu.tab[SQ(icol, lin)] == -DAMA)
-                return (1);
-            else
-                break;
-        else
-            if(tabu.tab[SQ(icol, lin)] == TORRE || tabu.tab[SQ(icol, lin)] == DAMA)
-                return (1);
-            else
-                break;
+        if(tabu.tab[SQ(icol, lin)] == DACOR(TORRE, cor) || tabu.tab[SQ(icol, lin)] == DACOR(DAMA, cor))
+            return (1);
+        break;
     }
     for(ilin = lin + 1; ilin < 8; ilin++)
         // direita na linha
     {
         if(tabu.tab[SQ(col, ilin)] == VAZIA)
             continue;
-        if(cor == brancas)
-            if(tabu.tab[SQ(col, ilin)] == -TORRE || tabu.tab[SQ(col, ilin)] == -DAMA)
-                return (1);
-            else
-                break;
-        else
-            if(tabu.tab[SQ(col, ilin)] == TORRE || tabu.tab[SQ(col, ilin)] == DAMA)
-                return (1);
-            else
-                break;
+        if(tabu.tab[SQ(col, ilin)] == DACOR(TORRE, cor) || tabu.tab[SQ(col, ilin)] == DACOR(DAMA, cor))
+            return (1);
+        break;
     }
     for(ilin = lin - 1; ilin >= 0; ilin--)
         // esquerda na linha
     {
         if(tabu.tab[SQ(col, ilin)] == VAZIA)
             continue;
-        if(cor == brancas)
-            if(tabu.tab[SQ(col, ilin)] == -TORRE || tabu.tab[SQ(col, ilin)] == -DAMA)
-                return (1);
-            else
-                break;
-        else
-            if(tabu.tab[SQ(col, ilin)] == TORRE || tabu.tab[SQ(col, ilin)] == DAMA)
-                return (1);
-            else
-                break;
+        if(tabu.tab[SQ(col, ilin)] == DACOR(TORRE, cor) || tabu.tab[SQ(col, ilin)] == DACOR(DAMA, cor))
+            return (1);
+        break;
     }
     // cavalo ataca casa...
     for(icol = -2; icol < 3; icol++)
@@ -1610,14 +1581,8 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
             if(col + icol < 0 || col + icol > 7 || lin + ilin < 0
                     || lin + ilin > 7)
                 continue;
-            if(cor == brancas)
-                if(tabu.tab[SQ(col + icol, lin + ilin)] == -CAVALO)
-                    return (1);
-                else
-                    continue;
-            else
-                if(tabu.tab[SQ(col + icol, lin + ilin)] == CAVALO)
-                    return (1);
+            if(tabu.tab[SQ(col + icol, lin + ilin)] == DACOR(CAVALO, cor))
+                return (1);
         }
     // bispo ou dama atacam casa...
     for(icol = -1; icol < 2; icol += 2)
@@ -1636,19 +1601,9 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
             while(tabu.tab[SQ(casacol, casalin)] == VAZIA);
 
             if(casacol >= 0 && casacol <= 7 && casalin >= 0 && casalin <= 7)
-            {
-                if(cor == brancas)
-                {
-                    if(tabu.tab[SQ(casacol, casalin)] == -BISPO
-                            || tabu.tab[SQ(casacol, casalin)] == -DAMA)
-                        return 1;
-                    else
-                        continue;
-                }
-                else // achou peca, mas esta nao anda em diagonal ou e' peca propria
-                    if(tabu.tab[SQ(casacol, casalin)] == BISPO || tabu.tab[SQ(casacol, casalin)] == DAMA)
-                        return 1;
-            }
+                if(tabu.tab[SQ(casacol, casalin)] == DACOR(BISPO, cor)
+                        || tabu.tab[SQ(casacol, casalin)] == DACOR(DAMA, cor))
+                    return 1;
         }
     // proxima diagonal
     // ataque de rei...
@@ -1659,40 +1614,34 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
                 continue;
             if(icol < 0 || icol > 7 || ilin < 0 || ilin > 7)
                 continue;
-            if(cor == brancas)
-                if(tabu.tab[SQ(icol, ilin)] == -REI)
-                    return (1);
-                else
-                    continue;
-            else
-                if(tabu.tab[SQ(icol, ilin)] == REI)
-                    return (1);
+            if(tabu.tab[SQ(icol, ilin)] == DACOR(REI, cor))
+                return (1);
         }
     if(cor == brancas)
-        // ataque de peao branco
+        // ataque de peao branco: peao branco ataca para baixo (lin-1)
     {
         if(lin > 1)
         {
             ilin = lin - 1;
             if(col - 1 >= 0)
-                if(tabu.tab[SQ(col - 1, ilin)] == -PEAO)
+                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, brancas))
                     return (1);
             if(col + 1 <= 7)
-                if(tabu.tab[SQ(col + 1, ilin)] == -PEAO)
+                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, brancas))
                     return (1);
         }
     }
     else
-        //ataque de peao preto
+        //ataque de peao preto: peao preto ataca para cima (lin+1)
     {
         if(lin < 6)
         {
             ilin = lin + 1;
             if(col - 1 >= 0)
-                if(tabu.tab[SQ(col - 1, ilin)] == PEAO)
+                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, pretas))
                     return (1);
             if(col + 1 <= 7)
-                if(tabu.tab[SQ(col + 1, ilin)] == PEAO)
+                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, pretas))
                     return (1);
         }
     }
