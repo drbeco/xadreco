@@ -2374,26 +2374,26 @@ char situacao(tabuleiro tabu)
         {
             switch(tabu.tab[SQ(i, j)])
             {
-                case -DAMA:
-                case -TORRE:
-                case -PEAO:
-                    insuf_branca += 3; //3: eh suficiente
-                    break;
                 case DAMA:
                 case TORRE:
                 case PEAO:
+                    insuf_branca += 3; //3: eh suficiente
+                    break;
+                case -DAMA:
+                case -TORRE:
+                case -PEAO:
                     insuf_preta += 3; //3: eh suficiente
                     break;
-                case -BISPO:
+                case BISPO:
                     insuf_branca += 2; //2: falta pelo menos mais um
                     break;
-                case BISPO:
+                case -BISPO:
                     insuf_preta += 2; //2: falta pelo menos mais um
                     break;
-                case -CAVALO:
+                case CAVALO:
                     insuf_branca++; //1: falta pelo menos mais dois
                     break;
-                case CAVALO:
+                case -CAVALO:
                     insuf_preta++; //1: falta pelo menos mais dois
                     break;
             }
