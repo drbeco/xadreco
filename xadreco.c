@@ -3008,19 +3008,10 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //levando em conta a situacao do tabuleiro
     switch(tabu.situa)
     {
-        case 3: //Brancas tomaram mate
-            if(tabu.vez == brancas)
-                //vez das brancas, mas...
-                return -XEQUEMATE + 20 * (niv + 1);
-            //elas estao em xeque-mate. Conclusao: pessimo negocio, ganha -10000. Porem, quanto mais distante o mate, melhor
-            else
-                return +XEQUEMATE - 20 * (niv + 1);
-        //na vez das pretas, o mate nas brancas e positivo, e quanto mais distante, pior...
-        case 4: //Pretas tomaram mate
-            if(tabu.vez == pretas)
-                return -XEQUEMATE + 20 * (niv + 1);
-            else
-                return +XEQUEMATE - 20 * (niv + 1);
+        case 3: //Brancas tomaram mate. Sempre negativo (ruim para brancas).
+            return -XEQUEMATE + 20 * (niv + 1);
+        case 4: //Pretas tomaram mate. Sempre positivo (bom para brancas).
+            return +XEQUEMATE - 20 * (niv + 1);
         case 1: //Empatou
             return 0;
         //valor de uma posicao empatada.
@@ -3222,16 +3213,21 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //as pecas estao em ordem de valor
 
     //--------------------------- lazy evaluation
-    //ponto de vista branco (branco eh positivo, preto eh negativo)
+    //ponto de vista branco (branco eh positivo, preto eh negativo). Absoluto: positivo = bom para brancas.
     material = (int)((1.0 + 75.0 / (float)(pecab + pecap)) * (float)(pecab - pecap));
-    if(tabu.vez == pretas)
-        material = (-material);
 
     //hanging piece: se a peca que acabou de mover esta atacada, penaliza
     peca_movida = TIPO(tabu.tab[tabu.pa]);
+    assert(COR(tabu.tab[tabu.pa]) == adv(tabu.vez) && "peca no destino deve ser de quem moveu");
     if(peca_movida != REI && peca_movida != 0
        && ataca(tabu.vez, COL(tabu.pa), ROW(tabu.pa), tabu))
-        material += peca_movida; // pendurada: lado da vez pode recapturar (positivo = bom para vez)
+    {
+        // peca pendurada: quem moveu perde valor. Absoluto: positivo = bom para brancas.
+        if(EHBRANCA(tabu.tab[tabu.pa]))
+            material -= peca_movida; // peca branca pendurada, ruim para brancas
+        else
+            material += peca_movida; // peca preta pendurada, bom para brancas
+    }
 
     //lazy: material even with best positional bonus can't beat alfa
     if(material + MARGEM_PREGUICA <= alfa)
@@ -3582,15 +3578,8 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             totp -= 40;
         //PBD   nao eh penalizado!
     }
-    //prepara o retorno:----------------
-    if(tabu.vez == brancas)
-        // se vez das brancas
-        return material + totb - totp;
-    // retorna positivo se as brancas estao ganhando (ou negativo c.c.)
-    else
-        // se vez das pretas
-        return material + totp - totb;
-    // retorna positivo se as pretas estao ganhando (ou negativo c.c.)
+    //prepara o retorno: absoluto, positivo = bom para brancas
+    return material + totb - totp;
 }
 
 //para voltar um lance
