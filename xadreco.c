@@ -2830,7 +2830,7 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
     }
     //se tem captura ou xeque... liberou
     //se ja passou do nivel estipulado, pare a busca incondicionalmente
-    if(prof > niv)
+    if(prof >= niv)
     {
         mel[prof].tamanho = 0;
         *valor = estatico(atual, 0, prof, alfa, beta);
