@@ -52,7 +52,7 @@ $(o) : % : %.o $(OBJ)
 libeco-ux64.o : libeco.c
 	$(CC) $(LIBECO_CFLAGS) $(LIBECO_CPPFLAGS) $(LDLIBS) libeco.c -o libeco-ux64.o
 
-deploy: $(o)
+deploy:
 	cp $(o) $(o)-deploy
 	sed -i "s/{me} v[0-9]*\.[0-9]*/{me} v$$(./$(o)-deploy -VV)/" "$$(readlink -f config.yml)"
 	@echo "Deployed $(o)-deploy v$$(./$(o)-deploy -VV)"
