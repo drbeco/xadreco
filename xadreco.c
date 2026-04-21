@@ -7,10 +7,12 @@
 //%% Tecnica: MiniMax
 //%% Autor: Ruben Carlo Benante
 //%% Contato: rcb@beco.cc
-//%% criacao: 10/06/1999
-//%% versao para XBoard/WinBoard: 26/09/04
-//%% versao 6.1, 2026-04-15
-//%% edicao: 2026-04-15
+//%% Criacao: 19/08/1994
+//%% Atualizacao: 27/03/1997
+//%% Atualizacao: 10/06/1999
+//%% Atualizacao para XBoard: 26/09/2004
+//%% Atualizacao versao 6.1: 2026-04-15
+//%% Atualizacao edicao v7.x: 2026-04-15
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 //-----------------------------------------------------------------------------
 /***************************************************************************
@@ -126,14 +128,17 @@
 // geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
 // profundidade maxima de busca (limita mel[] e melhor)
 #define MAX_PROF 64
-// Macros para cores e valores de pecas e casas
-#define EHBRANCA(p) ((p) > 0)    // peca eh branca? PLAN12: ((p)>0 && !((p)&8))
-#define EHPRETA(p)  ((p) < 0)    // peca eh preta? PLAN12: ((p)&8)
-#define EHVAZIA(p)  ((p) == 0)   // casa vazia?
-#define TIPO(p)     (abs(p))     // tipo de peca: PEAO..REI. PLAN12: ((p)&7)
-#define COR(p)      (sinal(p))   // cor: +1=branca, -1=preta, 0=vazia. PLAN12:((p)&8)
-#define DACOR(p, c) ((p) * (c))  // peca da cor c. PLAN12: ((p)|(c))
-#define ICOR(c)     ((1 - (c)) / 2) // indice 0=branca, 1=preta. PLAN12: ((c)>>3)
+// Cores: brancas=0, pretas=bit3. Pecas: brancas 1-6, pretas 9-14, vazia 0.
+#define BRANCO 0                         // cor branca
+#define PRETO  8                         // cor preta (bit 3)
+#define EHBRANCA(p) ((p) != 0 && !((p) & 8)) // peca eh branca? (1-6)
+#define EHPRETA(p)  ((p) & 8)            // peca eh preta? (9-14)
+#define EHVAZIA(p)  ((p) == 0)           // casa vazia?
+#define TIPO(p)     ((p) & 7)            // tipo da peca: PEAO=1..REI=6
+#define COR(p)      ((p) & 8)            // cor da peca: 0=branca, 8=preta
+#define DACOR(p, c) ((p) | (c))          // monta peca com tipo p e cor c
+#define ICOR(c)     ((c) >> 3)           // indice da cor: 0=branca, 1=preta
+#define ADV(v)      ((v) ^ 8)            // adversario: troca branco/preto
 // tamanho das arenas em bytes
 #define ARENA_TAB  (2 * 1024 * 1024)
 #define ARENA_MOV  (2 * 1024 * 1024)
@@ -246,16 +251,16 @@ resultado melhor;
 const tabuleiro TAB_INICIO =
 {
     {   /* tab[64]: SQ(col,row)=col+row*8, rank by rank a-h */
-        TORRE,  CAVALO,  BISPO,  DAMA,  REI,   BISPO,  CAVALO,  TORRE,   /* rank 1: a1-h1 brancas */
-        PEAO,   PEAO,    PEAO,   PEAO,  PEAO,  PEAO,   PEAO,    PEAO,   /* rank 2: a2-h2 brancas */
-        VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 3 */
-        VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 4 */
-        VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 5 */
-        VAZIA,  VAZIA,   VAZIA,  VAZIA, VAZIA, VAZIA,  VAZIA,   VAZIA,  /* rank 6 */
-        -PEAO,  -PEAO,   -PEAO,  -PEAO, -PEAO, -PEAO,  -PEAO,  -PEAO,  /* rank 7: a7-h7 pretas */
-        -TORRE, -CAVALO, -BISPO, -DAMA, -REI,  -BISPO, -CAVALO, -TORRE  /* rank 8: a8-h8 pretas */
+        DACOR(TORRE,BRANCO), DACOR(CAVALO,BRANCO), DACOR(BISPO,BRANCO), DACOR(DAMA,BRANCO), DACOR(REI,BRANCO), DACOR(BISPO,BRANCO), DACOR(CAVALO,BRANCO), DACOR(TORRE,BRANCO), /* rank 1: a1-h1 */
+        DACOR(PEAO,BRANCO),  DACOR(PEAO,BRANCO),   DACOR(PEAO,BRANCO),  DACOR(PEAO,BRANCO), DACOR(PEAO,BRANCO), DACOR(PEAO,BRANCO), DACOR(PEAO,BRANCO),   DACOR(PEAO,BRANCO), /* rank 2: a2-h2 */
+        VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA,  /* rank 3 */
+        VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA,  /* rank 4 */
+        VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA,  /* rank 5 */
+        VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA, VAZIA,  /* rank 6 */
+        DACOR(PEAO,PRETO),  DACOR(PEAO,PRETO),   DACOR(PEAO,PRETO),  DACOR(PEAO,PRETO), DACOR(PEAO,PRETO), DACOR(PEAO,PRETO), DACOR(PEAO,PRETO),   DACOR(PEAO,PRETO), /* rank 7: a7-h7 */
+        DACOR(TORRE,PRETO), DACOR(CAVALO,PRETO), DACOR(BISPO,PRETO), DACOR(DAMA,PRETO), DACOR(REI,PRETO), DACOR(BISPO,PRETO), DACOR(CAVALO,PRETO), DACOR(TORRE,PRETO)  /* rank 8: a8-h8 */
     },
-    1, -1, 1, 1, 0, 0, // vez=brancas, peao_pulou=-1, roqueb=1, roquep=1, empate_50=0, situa=0
+    BRANCO, -1, 1, 1, 0, 0, // vez=BRANCO, peao_pulou=-1, roqueb=1, roquep=1, empate_50=0, situa=0
     0, 0,              // de=0, pa=0
     0, 0,              // especial=0, meionum=0
     {SQ(4, 0), SQ(4, 7)} // rei_pos: white e1, black e8
@@ -304,10 +309,7 @@ double tdifs; // diferenca em segundos tdifs=difftime(t2,t1), calcular o tempo g
 //3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min por jogo (de 100 lances)
 double tempomovclock; //em segundos
 double tempomovclockmax; // max allowed
-//pecas brancas sao positivas
-const int brancas = 1;
-//pecas pretas sao negativas
-const int pretas = -1;
+// cores definidas em macros: BRANCO=0, PRETO=8
 //para mostrar um rostinho sorrindo (sem uso)
 unsigned char gira = (unsigned char) 0;
 //Nome do arquivo de log
@@ -338,10 +340,7 @@ void mostra_lances(tabuleiro tabu);
 void lance2movi(char *m, int de, int pa, int especial);
 //faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.
 int movi2lance(int *de, int *pa, char *m);
-//retorna o adversario de quem esta na vez
-inline int adv(int vez);
-//retorna 1, -1 ou 0. Sinal de x
-inline int sinal(int x);
+//retorna o adversario: ADV(v) macro em defines
 //pegar caracter (linux e windows)
 char pega(char *no, char *msg);
 /* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
@@ -648,7 +647,7 @@ int main(int argc, char *argv[])
     // novo jogo
     conta_linhas_livro(); /* atualiza LINHASBOAS; assume que livro nao cresce durante jogo */
     inicia(&tabu);  // zera variaveis
-    assert(tabu.vez == brancas && "board not initialized");
+    assert(tabu.vez == BRANCO && "board not initialized");
     tab_insere(tabu);
     assert(pltab != NULL && pltab->cabeca != NULL && "board history null");
     //------------------------------------------------------------------------------
@@ -669,7 +668,7 @@ int main(int argc, char *argv[])
         if(tabu.meionum > 2)
         {
             tdifs = difftime(tatual, tinimov);
-            if(tabu.vez == brancas) //iniciando vez das brancas
+            if(tabu.vez == BRANCO) //iniciando vez das brancas
             {
                 tpretasac += tdifs; //acumulou lance anterior, das pretas
                 printdbg(debug, "# xadreco : N.%d. Pretas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.meionum, tdifs, tpretasac, hora);
@@ -682,7 +681,7 @@ int main(int argc, char *argv[])
             tinimov = tatual; //ancora para proximo tempo acumulado
         }
 
-        if(tabu.vez == brancas)  /* jogam as brancas */
+        if(tabu.vez == BRANCO)  /* jogam as brancas */
             if(primeiro == 'c')
                 res = compjoga(&tabu);
             else
@@ -835,7 +834,7 @@ void imptab(tabuleiro tabu)
     movinito[79] = '\0';
     lance2movi(movinito, tabu.de, tabu.pa, tabu.especial);
     /* imprime o movimento */
-    if((tabu.vez == brancas && segundo == 'c') || (tabu.vez == pretas && primeiro == 'c'))
+    if((tabu.vez == BRANCO && segundo == 'c') || (tabu.vez == PRETO && primeiro == 'c'))
     {
         printf2("move %s\n", movinito);
         if(OFERECEREMPATE == 1)
@@ -875,7 +874,7 @@ void mostra_tabu(tabuleiro tabu)
         fprintf(stderr, "%d\n", row + 1);
     }
     fprintf(stderr, "  a b c d e f g h\n");
-    fprintf(stderr, "vez=%s\n", tabu.vez == brancas ? "brancas" : "pretas");
+    fprintf(stderr, "vez=%s\n", tabu.vez == BRANCO ? "brancas" : "pretas");
 }
 
 //int para char: de/pa (0-63) para string "e2e4"
@@ -914,18 +913,6 @@ int movi2lance(int *de, int *pa, char *m)
     return 1;
 }
 
-inline int adv(int vez)
-{
-    return ((-1) * vez);
-}
-
-inline int sinal(int x)
-{
-    if(!x)
-        return (0);
-    return (abs(x) / x);
-}
-
 void copitab(tabuleiro *dest, tabuleiro *font)
 {
     int i, j;
@@ -958,7 +945,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     int pp, rr, ee, ff; //roque, especial e flag50;
     int i0, i1, j0, j1; //limites do loop
 
-    assert(tabu.vez == brancas || (tabu.vez == pretas && "Invalid turn in geramov"));
+    assert(tabu.vez == BRANCO || (tabu.vez == PRETO && "Invalid turn in geramov"));
     if(geramodo >= 0) // GERA_DESTE: gera apenas da casa geramodo (0-63)
     {
         i0 = i1 = COL(geramodo);
@@ -983,9 +970,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         {
                             if(lin < 0 || lin > 7 || col < 0 || col > 7)
                                 continue; //casa de indice invalido
-                            if(COR(tabu.tab[SQ(col, lin)]) == tabu.vez)
+                            if(!EHVAZIA(tabu.tab[SQ(col, lin)]) && COR(tabu.tab[SQ(col, lin)]) == tabu.vez)
                                 continue; //casa possui peca da mesma cor ou o proprio rei
-                            if(ataca(adv(tabu.vez), col, lin, tabu))
+                            if(ataca(ADV(tabu.vez), col, lin, tabu))
                                 continue; //adversario esta protegendo a casa
                             copitab(&tabaux, &tabu);
                             tabaux.tab[SQ(i, j)] = VAZIA;
@@ -998,7 +985,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                 rr = 0; //nao pode mais fazer roque. Mexeu Rei
                                 //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=deu xeque
-                                ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                 //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
                                 if(tabu.tab[SQ(col, lin)] == VAZIA)
                                     ff = 0; //nao capturou
@@ -1013,13 +1000,13 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             }
                         }
                     //----------------------------- Roque de Brancas e Pretas
-                    if(tabu.vez == brancas)
+                    if(tabu.vez == BRANCO)
                         if(tabu.roqueb == 0)  //Se nao pode mais rocar: break!
                             break;
                         else
                         {
                             //roque de brancas
-                            if(tabu.roqueb != 2 && tabu.tab[SQ(7, 0)] == DACOR(TORRE, brancas))
+                            if(tabu.roqueb != 2 && tabu.tab[SQ(7, 0)] == DACOR(TORRE, BRANCO))
                             {
                                 //Nao mexeu TR (e ela esta la Adv poderia ter comido antes de mexer)
                                 // roque pequeno
@@ -1027,7 +1014,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 {
                                     flag = 0;
                                     for(k = 4; k < 7; k++)  //colunas e,f,g
-                                        if(ataca(pretas, k, 0, tabu))
+                                        if(ataca(PRETO, k, 0, tabu))
                                         {
                                             flag = 1; //casas do roque atacadas
                                             break;
@@ -1047,13 +1034,13 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     }
                                 } // roque grande
                             } //mexeu TR
-                            if(tabu.roqueb != 3 && tabu.tab[SQ(0, 0)] == DACOR(TORRE, brancas)) //Nao mexeu TD (e a torre existe!)
+                            if(tabu.roqueb != 3 && tabu.tab[SQ(0, 0)] == DACOR(TORRE, BRANCO)) //Nao mexeu TD (e a torre existe!)
                             {
                                 if(tabu.tab[SQ(1, 0)] == VAZIA && tabu.tab[SQ(2, 0)] == VAZIA && tabu.tab[SQ(3, 0)] == VAZIA) //b1,c1,d1
                                 {
                                     flag = 0;
                                     for(k = 2; k < 5; k++)  //colunas c,d,e
-                                        if(ataca(pretas, k, 0, tabu))
+                                        if(ataca(PRETO, k, 0, tabu))
                                         {
                                             flag = 1; //casas do roque atacadas
                                             break;
@@ -1074,14 +1061,14 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             break;
                         else //roque de pretas
                         {
-                            if(tabu.roquep != 2 && tabu.tab[SQ(7, 7)] == DACOR(TORRE, pretas)) //Nao mexeu TR (e a torre nao foi capturada)
+                            if(tabu.roquep != 2 && tabu.tab[SQ(7, 7)] == DACOR(TORRE, PRETO)) //Nao mexeu TR (e a torre nao foi capturada)
                             {
                                 // roque pequeno
                                 if(tabu.tab[SQ(5, 7)] == VAZIA && tabu.tab[SQ(6, 7)] == VAZIA) //f8,g8
                                 {
                                     flag = 0;
                                     for(k = 4; k < 7; k++)  //colunas e,f,g
-                                        if(ataca(brancas, k, 7, tabu))
+                                        if(ataca(BRANCO, k, 7, tabu))
                                         {
                                             flag = 1;
                                             break;
@@ -1096,13 +1083,13 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     }
                                 } // roque grande.
                             } //mexeu TR
-                            if(tabu.roquep != 3 && tabu.tab[SQ(0, 7)] == DACOR(TORRE, pretas)) //Nao mexeu TD (e a torre esta la)
+                            if(tabu.roquep != 3 && tabu.tab[SQ(0, 7)] == DACOR(TORRE, PRETO)) //Nao mexeu TD (e a torre esta la)
                             {
                                 if(tabu.tab[SQ(1, 7)] == VAZIA && tabu.tab[SQ(2, 7)] == VAZIA && tabu.tab[SQ(3, 7)] == VAZIA) //b8,c8,d8
                                 {
                                     flag = 0;
                                     for(k = 2; k < 5; k++)  //colunas c,d,e
-                                        if(ataca(brancas, k, 7, tabu))
+                                        if(ataca(BRANCO, k, 7, tabu))
                                         {
                                             flag = 1;
                                             break;
@@ -1126,14 +1113,14 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         if(i == tabu.peao_pulou - 1 || i == tabu.peao_pulou + 1)  //este peao esta na coluna certa
                         {
                             copitab(&tabaux, &tabu);  // tabaux = tabu
-                            if(tabu.vez == brancas)
+                            if(tabu.vez == BRANCO)
                             {
                                 if(j == 4)  //E tambem esta na linha certa. Peao branco vai comer enpassant!
                                 {
-                                    tabaux.tab[SQ(tabu.peao_pulou, 5)] = DACOR(PEAO, brancas);
+                                    tabaux.tab[SQ(tabu.peao_pulou, 5)] = DACOR(PEAO, BRANCO);
                                     tabaux.tab[SQ(tabu.peao_pulou, 4)] = VAZIA;
                                     tabaux.tab[SQ(i, 4)] = VAZIA;
-                                    if(!xeque_rei_das(brancas, tabaux))   //nao deixa rei branco em xeque
+                                    if(!xeque_rei_das(BRANCO, tabaux))   //nao deixa rei branco em xeque
                                     {
                                         enche_lmovi(lmov, SQ(i,j), SQ(tabu.peao_pulou,5), /*peao*/ -1, /*roque*/1, /*especial*/3, /*flag50*/3);
                                         if(geramodo == GERA_UNICO) //se nao afogou retorna
@@ -1145,10 +1132,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             {
                                 if(j == 3)  // Esta na linha certa. Peao preto vai comer enpassant!
                                 {
-                                    tabaux.tab[SQ(tabu.peao_pulou, 2)] = DACOR(PEAO, pretas);
+                                    tabaux.tab[SQ(tabu.peao_pulou, 2)] = DACOR(PEAO, PRETO);
                                     tabaux.tab[SQ(tabu.peao_pulou, 3)] = VAZIA;
                                     tabaux.tab[SQ(i, 3)] = VAZIA;
-                                    if(!xeque_rei_das(pretas, tabaux))
+                                    if(!xeque_rei_das(PRETO, tabaux))
                                     {
                                         enche_lmovi(lmov, SQ(i,j), SQ(tabu.peao_pulou,2), /*peao*/ -1, /*roque*/1, /*especial*/3, /*flag50*/3);
                                         if(geramodo == GERA_UNICO) //se nao afogou retorna
@@ -1160,15 +1147,15 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                     } //nao peao_pulou.
                     //peao andando uma casa
                     copitab(&tabaux, &tabu);  //tabaux = tabu;
-                    if(tabu.vez == brancas)
+                    if(tabu.vez == BRANCO)
                     {
                         if(j + 1 < 8)
                         {
                             if(tabu.tab[SQ(i, j + 1)] == VAZIA)
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
-                                tabaux.tab[SQ(i, j + 1)] = DACOR(PEAO, brancas);
-                                if(!xeque_rei_das(brancas, tabaux))
+                                tabaux.tab[SQ(i, j + 1)] = DACOR(PEAO, BRANCO);
+                                if(!xeque_rei_das(BRANCO, tabaux))
                                 {
                                     if(j + 1 == 7)  //se promoveu
                                     {
@@ -1178,7 +1165,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     }
                                     else //nao promoveu
                                     {
-                                        ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
                                     }
                                     if(geramodo == GERA_UNICO) //se nao afogou retorna
@@ -1194,8 +1181,8 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(tabu.tab[SQ(i, j - 1)] == VAZIA)
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
-                                tabaux.tab[SQ(i, j - 1)] = DACOR(PEAO, pretas);
-                                if(!xeque_rei_das(pretas, tabaux))
+                                tabaux.tab[SQ(i, j - 1)] = DACOR(PEAO, PRETO);
+                                if(!xeque_rei_das(PRETO, tabaux))
                                 {
                                     if(j - 1 == 0)  //se promoveu
                                     {
@@ -1204,7 +1191,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     }
                                     else //nao promoveu
                                     {
-                                        ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
                                     }
                                     if(geramodo == GERA_UNICO) //se nao afogou retorna
@@ -1215,17 +1202,17 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                     }
                     //peao anda duas casas -----------
                     copitab(&tabaux, &tabu);
-                    if(tabu.vez == brancas)  //vez das brancas
+                    if(tabu.vez == BRANCO)  //vez das brancas
                     {
                         if(j == 1)  //esta na linha inicial
                         {
                             if(tabu.tab[SQ(i, 2)] == VAZIA && tabu.tab[SQ(i, 3)] == VAZIA)
                             {
                                 tabaux.tab[SQ(i, 1)] = VAZIA;
-                                tabaux.tab[SQ(i, 3)] = DACOR(PEAO, brancas);
-                                if(!xeque_rei_das(brancas, tabaux))
+                                tabaux.tab[SQ(i, 3)] = DACOR(PEAO, BRANCO);
+                                if(!xeque_rei_das(BRANCO, tabaux))
                                 {
-                                    ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                    ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                     enche_lmovi(lmov, SQ(i,1), SQ(i,3), /*peao*/i, /*roque*/1, /*especial*/ee, /*flag50*/1);
                                     if(geramodo == GERA_UNICO) //se nao afogou retorna
                                         return 1;
@@ -1240,10 +1227,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(tabu.tab[SQ(i, 5)] == VAZIA && tabu.tab[SQ(i, 4)] == VAZIA)
                             {
                                 tabaux.tab[SQ(i, 6)] = VAZIA;
-                                tabaux.tab[SQ(i, 4)] = DACOR(PEAO, pretas);
-                                if(!xeque_rei_das(pretas, tabaux))
+                                tabaux.tab[SQ(i, 4)] = DACOR(PEAO, PRETO);
+                                if(!xeque_rei_das(PRETO, tabaux))
                                 {
-                                    ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                    ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                     enche_lmovi(lmov, SQ(i,6), SQ(i,4), /*peao*/i, /*roque*/1, /*especial*/ee, /*flag50*/1);
                                     if(geramodo == GERA_UNICO) //se nao afogou retorna
                                         return 1;
@@ -1253,7 +1240,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                     }
                     // peao comeu normalmente (i.e., nao eh en passant) -------------
                     copitab(&tabaux, &tabu);
-                    if(tabu.vez == brancas)  //vez das brancas
+                    if(tabu.vez == BRANCO)  //vez das brancas
                     {
                         k = i - 1;
                         if(k < 0)  //peao da torre so come para direita
@@ -1264,8 +1251,8 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(EHPRETA(tabu.tab[SQ(k, j + 1)]))
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
-                                tabaux.tab[SQ(k, j + 1)] = DACOR(PEAO, brancas);
-                                if(!xeque_rei_das(brancas, tabaux))
+                                tabaux.tab[SQ(k, j + 1)] = DACOR(PEAO, BRANCO);
+                                if(!xeque_rei_das(BRANCO, tabaux))
                                 {
                                     if(j + 1 == 7)  //se promoveu comendo
                                     {
@@ -1274,7 +1261,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     }
                                     else //comeu sem promover
                                     {
-                                        ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0) ee = 9; // captura (ff=3)
                                         enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ee, /*flag50*/3);
                                     }
@@ -1296,8 +1283,8 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(EHBRANCA(tabu.tab[SQ(k, j - 1)])) //peca branca
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
-                                tabaux.tab[SQ(k, j - 1)] = DACOR(PEAO, pretas);
-                                if(!xeque_rei_das(pretas, tabaux))
+                                tabaux.tab[SQ(k, j - 1)] = DACOR(PEAO, PRETO);
+                                if(!xeque_rei_das(PRETO, tabaux))
                                 {
                                     //4:dama, 5:cavalo, 6:torre, 7:bispo
                                     //peao preto promove comendo
@@ -1309,7 +1296,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     }
                                     else //comeu sem promover
                                     {
-                                        ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0) ee = 9; // captura (ff=3)
                                         enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
                                     }
@@ -1330,7 +1317,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 continue;
                             if(i + col < 0 || i + col > 7 || j + lin < 0 || j + lin > 7)
                                 continue;
-                            if(COR(tabu.tab[SQ(i + col, j + lin)]) == tabu.vez)
+                            if(!EHVAZIA(tabu.tab[SQ(i + col, j + lin)]) && COR(tabu.tab[SQ(i + col, j + lin)]) == tabu.vez)
                                 continue; //casa possui peca da mesma cor.
                             copitab(&tabaux, &tabu);
                             tabaux.tab[SQ(i, j)] = VAZIA;
@@ -1341,7 +1328,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     ff = 0; //Cavalo nao capturou
                                 else
                                     ff = 2; // Cavalo capturou peca adversaria.
-                                ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                 if(ee == 0 && ff > 1) ee = 9; // captura
                                 enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/ff);
                                 if(geramodo == GERA_UNICO) //se nao afogou retorna
@@ -1363,7 +1350,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             m = 0; //m=idem para a vertical
                             do
                             {
-                                if(col >= 0 && col <= 7 && COR(tabu.tab[SQ(col, j)]) != tabu.vez && l == 0)  //gira col, mantem lin
+                                if(col >= 0 && col <= 7 && (EHVAZIA(tabu.tab[SQ(col, j)]) || COR(tabu.tab[SQ(col, j)]) != tabu.vez) && l == 0)  //gira col, mantem lin
                                 {
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
@@ -1374,14 +1361,14 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         rr = 1; //ainda pode fazer roque
                                         if(peca == TORRE)  //mas, se for torre ...
                                         {
-                                            if(tabu.vez == brancas && j == 0)  //se for vez das brancas e linha 1
+                                            if(tabu.vez == BRANCO && j == 0)  //se for vez das brancas e linha 1
                                             {
                                                 if(i == 0)  //e coluna a
                                                     rr = 3; //mexeu TD
                                                 if(i == 7)  //ou coluna h
                                                     rr = 2; //mexeu TR
                                             }
-                                            if(tabu.vez == pretas && j == 7)  //se for vez das pretas e linha 8
+                                            if(tabu.vez == PRETO && j == 7)  //se for vez das pretas e linha 8
                                             {
                                                 if(i == 0)  //e coluna a
                                                     rr = 3; //mexeu TD
@@ -1399,7 +1386,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                         //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0 && ff > 1) ee = 9; // captura
                                         enche_lmovi(lmov, SQ(i,j), SQ(col,j), /*peao*/ -1, /*roque*/rr, /*especial*/ ee, /*flag50*/ff);
                                         if(geramodo == GERA_UNICO) //se nao afogou retorna
@@ -1413,7 +1400,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 else
                                     //nao inclui mais nenhuma casa desta linha; A casa esta fora do tabuleiro, ou tem peca de mesma cor ou capturou
                                     l = 1;
-                                if(lin >= 0 && lin <= 7 && COR(tabu.tab[SQ(i, lin)]) != tabu.vez && m == 0)  //gira lin, mantem col
+                                if(lin >= 0 && lin <= 7 && (EHVAZIA(tabu.tab[SQ(i, lin)]) || COR(tabu.tab[SQ(i, lin)]) != tabu.vez) && m == 0)  //gira lin, mantem col
                                 {
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
@@ -1424,14 +1411,14 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         rr = 1; //ainda pode fazer roque
                                         if(peca == TORRE)  //mas, se for torre ...
                                         {
-                                            if(tabu.vez == brancas && j == 0)  //se for vez das brancas e linha 1
+                                            if(tabu.vez == BRANCO && j == 0)  //se for vez das brancas e linha 1
                                             {
                                                 if(i == 0)  //e coluna a
                                                     rr = 3; //mexeu TD
                                                 if(i == 7)  //ou coluna h
                                                     rr = 2; //mexeu TR
                                             }
-                                            if(tabu.vez == pretas && j == 7)  //se for vez das pretas e linha 8
+                                            if(tabu.vez == PRETO && j == 7)  //se for vez das pretas e linha 8
                                             {
                                                 if(i == 0)  //e coluna a
                                                     rr = 3; //mexeu TD
@@ -1449,7 +1436,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                         //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0 && ff > 1) ee = 9; // captura
                                         enche_lmovi(lmov, SQ(i,j), SQ(i,lin), /*peao*/ -1, /*roque*/rr, /*especial*/ ee, /*flag50*/ff);
                                         if(geramodo == GERA_UNICO) //se nao afogou retorna
@@ -1478,7 +1465,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             {
                                 col += k;
                                 lin += l;
-                                while(col >= 0 && col <= 7 && lin >= 0 && lin <= 7 && COR(tabu.tab[SQ(col, lin)]) != tabu.vez && flag == 0)
+                                while(col >= 0 && col <= 7 && lin >= 0 && lin <= 7 && (EHVAZIA(tabu.tab[SQ(col, lin)]) || COR(tabu.tab[SQ(col, lin)]) != tabu.vez) && flag == 0)
                                 {
                                     //inclui esta casa na lista
                                     copitab(&tabaux, &tabu);
@@ -1499,7 +1486,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                         //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        ee = xeque_rei_das(adv(tabu.vez), tabaux) * 8; // deu xeque
+                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0 && ff > 1) ee = 9; // captura
                                         enche_lmovi(lmov, SQ(i,j), SQ(col,lin), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/ff);
                                         if(geramodo == GERA_UNICO) //se nao afogou retorna
@@ -1620,17 +1607,17 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
             if(tabu.tab[SQ(icol, ilin)] == DACOR(REI, cor))
                 return (1);
         }
-    if(cor == brancas)
+    if(cor == BRANCO)
         // ataque de peao branco: peao branco ataca para baixo (lin-1)
     {
         if(lin > 1)
         {
             ilin = lin - 1;
             if(col - 1 >= 0)
-                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, brancas))
+                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, BRANCO))
                     return (1);
             if(col + 1 <= 7)
-                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, brancas))
+                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, BRANCO))
                     return (1);
         }
     }
@@ -1641,10 +1628,10 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
         {
             ilin = lin + 1;
             if(col - 1 >= 0)
-                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, pretas))
+                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, PRETO))
                     return (1);
             if(col + 1 <= 7)
-                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, pretas))
+                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, PRETO))
                     return (1);
         }
     }
@@ -1656,7 +1643,7 @@ int xeque_rei_das(int cor, tabuleiro tabu)
 {
     int sq = tabu.rei_pos[ICOR(cor)];
 
-    return ataca(adv(cor), COL(sq), ROW(sq), tabu);
+    return ataca(ADV(cor), COL(sq), ROW(sq), tabu);
 }
 
 // fim de int xeque_rei_das(int cor, tabuleiro tabu)
@@ -1838,7 +1825,7 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "go"))   //troca de lado e joga. (o mesmo que "adv")
         {
-            if(tabu->vez == brancas)
+            if(tabu->vez == BRANCO)
             {
                 primeiro = 'c';
                 segundo = 'h';
@@ -1854,7 +1841,7 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "playother"))   //coloca o computador com a cor que nao ta da vez. (switch)
         {
-            if(tabu->vez == brancas)
+            if(tabu->vez == BRANCO)
             {
                 primeiro = 'h';
                 segundo = 'c';
@@ -1885,7 +1872,7 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "resign"))
         {
-            if(tabu->vez == pretas)
+            if(tabu->vez == PRETO)
                 return 'b';        //pretas abandonam
             else
                 return 'B';        //brancas abandonam
@@ -2052,53 +2039,53 @@ char humajoga(tabuleiro *tabu)
                 switch(movinito[k])  //KkQqRrBbNnPp
                 {
                     case 'K':
-                        tabu->tab[SQ(i, j)] = REI;
+                        tabu->tab[SQ(i, j)] = DACOR(REI, BRANCO);
                         tabu->rei_pos[0] = SQ(i, j);
                         i++;
                         break;
                     case 'k':
-                        tabu->tab[SQ(i, j)] = -REI;
+                        tabu->tab[SQ(i, j)] = DACOR(REI, PRETO);
                         tabu->rei_pos[1] = SQ(i, j);
                         i++;
                         break;
                     case 'Q':
-                        tabu->tab[SQ(i, j)] = DAMA;
+                        tabu->tab[SQ(i, j)] = DACOR(DAMA, BRANCO);
                         i++;
                         break;
                     case 'q':
-                        tabu->tab[SQ(i, j)] = -DAMA;
+                        tabu->tab[SQ(i, j)] = DACOR(DAMA, PRETO);
                         i++;
                         break;
                     case 'R':
-                        tabu->tab[SQ(i, j)] = TORRE;
+                        tabu->tab[SQ(i, j)] = DACOR(TORRE, BRANCO);
                         i++;
                         break;
                     case 'r':
-                        tabu->tab[SQ(i, j)] = -TORRE;
+                        tabu->tab[SQ(i, j)] = DACOR(TORRE, PRETO);
                         i++;
                         break;
                     case 'B':
-                        tabu->tab[SQ(i, j)] = BISPO;
+                        tabu->tab[SQ(i, j)] = DACOR(BISPO, BRANCO);
                         i++;
                         break;
                     case 'b':
-                        tabu->tab[SQ(i, j)] = -BISPO;
+                        tabu->tab[SQ(i, j)] = DACOR(BISPO, PRETO);
                         i++;
                         break;
                     case 'N':
-                        tabu->tab[SQ(i, j)] = CAVALO;
+                        tabu->tab[SQ(i, j)] = DACOR(CAVALO, BRANCO);
                         i++;
                         break;
                     case 'n':
-                        tabu->tab[SQ(i, j)] = -CAVALO;
+                        tabu->tab[SQ(i, j)] = DACOR(CAVALO, PRETO);
                         i++;
                         break;
                     case 'P':
-                        tabu->tab[SQ(i, j)] = PEAO;
+                        tabu->tab[SQ(i, j)] = DACOR(PEAO, BRANCO);
                         i++;
                         break;
                     case 'p':
-                        tabu->tab[SQ(i, j)] = -PEAO;
+                        tabu->tab[SQ(i, j)] = DACOR(PEAO, PRETO);
                         i++;
                         break;
                     case '/':
@@ -2119,9 +2106,9 @@ char humajoga(tabuleiro *tabu)
                 scanf2(movinito);
             printdbg(debug, "# xboard: %s\n", movinito);
             if(movinito[0] == 'w')
-                tabu->vez = brancas;
+                tabu->vez = BRANCO;
             else
-                tabu->vez = pretas;
+                tabu->vez = PRETO;
             //int roqueb, roquep: 1:pode para os dois lados. 0:nao pode mais. 3:mexeu TD. So pode K. 2:mexeu TR. So pode Q
             if(testasim)
                 strcpy(movinito, castle);
@@ -2175,7 +2162,7 @@ char humajoga(tabuleiro *tabu)
 
             /* tabu->meionum => 0, 1, 2, 3, 4, 5
              * FEN          => 1, 1, 2, 2, 3, 3 */
-            tabu->meionum = (atoi(movinito) -1) * 2 + (tabu->vez == pretas ? 1 : 0);
+            tabu->meionum = (atoi(movinito) -1) * 2 + (tabu->vez == PRETO ? 1 : 0);
             //inicia no 0.3 para indicar 0
             /* ultimo resultado: - tudo certo, y troca vez */
             /* ultimo_resultado[0] = 'y'; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) */
@@ -2409,7 +2396,7 @@ char situacao(tabuleiro tabu)
         if(!xeque_rei_das(tabu.vez, tabu))
             return ('a'); //empate por afogamento.
         else
-            if(tabu.vez == brancas)
+            if(tabu.vez == BRANCO)
                 return ('M'); //as brancas estao em xeque-mate
             else
                 return ('m'); //as pretas estao em xeque-mate
@@ -2440,7 +2427,7 @@ char compjoga(tabuleiro *tabu)
     limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
     // valores absolutos: positivo=bom para brancas
     val = 0; // neutro: loop while(abs(val) < XEQUEMATE) precisa comecar abaixo de XEQUEMATE
-    if(tabu->vez == brancas)
+    if(tabu->vez == BRANCO)
         melhorvalor1 = -LIMITE; // brancas quer o maximo
     else
         melhorvalor1 = +LIMITE; // pretas quer o minimo
@@ -2519,7 +2506,7 @@ char compjoga(tabuleiro *tabu)
                 if(difclocks() < tempomovclock)
                 {
                     // salva melhor se iteracao completa melhorou
-                    melhorou = (tabu->vez == brancas) ? (val > melhorvalor1) : (val < melhorvalor1);
+                    melhorou = (tabu->vez == BRANCO) ? (val > melhorvalor1) : (val < melhorvalor1);
                     if(melhorou || melhor.tamanho == 0)
                     {
                         memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
@@ -2542,7 +2529,7 @@ char compjoga(tabuleiro *tabu)
                 if(mostrapensando && abs(val) != FIMTEMPO && abs(val) != LIMITE)
                 {
                     // XBoard: score do ponto de vista da engine (positivo=engine ganhando)
-                    printf("%3d %+6d %3d %7d ", nv, (tabu->vez == brancas) ? val : -val, (int)difclocks(), totalnodo);
+                    printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? val : -val, (int)difclocks(), totalnodo);
                     imprime_linha(&mel[0], tabu->meionum + 1, -tabu->vez);
                 }
                 // termino do laco infinito baseado no tempo
@@ -2565,7 +2552,7 @@ char compjoga(tabuleiro *tabu)
         fclose(fmini);
     //Utilizado: ABANDONA==-2730, alterado quando contra outra engine
     //resigna se estiver perdendo muito (absoluto: brancas negativo, pretas positivo)
-    if((tabu->vez == brancas && melhor.valor < ABANDONA) || (tabu->vez == pretas && melhor.valor > -ABANDONA))
+    if((tabu->vez == BRANCO && melhor.valor < ABANDONA) || (tabu->vez == PRETO && melhor.valor > -ABANDONA))
     {
         printdbg(debug, "# xadreco : resign. value: %+.2f\n", melhor.valor / 100.0);
         --ofereci;
@@ -2589,7 +2576,7 @@ char compjoga(tabuleiro *tabu)
     }
 
     //oferecer empate: valor absoluto, engine perde se brancas negativo ou pretas positivo
-    engine_val = (tabu->vez == brancas) ? melhor.valor : -melhor.valor; // engine perspective
+    engine_val = (tabu->vez == BRANCO) ? melhor.valor : -melhor.valor; // engine perspective
     if(engine_val < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
     {
         printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", melhor.valor / 100.0);
@@ -2626,7 +2613,7 @@ char analisa(tabuleiro *tabu)
     int val;
     // lances calc. em maior nivel tem mais importancia?
     //mudou para logo abaixo do scanf de humajoga
-    val = (tabu->vez == brancas) ? -LIMITE : +LIMITE;
+    val = (tabu->vez == BRANCO) ? -LIMITE : +LIMITE;
     copitab(&tanalise, tabu);
     limpa_pensa();
     if(debug == 2)
@@ -2641,7 +2628,7 @@ char analisa(tabuleiro *tabu)
         usalivro(*tabu);
     if(melhor.tamanho > 0)
     {
-        printf("%3d %+6d %3d %7d ", nv, (tabu->vez == brancas) ? melhor.valor : -melhor.valor, (int)difclocks(), totalnodo);
+        printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? melhor.valor : -melhor.valor, (int)difclocks(), totalnodo);
         imprime_linha(&melhor, tabu->meionum + 1, -tabu->vez);
     }
     else
@@ -2660,7 +2647,7 @@ char analisa(tabuleiro *tabu)
             if(abs(val) != FIMTEMPO && abs(val) != LIMITE)
             {
                 // XBoard: score do ponto de vista da engine
-                printf("%3d %+6d %3d %7d ", nv, (tabu->vez == brancas) ? val : -val, (int)difclocks(), totalnodo);
+                printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? val : -val, (int)difclocks(), totalnodo);
                 imprime_linha(&mel[0], tabu->meionum + 1, -tabu->vez);
             }
             if(debug == 2)
@@ -2743,7 +2730,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     // minimax classico: brancas maximizam, pretas minimizam
     // alfa = lower bound (melhor para brancas), beta = upper bound (melhor para pretas)
     // valores absolutos: positivo = bom para brancas
-    novo_valor = (atual.vez == brancas) ? -LIMITE : +LIMITE; // best inicial
+    novo_valor = (atual.vez == BRANCO) ? -LIMITE : +LIMITE; // best inicial
     while(n)
     {
         succ = (movimento *)n->info;
@@ -2772,7 +2759,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         }
         child_val = minimax(tab, prof + 1, alfa, beta, niv); // sem inversao de janela
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
-        if(atual.vez == brancas) // MAXIMIZA
+        if(atual.vez == BRANCO) // MAXIMIZA
         {
             if(child_val > novo_valor)
             {
@@ -2817,7 +2804,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             }
         }
         if(prof == 0)
-            succ->valor_estatico = (atual.vez == brancas) ? child_val : -child_val; // para lst_ordem (descending)
+            succ->valor_estatico = (atual.vez == BRANCO) ? child_val : -child_val; // para lst_ordem (descending)
         n = n->prox;
         contamov++;
         if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)
@@ -2927,7 +2914,7 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
         tabu->empate_50 = 0;
     else
         tabu->empate_50 += .5;
-    if(tabu->vez == brancas)
+    if(tabu->vez == BRANCO)
         switch(movi.roque)  //avalia o que este lance causa para futuros roques
         {
             case 0: //mexeu o rei
@@ -2978,7 +2965,7 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     tabu->pa = movi.pa;
     tabu->meionum++;
     //conta os movimentos de cada peao (e chamado de dentro de funcao recursiva!)
-    tabu->vez = adv(tabu->vez);
+    tabu->vez = ADV(tabu->vez);
     tabu->especial = movi.especial;
     if(cod)
     {
@@ -3055,11 +3042,11 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             //analisada abaixo. nao precisa mais desse.
             //        if (tabu.meionum > 40)
             //xeque no meio-jogo e final vale mais que na abertura
-            if(tabu.vez == brancas)
+            if(tabu.vez == BRANCO)
                 //                totp += 30;
                 //            else
                 //                totb += 30;
-                //        else if (tabu.vez == brancas)
+                //        else if (tabu.vez == BRANCO)
                 totp += 10;		//10 centi-peoes
             else
                 totb += 10;
@@ -3082,8 +3069,8 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
-            ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
-            ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
+            ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
+            ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
             if(EHBRANCA(peca))
                 //caso REI branco
             {
@@ -3113,8 +3100,8 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
-            ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
-            ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
+            ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
+            ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
             if(EHBRANCA(peca))
             {
                 //caso peca branca
@@ -3144,8 +3131,8 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
-            ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
-            ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
+            ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
+            ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
             if(EHBRANCA(peca))
             {
                 //caso peca branca
@@ -3175,8 +3162,8 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
-            ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
-            ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
+            ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
+            ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
             if(EHBRANCA(peca))
             {
                 //caso peca branca
@@ -3201,8 +3188,8 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
-            ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
-            ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
+            ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
+            ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
             if(EHBRANCA(peca))
             {
                 //caso peca branca
@@ -3227,8 +3214,8 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             ordem[k][0] = i;
             ordem[k][1] = j;
             ordem[k][2] = peca;
-            ordem[k][3] = qataca(brancas, i, j, tabu, &ordem[k][4]);
-            ordem[k][5] = qataca(pretas, i, j, tabu, &ordem[k][6]);
+            ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
+            ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
             if(EHBRANCA(peca))
             {
                 //caso peca branca
@@ -3254,7 +3241,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
 
     //hanging piece: se a peca que acabou de mover esta atacada, penaliza
     peca_movida = TIPO(tabu.tab[tabu.pa]);
-    assert(COR(tabu.tab[tabu.pa]) == adv(tabu.vez) && "peca no destino deve ser de quem moveu");
+    assert(COR(tabu.tab[tabu.pa]) == ADV(tabu.vez) && "peca no destino deve ser de quem moveu");
     if(peca_movida != REI && peca_movida != 0
        && ataca(tabu.vez, COL(tabu.pa), ROW(tabu.pa), tabu))
     {
@@ -3296,11 +3283,11 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         {
             //se peca branca:
             //totb += abs(peca);
-            //qtdp = qataca(pretas, i, j, tabu, &menorp);
+            //qtdp = qataca(PRETO, i, j, tabu, &menorp);
             //se uma peca preta ja comeu, ela nao pode contar de novo como atacante! (corrigir)
             if(ordem[k][5] == 0)
                 continue;
-            //qtdb = qataca(brancas, i, j, tabu, &menorb);
+            //qtdb = qataca(BRANCO, i, j, tabu, &menorb);
             //defesas
             if(ordem[k][5] > ordem[k][3])
                 totp += (ordem[k][5] - ordem[k][3]) * 10;
@@ -3313,10 +3300,10 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         {
             //se peca preta:
             //totp += peca;
-            //qtdb = qataca(brancas, i, j, tabu, &menorb);
+            //qtdb = qataca(BRANCO, i, j, tabu, &menorb);
             if(ordem[k][3] == 0)
                 continue;
-            //qtdp = qataca(pretas, i, j, tabu, &menorp);
+            //qtdp = qataca(PRETO, i, j, tabu, &menorp);
             if(ordem[k][3] > ordem[k][5])
                 totb += (ordem[k][3] - ordem[k][5]) * 10;
             else
@@ -3344,23 +3331,23 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         //as pecas estao em ordem de valor
         j = ordem[k][1];
         peca = ordem[k][2];
-        //        if (tabu.vez == brancas && peca > 0)
+        //        if (tabu.vez == BRANCO && peca > 0)
         //nao eh meu prejuizio a peca cravada do adversario
         //            continue;
-        //        if (tabu.vez == pretas && peca < 0)
+        //        if (tabu.vez == PRETO && peca < 0)
         //nao eh meu prejuizio a peca cravada do adversario
         //            continue;
         tabu.tab[SQ(i, j)] = VAZIA;
         //imagina se essa peca nao existisse?
         if(EHBRANCA(peca))
         {
-            qtdp = qataca(pretas, i, j, tabu, &menorp);
+            qtdp = qataca(PRETO, i, j, tabu, &menorp);
             if(qtdp > ordem[k][5] && menorp < val[TIPO(peca)])
                 totb -= (val[TIPO(peca)] / 7);
         }
         else
         {
-            qtdb = qataca(brancas, i, j, tabu, &menorb);
+            qtdb = qataca(BRANCO, i, j, tabu, &menorb);
             if(qtdb > ordem[k][3] && menorb < val[TIPO(peca)])
                 totp -= (val[TIPO(peca)] / 7);
         }
@@ -3377,7 +3364,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
             continue;
         i = ordem[k][0];
         j = ordem[k][1];
-        if(ordem[k][2] == DACOR(PEAO, brancas))  //Peao branco (white pawn)
+        if(ordem[k][2] == DACOR(PEAO, BRANCO))  //Peao branco (white pawn)
         {
             //faltando 4 casas ou menos para promover ganha +1
             if(j > 2)
@@ -3427,9 +3414,9 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         {
             if(tabu.tab[SQ(i, j)] == VAZIA)
                 continue;
-            if(tabu.tab[SQ(i, j)] == DACOR(PEAO, brancas))
+            if(tabu.tab[SQ(i, j)] == DACOR(PEAO, BRANCO))
                 peaob++;
-            if(tabu.tab[SQ(i, j)] == DACOR(PEAO, pretas))
+            if(tabu.tab[SQ(i, j)] == DACOR(PEAO, PRETO))
                 peaop++;
         }
         //peaob e peaop tem o total de peoes na coluna (um so, dobrado, trip...)
@@ -3502,12 +3489,12 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
         totp -= 40;
 
     //controle do centro
-    for(cor = -1; cor < 2; cor += 2)
+    for(cor = BRANCO; cor <= PRETO; cor += PRETO)
         for(i = 2; i < 6; i++)             //c,d,e,f
             for(j = 2; j < 6; j++)                 //3,4,5,6
                 if(ataca(cor, i, j, tabu))
                 {
-                    if(cor == brancas)
+                    if(cor == BRANCO)
                     {
                         totb += 10;
                         if((i == 3 || i == 4) && (j == 3 || j == 4))
@@ -3524,52 +3511,52 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     //TODO usar flag para lembrar se ja mexeu, senao vai e volta
     if(tabu.meionum < 32 && setboard != 1)
     {
-        if(tabu.tab[SQ(3, 0)] == DACOR(DAMA, brancas))
+        if(tabu.tab[SQ(3, 0)] == DACOR(DAMA, BRANCO))
             totb += 50;
-        if(tabu.tab[SQ(3, 7)] == DACOR(DAMA, pretas))
+        if(tabu.tab[SQ(3, 7)] == DACOR(DAMA, PRETO))
             totp += 50;
     }
     //bonificacao para quem fez roque na abertura
     //TODO usar flag para saber se fez roque mesmo
     if(tabu.meionum < 32 && setboard != 1)
     {
-        if(tabu.tab[SQ(6, 0)] == DACOR(REI, brancas) && tabu.tab[SQ(5, 0)] == DACOR(TORRE, brancas)) //brancas com roque pequeno
+        if(tabu.tab[SQ(6, 0)] == DACOR(REI, BRANCO) && tabu.tab[SQ(5, 0)] == DACOR(TORRE, BRANCO)) //brancas com roque pequeno
             totb += 70;
-        if(tabu.tab[SQ(2, 0)] == DACOR(REI, brancas) && tabu.tab[SQ(3, 0)] == DACOR(TORRE, brancas)) //brancas com roque grande
+        if(tabu.tab[SQ(2, 0)] == DACOR(REI, BRANCO) && tabu.tab[SQ(3, 0)] == DACOR(TORRE, BRANCO)) //brancas com roque grande
             totb += 50;
-        if(tabu.tab[SQ(6, 7)] == DACOR(REI, pretas) && tabu.tab[SQ(5, 7)] == DACOR(TORRE, pretas)) //pretas com roque pequeno
+        if(tabu.tab[SQ(6, 7)] == DACOR(REI, PRETO) && tabu.tab[SQ(5, 7)] == DACOR(TORRE, PRETO)) //pretas com roque pequeno
             totp += 70;
-        if(tabu.tab[SQ(2, 7)] == DACOR(REI, pretas) && tabu.tab[SQ(3, 7)] == DACOR(TORRE, pretas)) //pretas com roque grande
+        if(tabu.tab[SQ(2, 7)] == DACOR(REI, PRETO) && tabu.tab[SQ(3, 7)] == DACOR(TORRE, PRETO)) //pretas com roque grande
             totp += 50;
     }
     //bonificacao para rei protegido na abertura com os peoes do Escudo Real
     if(tabu.meionum < 60 && setboard != 1)
     {
-        if(tabu.tab[SQ(6, 0)] == DACOR(REI, brancas) &&
+        if(tabu.tab[SQ(6, 0)] == DACOR(REI, BRANCO) &&
                 //brancas com roque pequeno
-                tabu.tab[SQ(6, 1)] == DACOR(PEAO, brancas) &&
-                tabu.tab[SQ(7, 1)] == DACOR(PEAO, brancas) && tabu.tab[SQ(7, 0)] == VAZIA)
+                tabu.tab[SQ(6, 1)] == DACOR(PEAO, BRANCO) &&
+                tabu.tab[SQ(7, 1)] == DACOR(PEAO, BRANCO) && tabu.tab[SQ(7, 0)] == VAZIA)
             //apenas peoes g e h
             totb += 60;
-        if(tabu.tab[SQ(2, 0)] == DACOR(REI, brancas) &&
+        if(tabu.tab[SQ(2, 0)] == DACOR(REI, BRANCO) &&
                 //brancas com roque grande
-                tabu.tab[SQ(0, 1)] == DACOR(PEAO, brancas) &&
-                tabu.tab[SQ(1, 1)] == DACOR(PEAO, brancas) &&
-                tabu.tab[SQ(2, 1)] == DACOR(PEAO, brancas) &&
+                tabu.tab[SQ(0, 1)] == DACOR(PEAO, BRANCO) &&
+                tabu.tab[SQ(1, 1)] == DACOR(PEAO, BRANCO) &&
+                tabu.tab[SQ(2, 1)] == DACOR(PEAO, BRANCO) &&
                 tabu.tab[SQ(0, 0)] == VAZIA && tabu.tab[SQ(1, 0)] == VAZIA)
             //peoes a, b e c
             totb += 50;
-        if(tabu.tab[SQ(6, 7)] == DACOR(REI, pretas) &&
+        if(tabu.tab[SQ(6, 7)] == DACOR(REI, PRETO) &&
                 //pretas com roque pequeno
-                tabu.tab[SQ(6, 6)] == DACOR(PEAO, pretas) &&
-                tabu.tab[SQ(7, 6)] == DACOR(PEAO, pretas) && tabu.tab[SQ(7, 7)] == VAZIA)
+                tabu.tab[SQ(6, 6)] == DACOR(PEAO, PRETO) &&
+                tabu.tab[SQ(7, 6)] == DACOR(PEAO, PRETO) && tabu.tab[SQ(7, 7)] == VAZIA)
             //apenas peoes g e h
             totp += 60;
-        if(tabu.tab[SQ(2, 7)] == DACOR(REI, pretas) &&
+        if(tabu.tab[SQ(2, 7)] == DACOR(REI, PRETO) &&
                 //pretas com roque grande
-                tabu.tab[SQ(0, 6)] == DACOR(PEAO, pretas) &&
-                tabu.tab[SQ(1, 6)] == DACOR(PEAO, pretas) &&
-                tabu.tab[SQ(2, 6)] == DACOR(PEAO, pretas) &&
+                tabu.tab[SQ(0, 6)] == DACOR(PEAO, PRETO) &&
+                tabu.tab[SQ(1, 6)] == DACOR(PEAO, PRETO) &&
+                tabu.tab[SQ(2, 6)] == DACOR(PEAO, PRETO) &&
                 tabu.tab[SQ(0, 7)] == VAZIA && tabu.tab[SQ(1, 7)] == VAZIA)
             //peoes a, b e c
             totp += 50;
@@ -3578,38 +3565,38 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     if(tabu.meionum < 16 && setboard != 1)
     {
         //caso das brancas------------------
-        if(tabu.tab[SQ(5, 1)] != DACOR(PEAO, brancas))
+        if(tabu.tab[SQ(5, 1)] != DACOR(PEAO, BRANCO))
             //PBR
             totb -= 50;
-        if(tabu.tab[SQ(6, 1)] != DACOR(PEAO, brancas))
+        if(tabu.tab[SQ(6, 1)] != DACOR(PEAO, BRANCO))
             //PCR
             totb -= 40;
-        if(tabu.tab[SQ(7, 1)] != DACOR(PEAO, brancas))
+        if(tabu.tab[SQ(7, 1)] != DACOR(PEAO, BRANCO))
             //PTR
             totb -= 30;
-        if(tabu.tab[SQ(0, 1)] != DACOR(PEAO, brancas))
+        if(tabu.tab[SQ(0, 1)] != DACOR(PEAO, BRANCO))
             //PTD
             totb -= 30;
-        if(tabu.tab[SQ(1, 1)] != DACOR(PEAO, brancas))
+        if(tabu.tab[SQ(1, 1)] != DACOR(PEAO, BRANCO))
             //PCD
             totb -= 40;
         //              if(tabu.tab[SQ(2,1)]==VAZIA)
         //PBD   nao eh penalizado!
         //                      totb-=10;
         //caso das pretas-------------------
-        if(tabu.tab[SQ(5, 6)] != DACOR(PEAO, pretas))
+        if(tabu.tab[SQ(5, 6)] != DACOR(PEAO, PRETO))
             //PBR
             totp -= 50;
-        if(tabu.tab[SQ(6, 6)] != DACOR(PEAO, pretas))
+        if(tabu.tab[SQ(6, 6)] != DACOR(PEAO, PRETO))
             //PCR
             totp -= 40;
-        if(tabu.tab[SQ(7, 6)] != DACOR(PEAO, pretas))
+        if(tabu.tab[SQ(7, 6)] != DACOR(PEAO, PRETO))
             //PTR
             totp -= 30;
-        if(tabu.tab[SQ(0, 6)] != DACOR(PEAO, pretas))
+        if(tabu.tab[SQ(0, 6)] != DACOR(PEAO, PRETO))
             //PTD
             totp -= 30;
-        if(tabu.tab[SQ(1, 6)] != DACOR(PEAO, pretas))
+        if(tabu.tab[SQ(1, 6)] != DACOR(PEAO, PRETO))
             //PCD
             totp -= 40;
         //PBD   nao eh penalizado!
@@ -3751,21 +3738,21 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             }
         }
     // ataque de peao
-    if(cor == brancas)
+    if(cor == BRANCO)
         // peao branco ataca para baixo (lin-1)
     {
         if(lin > 1)
         {
             ilin = lin - 1;
             if(col - 1 >= 0)
-                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, brancas))
+                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, BRANCO))
                 {
                     if(val[PEAO] < *menor)
                         *menor = val[PEAO];
                     total++;
                 }
             if(col + 1 <= 7)
-                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, brancas))
+                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, BRANCO))
                 {
                     if(val[PEAO] < *menor)
                         *menor = val[PEAO];
@@ -3779,14 +3766,14 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             ilin = lin + 1;
             if(col - 1 >= 0)
-                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, pretas))
+                if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, PRETO))
                 {
                     if(val[PEAO] < *menor)
                         *menor = val[PEAO];
                     total++;
                 }
             if(col + 1 <= 7)
-                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, pretas))
+                if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, PRETO))
                 {
                     if(val[PEAO] < *menor)
                         *menor = val[PEAO];
@@ -3953,7 +3940,7 @@ void usalivro(tabuleiro tabu)
             if(nlinha == sorteio)
                 break;
         }
-        printdbg(debug, "# move 0 - sorteado= %d, linha: '%s'", sorteio, linha);
+        printdbg(debug, "# move 0 - sorteado= %d, linha: %s", sorteio, linha);
 
         //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
         livro_linha(tabu.meionum, linha);
@@ -4021,7 +4008,7 @@ void usalivro(tabuleiro tabu)
                 if(nlinha == sorteio)
                     break;
             }
-            printdbg(debug, "# xboard move 1 - sorteado= %d, linha: '%s'", sorteio, linha);
+            printdbg(debug, "# xboard move 1 - sorteado= %d, linha: %s", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
             livro_linha(tabu.meionum, linha);
             melhor.valor = estatico_melhor(tabu);
@@ -4087,7 +4074,7 @@ void usalivro(tabuleiro tabu)
                 if(nlinha == sorteio)
                     break;
             }
-            printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: '%s'", sorteio, linha);
+            printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: %s", sorteio, linha);
             /* contou ate a linha sorteada, jogue */
             livro_linha(tabu.meionum, linha);
             melhor.valor = estatico_melhor(tabu);
@@ -4351,9 +4338,9 @@ void imprime_linha(resultado *res, int mnum, int tabuvez)
     for(i = 0; i < res->tamanho; i++)
     {
         lance2movi(m, res->linha[i].de, res->linha[i].pa, res->linha[i].especial);
-        if(vez == brancas)  //jogou anterior as pretas
+        if(vez == BRANCO)  //jogou anterior as pretas
         {
-            if(tabuvez == brancas && num == (int)((mnum + 1.0) / 2.0))
+            if(tabuvez == BRANCO && num == (int)((mnum + 1.0) / 2.0))
             {
                 printf("%d. ... %s ", num, m);  //primeiro lance da variante
                 if(debug == 2) fprintf(fmini, "%d. ... %s ", num, m);
@@ -4378,7 +4365,7 @@ void imprime_linha(resultado *res, int mnum, int tabuvez)
                 if(debug == 2) fprintf(fmini, "%d. %s ", num, m);
             }
         }
-        vez *= (-1);
+        vez = ADV(vez);
     }
     printf("\n");
 }
@@ -4508,7 +4495,7 @@ void copyr(void)
 {
     IFDEBUG("copyr()");
     printf("%s - Version %s, build %s\n", "Xadreco", VERSION, BUILD);
-    printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2018, "Ruben Carlo Benante", "rcb@beco.cc");
+    printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2026, "Ruben Carlo Benante", "rcb@beco.cc");
     printf("Arenas: tab=%dKB mov=%dKB. PV triangular: mel=%zuKB melhor=%zuKB\n\n", ARENA_TAB/1024, ARENA_MOV/1024, sizeof(mel)/1024, sizeof(melhor)/1024);
     if(debug > 3) printf("copyr(): Verbose: %d\n", debug); /* -vvvv */
     exit(EXIT_FAILURE);
