@@ -54,10 +54,8 @@ libeco-ux64.o : libeco.c
 
 deploy: $(o)
 	cp $(o) $(o)-deploy
-	DEPLOYVER=$$(./$(o)-deploy -V 2>&1 | sed -n 's/.*Version \([0-9]*\.[0-9]*\).*/\1/p' | head -1) && \
-	REALCFG=$$(readlink -f config.yml) && \
-	sed -i "s/{me} v[0-9]*\.[0-9]*/{me} v$$DEPLOYVER/" "$$REALCFG" && \
-	echo "Deployed $(o)-deploy v$$DEPLOYVER"
+	sed -i "s/{me} v[0-9]*\.[0-9]*/{me} v$$(./$(o)-deploy -VV)/" "$$(readlink -f config.yml)"
+	@echo "Deployed $(o)-deploy v$$(./$(o)-deploy -VV)"
 
 clean:
 	rm -f *.o errors.err

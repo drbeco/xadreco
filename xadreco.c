@@ -472,6 +472,7 @@ int main(int argc, char *argv[])
     char res;
     char movinito[80] = "wait_xboard"; /* scanf : entrada de comandos ou lances */
     int d2 = 0; /* wait for 2 dones */
+    int verflag = 0; /* -V counter: 1=copyr, 2=version only */
     // int joga; /* flag enquanto joga */
     struct tm *tmatual;
     char hora[] = "2013-12-03 00:28:21";
@@ -497,7 +498,7 @@ int main(int argc, char *argv[])
                 help();
                 break;
             case 'V':
-                copyr();
+                verflag++;
                 break;
             case 'v':
                 debug++;
@@ -532,6 +533,14 @@ int main(int argc, char *argv[])
 #if RANDOM < -1
     randomchess = 0;
 #endif
+
+    if(verflag >= 2)
+    {
+        printf("%s\n", VERSION);
+        exit(EXIT_SUCCESS);
+    }
+    if(verflag == 1)
+        copyr();
 
     /* if NOWAIT == 1, defined to NOT wait at compiler time */
 #if NOWAIT == 1
@@ -4303,7 +4312,7 @@ void copyr(void)
     printf("\nCopyright (C) 1994-%d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2026, "Ruben Carlo Benante", "rcb@beco.cc");
     printf("Arenas: tab=%dKB mov=%dKB. PV triangular: mel=%zuKB melhor=%zuKB\n\n", ARENA_TAB/1024, ARENA_MOV/1024, sizeof(mel)/1024, sizeof(melhor)/1024);
     if(debug > 3) printf("copyr(): Verbose: %d\n", debug); /* -vvvv */
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
 }
 
 /* print debug information  */
