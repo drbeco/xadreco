@@ -3969,10 +3969,45 @@ void usalivro(tabuleiro tabu)
 
     printdbg(debug, "# livro: %d candidatos para '%s'\n", ncands, strlance);
 
-    // TODO Phase 2: evaluate, sort, pick from top half (step 3)
-    // temporary: pick first candidate
-    livro_linha(tabu.meionum, cands[0].linha);
-    melhor.valor = 0;
+    // Phase 2: evaluate each candidate with minimax
+    for(i = 0; i < ncands; i++)
+    {
+        copitab(&temp, &tabu);
+        movi2lance(&de, &pa, cands[i].move);
+        if(valido(temp, de, pa, &mval))
+        {
+            joga_em(&temp, mval, 0);
+            lst_recria(&plmov);
+            geramov(temp, plmov, GERA_TUDO);
+            cands[i].score = minimax(temp, 0, -LIMITE, LIMITE, 2);
+        }
+        if(debug >= 2)
+            printdbg(debug, "# livro: cand[%d] = %s score=%d linha: %s\n",
+                     i, cands[i].move, cands[i].score, cands[i].linha);
+    }
+
+    // Phase 3: sort by score (best for engine first)
+    for(i = 0; i < ncands - 1; i++)
+        for(j = i + 1; j < ncands; j++)
+        {
+            if((tabu.vez == BRANCO && cands[j].score > cands[i].score) ||
+               (tabu.vez == PRETO  && cands[j].score < cands[i].score))
+            {
+                tmp = cands[i];
+                cands[i] = cands[j];
+                cands[j] = tmp;
+            }
+        }
+
+    // Phase 4: pick random from top half
+    pool = (ncands + 1) / 2;
+    sorteio = irand_minmax(0, pool);
+
+    printdbg(debug, "# livro: pool=%d, sorteado=%d, move=%s, score=%d\n",
+             pool, sorteio, cands[sorteio].move, cands[sorteio].score);
+
+    livro_linha(tabu.meionum, cands[sorteio].linha);
+    melhor.valor = cands[sorteio].score;
 }
 
 /* conta quantas linhas boas tem o livro; para em #LINHASRUINS */
