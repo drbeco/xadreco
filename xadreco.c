@@ -2206,14 +2206,14 @@ char humajoga(tabuleiro *tabu)
             tente = 1;
             continue;
         }
-        /*		if(!strcmp (movinito, "ping"))
-        		{
+        /*      if(!strcmp (movinito, "ping"))
+                {
                     scanf ("%s", movinito);
                     printf2("pong %s",movinito);
                     printdbg(debug, "# pong %s\n", movinito);
                     tente = 1;
                     continue;
-        		}*/
+                }*/
         if(movinito[0] == '{')
         {
             char completo[256];
@@ -2449,7 +2449,7 @@ char compjoga(tabuleiro *tabu)
         melhorvalor1 = melhor.valor;
     }
 
-    // se nao livro, random ou minimax -------------------------------------
+    // se nao livro: random ou minimax -------------------------------------
     if(melhor.tamanho == 0)
     {
         //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
@@ -3834,7 +3834,7 @@ void livro_linha(int mnum, char *linha)
         conta++;
     }
     n = 0;
-    while(n < conta - 1)
+    while(n + 5 <= conta)
     {
         for(i = 0; i < 4; i++)
             m[i] = linha[n + i];
@@ -3883,7 +3883,7 @@ void pegaNmoves(char *linha2, char *linha, char *strlance)
 
     strcpy(linha2, strlance);
 
-    if(ll >= lli - 5) /* nao tem mais um lance para add */
+    if(ll + 5 > lli) /* nao tem mais um lance para add */
         return;
 
     do
@@ -3925,13 +3925,13 @@ void usalivro(tabuleiro tabu)
         nlinha = 0;
         while(1)
         {
-            fgets(linha, 256, flivro);
+            fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
             if(feof(flivro))
                 break;
             if(linha[0] == '#')
             {
                 if((p = strchr(linha, ' ')) != NULL)
-                    * p = '\0';
+                    *p = '\0';
                 if(!strcmp(linha, "#LINHASRUINS"))
                     break; /* daqui para baixo nao conta */
                 continue; /* essa eh #comentario, ignora */
@@ -3953,7 +3953,7 @@ void usalivro(tabuleiro tabu)
             listab2string(strlance); /* um lance de brancas 'e2e4 ' */
             while(1)
             {
-                fgets(linha, 256, flivro);
+                fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
                 if(feof(flivro))
                     break;
                 if(linha[0] == '#')
@@ -3987,7 +3987,7 @@ void usalivro(tabuleiro tabu)
             sjoga[0] = '\0';
             while(1)
             {
-                fgets(linha, 256, flivro);
+                fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
                 if(feof(flivro))
                     break;
                 if(linha[0] == '#')
@@ -4019,7 +4019,7 @@ void usalivro(tabuleiro tabu)
             listab2string(strlance); /* N lances jogados ate entao 'e2e4 e7e5 b1c3 ... ' */
             while(1)
             {
-                fgets(linha, 256, flivro);
+                fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
                 if(feof(flivro))
                     break;
                 if(linha[0] == '#')
@@ -4053,7 +4053,7 @@ void usalivro(tabuleiro tabu)
             sjoga[0] = '\0';
             while(1)
             {
-                fgets(linha, 256, flivro);
+                fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
                 if(feof(flivro))
                     break;
                 if(linha[0] == '#')
@@ -4103,7 +4103,7 @@ void conta_linhas_livro(void)
 
     while(1)
     {
-        fgets(linha, 256, flivro);
+        fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
         if(feof(flivro))
             break;
         if((p = strchr(linha, '\n')) == NULL) /* nao achou fim de linha! */
