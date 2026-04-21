@@ -4106,11 +4106,6 @@ void conta_linhas_livro(void)
         fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
         if(feof(flivro))
             break;
-        if((p = strchr(linha, '\n')) == NULL) /* nao achou fim de linha! */
-        {
-            printdbg(debug, "# xboard : conta_linhas_livro ERROR - linha maior que buffer 256 bytes\n");
-            break;
-        }
         if(linha[0] == '#')
         {
             if((p = strchr(linha, ' ')) == NULL)
