@@ -189,8 +189,8 @@ lista;
 
 typedef struct stabuleiro
 {
-    int tab[64]; //contem as pecas, sendo [coluna][linha], ou seja: e4
-    int vez; //contem -1 ou 1 para 'branca' ou 'preta'
+    int tab[64]; //contem as pecas: brancas 1-6, pretas 9-14, vazia 0. SQ(col,lin)=col+lin*8
+    int vez; //contem BRANCO(0) ou PRETO(8)
     int peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
     int roqueb, roquep; //roque: 0:nao pode mais. 1:pode ambos. 2:mexeu Torre do Rei. Pode O-O-O. 3:mexeu Torre da Dama. Pode O-O.
     float empate_50; //contador: quando chega a 50, empate.
@@ -227,8 +227,8 @@ typedef struct sresultado
 }
 resultado;
 
-//valor das pecas (positivo==pretas)
-enum piece_values
+// identidade das pecas (mesma para brancas e pretas)
+enum piece_identity
 {
     VAZIA = 0, PEAO = 1, CAVALO = 2, BISPO = 3, TORRE = 4, DAMA = 5, REI = 6, NULA = 7
 };
@@ -305,9 +305,6 @@ double tdifs; // diferenca em segundos tdifs=difftime(t2,t1), calcular o tempo g
 //3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min por jogo (de 100 lances)
 double tempomovclock; //em segundos
 double tempomovclockmax; // max allowed
-// cores definidas em macros: BRANCO=0, PRETO=8
-//para mostrar um rostinho sorrindo (sem uso)
-unsigned char gira = (unsigned char) 0;
 //Nome do arquivo de log
 char flog[80] = "";
 //abandona a partida quando perder algo como DAMA, 2 TORRES, 1 BISPO e 1 PEAO; ou nunca, quando jogando contra outra engine
@@ -413,7 +410,7 @@ int igual_strlances_strlinha(char *strlances, char *strlinha);
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
 //retorna (int) valor. Escreve mel[prof] com a melhor linha.
 int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
-//retorna verdadeiro se (prof>nivel) ou (prof>=MAX_PROF) ou (tempo estourou) ou (!profflag)
+//retorna verdadeiro se (prof>=niv) ou (prof>=MAX_PROF) ou (tempo estourou)
 int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor);
 //retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
@@ -2516,7 +2513,7 @@ char compjoga(tabuleiro *tabu)
                 {
                     // XBoard: score do ponto de vista da engine (positivo=engine ganhando)
                     printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? val : -val, (int)difclocks(), totalnodo);
-                    imprime_linha(&mel[0], tabu->meionum + 1, -tabu->vez);
+                    imprime_linha(&mel[0], tabu->meionum + 1, ADV(tabu->vez));
                 }
                 // termino do laco infinito baseado no tempo
                 if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 5))
@@ -2615,7 +2612,7 @@ char analisa(tabuleiro *tabu)
     if(melhor.tamanho > 0)
     {
         printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? melhor.valor : -melhor.valor, (int)difclocks(), totalnodo);
-        imprime_linha(&melhor, tabu->meionum + 1, -tabu->vez);
+        imprime_linha(&melhor, tabu->meionum + 1, ADV(tabu->vez));
     }
     else
     {
@@ -2634,7 +2631,7 @@ char analisa(tabuleiro *tabu)
             {
                 // XBoard: score do ponto de vista da engine
                 printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? val : -val, (int)difclocks(), totalnodo);
-                imprime_linha(&mel[0], tabu->meionum + 1, -tabu->vez);
+                imprime_linha(&mel[0], tabu->meionum + 1, ADV(tabu->vez));
             }
             if(debug == 2)
             {
@@ -2996,7 +2993,7 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     return (res);
 } //fim da joga_em
 
-//retorna o valor tatico e estrategico de um tabuleiro, sendo valor positivo melhor quem esta na vez
+//retorna o valor tatico e estrategico de um tabuleiro. Absoluto: positivo = bom para brancas
 //cod: 1: acabou o tempo, 0: ou eh avaliacao normal?
 //niv: qual a distancia do tabuleiro real para a copia tabu avaliada?
 int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
@@ -3279,7 +3276,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 totp += (ordem[k][5] - ordem[k][3]) * 10;
             else
                 totb += (ordem[k][3] - ordem[k][5] + 1) * 10;
-            if(ordem[k][6] < TIPO(peca))
+            if(ordem[k][6] < val[TIPO(peca)])
                 totp += 50;
         }
         else
@@ -3294,7 +3291,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
                 totb += (ordem[k][3] - ordem[k][5]) * 10;
             else
                 totp += (ordem[k][5] - ordem[k][3] + 1) * 10;
-            if(ordem[k][4] < peca)
+            if(ordem[k][4] < val[TIPO(peca)])
                 totb += 50;
         }
     }
@@ -3704,8 +3701,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
                 {
                     total++;
                     p = TIPO(tabu.tab[SQ(casacol, casalin)]);
-                    if(p < *menor)
-                        *menor = p;
+                    if(val[p] < *menor)
+                        *menor = val[p];
                 }
         } // proxima diagonal
     // ataque de rei...
