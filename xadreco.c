@@ -120,7 +120,7 @@
 #define QUANTO_EMPATE1 -200
 //pede empate se lances > MOVE_EMPATE2 e tem menos que 0.2 PEAO
 #define QUANTO_EMPATE2 20
-// geramodo de geramov: gera todos, gera unico (confere afogado), gera este (TODO PLAN9)
+// geramodo de geramov: gera todos, gera unico (confere afogado), gera deste (0-63)
 #define GERA_TUDO  -1
 #define GERA_UNICO -2
 // geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
@@ -212,7 +212,8 @@ typedef struct smovimento
     int peao_pulou; //coluna do peao que andou duas neste lance
     // flags
     int roque; //roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-    int flag_50; //flag_50 Quando igual a:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50; TODO 4=roque irreversivel, deve zerar empate_50, 5=promocao (incluida em 1?)
+    int flag_50; //flag_50: 0=nada, 1=Moveu peao, 2=Comeu, 3=Peao comeu. Zera empate_50.
+    // flag_50 reseta apenas com movimento de peoes e capturas, nada mais (regra FIDE art.9.3)
     int especial; //especial: 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque 9=captura
     int valor_estatico; //valor estatico deste tabuleiro apos a execucao deste movimento
 }
@@ -2017,7 +2018,7 @@ char humajoga(tabuleiro *tabu)
             k = 0; //indice da string
             while(movinito[k] != '\0')
             {
-                if(i < 0 || i > 8)  //BUG 8 ta errado, mas ta atingido. precisa arrumar isso.
+                if(i < 0 || i > 8)  //coluna fora do tabuleiro (8 valido: aguarda '/' para resetar)
                     msgsai("# Posicao FEN incorreta.", 24);  //em vez de msg sai, printf2("Error (Wrong FEN %s): setboard", movinito);
                 switch(movinito[k])  //KkQqRrBbNnPp
                 {
@@ -2435,7 +2436,7 @@ char compjoga(tabuleiro *tabu)
     // se nao livro: random ou minimax -------------------------------------
     if(melhor.tamanho == 0)
     {
-        //mudou para busca em amplitude: variavel nivel sem uso. Implementar "sd n"
+        //busca com aprofundamento iterativo: nv controla a profundidade, nivel so para display
         nv = 1;
         lst_recria(&plmov);
         geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
@@ -2449,7 +2450,7 @@ char compjoga(tabuleiro *tabu)
             if(tempomovclock < 0.5)
                 tempomovclock = 0.5;
         }
-        //funcao COMPJOGA (CONFERIR)
+        //randomchess: sorteia um lance da lista
         if(randomchess)
         {
             n = plmov->cabeca;
@@ -2606,7 +2607,7 @@ char analisa(tabuleiro *tabu)
         if(fmini == NULL)
             debug = 1;
     }
-    //mudou para busca em amplitude: variavel nivel obsoleta!
+    //busca com aprofundamento iterativo: nv controla a profundidade
     if(USALIVRO && tabu->meionum < 50 && setboard != 1)
         usalivro(*tabu);
     if(melhor.tamanho > 0)
@@ -4021,7 +4022,7 @@ void inicia(tabuleiro *tabu)
     ultimo_resultado[0] = '\0';
     primeiro = 'h'; //humano inicia, com comandos para acertar detalhes do jogo
     segundo = 'c'; //computador espera para saber se jogara de brancas ou pretas
-    nivel = 3; // sem uso depois de colocar busca em amplitude (uso no debug apenas)
+    nivel = 3; // usado apenas no display do post (XBoard)
     ABANDONA = -2430; // volta o abandona para jogar contra humanos...
     COMPUTER = 0; // jogando contra outra engine?
     mostrapensando = 0; //post and nopost commands
@@ -4055,11 +4056,8 @@ void limpa_pensa(void)
     IFDEBUG("limpa_pensa()");
     melhor.tamanho = 0;
     melhor.valor = 0; // neutro; compjoga/analisa inicializa baseado na cor
-    //conferir
     profflag = 1;
-    //    totalnodo=0;
     totalnodonivel = 0;
-    //  teminterroga = 0;
 }
 
 //preenche a estrutura movimento usando arena e lst_insere
@@ -4530,8 +4528,7 @@ void lst_parte(lista *l)
     {
         next = n->prox;
         m = (movimento *)n->info;
-        //flag_50 Quando igual a:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Entao zera empate_50;
-        //flag_50 TODO 4=roque eh irreversivel e deveria recontar o empate_50, 5=promocao (incluida em 1?)
+        //flag_50: 0=nada, 1=Moveu peao, 2=Comeu, 3=Peao comeu. Zera empate_50.
         //especial: 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque. 9=captura
         if(m->flag_50 > 1 || m->especial)
             lst_furafila(l, n);
