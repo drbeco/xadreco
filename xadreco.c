@@ -112,8 +112,6 @@
 #define LIMITE 105000
 //define o valor do xequemate
 #define XEQUEMATE 100000
-//define a qtd de linhas no livro de abertura
-//#define LINHASBOAS 483 (fix: trocado para valor dinamico / changed to count it dynamically)
 //numero do movimento que a maquina pode pedir empate pela primeira vez
 #define MOVE_EMPATE1 52
 //numero do movimento que a maquina pode pedir empate pela segunda vez
@@ -273,8 +271,6 @@ int myrating, opprating;
 FILE *fmini;
 //1:consulta o livro de aberturas livro.txt. 0:nao consulta
 int USALIVRO;
-// numero de linhas a tentar. Abaixo de "#LINHASRUINS: ..." nao tentar
-int LINHASBOAS = 0;
 //o computador pode oferecer empate (duas|uma) vezes.
 int ofereci;
 //sem uso. variavel de descarte, para nao sujar o stdin, dic=pega()
@@ -412,15 +408,6 @@ void listab2string(char *strlance);
 void livro_linha(int mnum, char *linha);
 //retorna verdadeiro se o jogo atual strlances casa com a linha do livro atual strlinha
 int igual_strlances_strlinha(char *strlances, char *strlinha);
-//retorna o valor estatico de um tabuleiro apos jogada a melhor linha de movimentos
-int estatico_melhor(tabuleiro tabu);
-//dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
-void pega2moves(char *linha2, char *linha);
-/* pega total de lances em strlance + 1 */
-void pegaNmoves(char *linha2, char *linha, char *strlance);
-/* conta quantas linhas boas tem o livro; para em #LINHASRUINS */
-void conta_linhas_livro(void);
-
 // computador joga ----------------------------------------------------------
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
@@ -645,7 +632,6 @@ int main(int argc, char *argv[])
     /* joga==0, fim. joga==1, novo lance. (joga==2, nova partida) */
     //------------------------------------------------------------------------------
     // novo jogo
-    conta_linhas_livro(); /* atualiza LINHASBOAS; assume que livro nao cresce durante jogo */
     inicia(&tabu);  // zera variaveis
     assert(tabu.vez == BRANCO && "board not initialized");
     tab_insere(tabu);
@@ -3864,37 +3850,6 @@ int igual_strlances_strlinha(char *strlances, char *strlinha)
     return 1;
 }
 
-//dada uma linha, pegue apenas os dois primeiros movimentos (branca e preta)
-void pega2moves(char *linha2, char *linha)
-{
-    strcpy(linha2, linha);
-    /* 'e2e4 e7e5 \0' */
-    /* '012345678\0' */
-    linha2[9] = '\0'; /* nao inclui espaco apos lance */
-}
-
-/* pega total de lances em strlance + 1 */
-void pegaNmoves(char *linha2, char *linha, char *strlance)
-{
-    int ll, lli;
-
-    ll = strlen(strlance);
-    lli = strlen(linha);
-
-    strcpy(linha2, strlance);
-
-    if(ll + 5 > lli) /* nao tem mais um lance para add */
-        return;
-
-    do
-    {
-        linha2[ll] = linha[ll];
-        ll++;
-    }
-    while(linha[ll] != '\0' || linha[ll] == ' ');
-    linha2[ll] = '\0';
-}
-
 //preenche melhor com uma variante do livro, avaliando candidatos
 void usalivro(tabuleiro tabu)
 {
@@ -3954,8 +3909,6 @@ void usalivro(tabuleiro tabu)
         strcpy(cands[ncands].linha, linha);
         cands[ncands].score = 0;
         ncands++;
-        if(debug >= 2)
-            printdbg(debug, "# livro: cand[%d] = %s linha: %s\n", ncands - 1, nextmove, linha);
         if(ncands >= 128)
             break;
     }
@@ -4008,41 +3961,6 @@ void usalivro(tabuleiro tabu)
 
     livro_linha(tabu.meionum, cands[sorteio].linha);
     melhor.valor = cands[sorteio].score;
-}
-
-/* conta quantas linhas boas tem o livro; para em #LINHASRUINS */
-void conta_linhas_livro(void)
-{
-    char linha[256];
-    FILE *flivro;
-    char *p;
-
-    LINHASBOAS = 0;
-    flivro = fopen(bookfname, "r");
-    if(!flivro)
-    {
-        USALIVRO = 0;
-        LINHASBOAS = 0;
-        return;
-    }
-
-    while(1)
-    {
-        fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
-        if(feof(flivro))
-            break;
-        if(linha[0] == '#')
-        {
-            if((p = strchr(linha, ' ')) == NULL)
-                continue; /* comentario # sem espaco, ignora */
-            *p = '\0'; /* tem espaco, cerca a primeira palavra para teste */
-            if(!strcmp(linha, "#LINHASRUINS"))
-                break; /* tag para fim de contagem */
-            continue; /* comentario qualquer, ignore */
-        }
-        LINHASBOAS++;
-    }
-    fclose(flivro);
 }
 
 //pegar caracter (linux e windows)
@@ -4101,7 +4019,7 @@ void inicia(tabuleiro *tabu)
     lst_recria(&plmov);
     lst_recria(&pltab);
     ofereci = 1; //computador pode oferecer 1 empate
-    USALIVRO = (LINHASBOAS > 0);
+    USALIVRO = 1; // usalivro checks if file exists
     setboard = 0;
     ultimo_resultado[0] = '\0';
     primeiro = 'h'; //humano inicia, com comandos para acertar detalhes do jogo
@@ -4290,23 +4208,7 @@ void imprime_linha(resultado *res, int mnum, int tabuvez)
     printf("\n");
 }
 
-//retorna o valor estatico de um tabuleiro apos jogada a melhor linha de movimentos
-int estatico_melhor(tabuleiro tabu)
-{
-    int i, niv = 0;
-
-    for(i = 0; i < melhor.tamanho; i++)
-    {
-        disc = (char) joga_em(&tabu, melhor.linha[i], 0);
-        niv++;
-    }
-    return estatico(tabu, 0, niv, -LIMITE, LIMITE);
-}
-
-// pollinput() Emprestado do jogo de xadrez pepito: dica de Fabio Maia
-// pollinput() Borrowed from pepito: tip from Fabio Maia
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
-// return true if there are some character in the buffer to be read
 int pollinput(void)
 {
     static fd_set readfds;
@@ -4322,14 +4224,7 @@ int pollinput(void)
     return (ret);
 }
 
-//retorna verdadeiro se leu o comando "?" para mover agora
-//return true if there is a "?" command to move now
-//int moveagora(void)
-
-
-//    clock2 = clock () * 100 / CLOCKS_PER_SEC;	// retorna cloock em centesimos de segundos...
-//    difclock = clock2 - clock1;
-// difclocks = valores em segundos
+// retorna tempo decorrido desde o inicio do lance, em segundos
 double difclocks(void)
 {
     tatual = time(NULL);
