@@ -3895,194 +3895,84 @@ void pegaNmoves(char *linha2, char *linha, char *strlance)
     linha2[ll] = '\0';
 }
 
-//preenche melhor com uma variante do livro
+//preenche melhor com uma variante do livro, avaliando candidatos
 void usalivro(tabuleiro tabu)
 {
     IFDEBUG("usalivro()");
-    char linha[256], strlance[256], sjoga[256], linha2[256];
+    char linha[256], strlance[256], nextmove[5];
     FILE *flivro;
-    int sorteio, nlinha = 0;
     char *p;
+    int ncands, i, j, pool, sorteio, ll, lli, dup, de, pa;
+    tabuleiro temp;
+    movimento mval;
+    typedef struct { char move[5]; char linha[256]; int score; } candidato;
+    candidato cands[128];
+    candidato tmp;
 
+    ncands = 0;
     flivro = fopen(bookfname, "r");
     if(!flivro)
     {
-        /* chamada por compjoga() e analisa() */
         melhor.tamanho = 0;
         return;
     }
 
-    if(tabu.meionum == 0)  // No primeiro lance de brancas, sorteia uma abertura
+    listab2string(strlance);
+    ll = strlen(strlance);
+
+    // Phase 1: collect distinct next-move candidates
+    while(1)
     {
-        if(LINHASBOAS < 1)
-        {
-            fclose(flivro);
-            melhor.tamanho = 0;
-            return;
-        }
+        fgets(linha, 256, flivro);
+        if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
+        if(feof(flivro))
+            break;
+        if(linha[0] == '#')
+            continue;
 
-        sorteio = irand_minmax(1, LINHASBOAS + 1); /* irand_minmax  [min,max[ */
-        nlinha = 0;
-        while(1)
-        {
-            fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
-            if(feof(flivro))
-                break;
-            if(linha[0] == '#')
+        if(!igual_strlances_strlinha(strlance, linha))
+            continue;
+
+        lli = strlen(linha);
+        if(ll + 5 > lli)
+            continue;
+
+        strncpy(nextmove, linha + ll, 4);
+        nextmove[4] = '\0';
+
+        dup = 0;
+        for(i = 0; i < ncands; i++)
+            if(!strcmp(cands[i].move, nextmove))
             {
-                if((p = strchr(linha, ' ')) != NULL)
-                    *p = '\0';
-                if(!strcmp(linha, "#LINHASRUINS"))
-                    break; /* daqui para baixo nao conta */
-                continue; /* essa eh #comentario, ignora */
-            }
-            nlinha++;
-            if(nlinha == sorteio)
+                dup = 1;
                 break;
-        }
-        printdbg(debug, "# move 0 - sorteado= %d, linha: %s", sorteio, linha);
+            }
+        if(dup)
+            continue;
 
-        //maximo ate as linhas boas do livro! #LINHASRUINS abaixo nao
-        livro_linha(tabu.meionum, linha);
-        melhor.valor = estatico_melhor(tabu);
+        strcpy(cands[ncands].move, nextmove);
+        strcpy(cands[ncands].linha, linha);
+        cands[ncands].score = 0;
+        ncands++;
+        if(debug >= 2)
+            printdbg(debug, "# livro: cand[%d] = %s linha: %s\n", ncands - 1, nextmove, linha);
+        if(ncands >= 128)
+            break;
     }
-    else
-        if(tabu.meionum == 1)  // No primeiro lance de pretas, sorteia uma possivel resposta
-        {
-            sjoga[0] = '\0';
-            listab2string(strlance); /* um lance de brancas 'e2e4 ' */
-            while(1)
-            {
-                fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
-                if(feof(flivro))
-                    break;
-                if(linha[0] == '#')
-                {
-                    if((p = strchr(linha, ' ')) != NULL)
-                        * p = '\0';
-                    if(!strcmp(linha, "#LINHASRUINS"))
-                        break; /* daqui para baixo nao conta */
-                    continue; /* essa eh #comentario, ignora */
-                }
-                if(!igual_strlances_strlinha(strlance, linha))
-                    continue;
-                pega2moves(linha2, linha);
-                if(!strcmp(linha2, sjoga))
-                    continue;
-                strcpy(sjoga, linha2);
-                nlinha++;
-            }
-            printf("#Num de linhas diferentes para %s eh %d\n", strlance, nlinha);
-            if(nlinha < 1)
-            {
-                fclose(flivro);
-                melhor.tamanho = 0;
-                return;
-            }
+    fclose(flivro);
 
-            fseek(flivro, 0, SEEK_SET);
-            sorteio = irand_minmax(1, nlinha + 1); /* irand_minmax  [min,max[ */
-            nlinha = 0;
-            listab2string(strlance); /* um lance de brancas 'e2e4 ' */
-            sjoga[0] = '\0';
-            while(1)
-            {
-                fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
-                if(feof(flivro))
-                    break;
-                if(linha[0] == '#')
-                {
-                    if((p = strchr(linha, ' ')) != NULL)
-                        * p = '\0';
-                    if(!strcmp(linha, "#LINHASRUINS"))
-                        break; /* daqui para baixo nao conta */
-                    continue; /* essa eh #comentario, ignora */
-                }
-                if(!igual_strlances_strlinha(strlance, linha))
-                    continue;
-                pega2moves(linha2, linha);
-                if(!strcmp(linha2, sjoga)) /* igual ao anterior, nao conta */
-                    continue;
-                strcpy(sjoga, linha2);
-                nlinha++;
-                if(nlinha == sorteio)
-                    break;
-            }
-            printdbg(debug, "# xboard move 1 - sorteado= %d, linha: %s", sorteio, linha);
-            /* contou ate a linha sorteada, jogue */
-            livro_linha(tabu.meionum, linha);
-            melhor.valor = estatico_melhor(tabu);
-        }
-        else /* tab.meionum>1 ... move 0 (brancas), move 1 (pretas) ja escolhidos. Agora move 2 em diante, pega o melhor */
-        {
-            sjoga[0] = '\0';
-            listab2string(strlance); /* N lances jogados ate entao 'e2e4 e7e5 b1c3 ... ' */
-            while(1)
-            {
-                fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
-                if(feof(flivro))
-                    break;
-                if(linha[0] == '#')
-                {
-                    if((p = strchr(linha, ' ')) != NULL)
-                        * p = '\0';
-                    if(!strcmp(linha, "#LINHASRUINS"))
-                        break; /* daqui para baixo nao conta */
-                    continue; /* essa eh #comentario, ignora */
-                }
-                if(!igual_strlances_strlinha(strlance, linha))
-                    continue;
-                pegaNmoves(linha2, linha, strlance); /* pega total de lances em strlance + 1 */
-                if(!strcmp(linha2, sjoga)) /* mesma linha anterior, nao conta */
-                    continue;
-                strcpy(sjoga, linha2);
-                nlinha++;
-            }
-            printf("# tab.meionum>1, Num de linhas diferentes para %s eh %d\n", strlance, nlinha);
-            if(nlinha < 1)
-            {
-                fclose(flivro);
-                melhor.tamanho = 0;
-                return;
-            }
+    if(ncands == 0)
+    {
+        melhor.tamanho = 0;
+        return;
+    }
 
-            fseek(flivro, 0, SEEK_SET);
-            sorteio = irand_minmax(1, nlinha + 1); /* irand_minmax  [min,max[ */
-            nlinha = 0;
-            listab2string(strlance); /* um lance de brancas 'e2e4 ' */
-            sjoga[0] = '\0';
-            while(1)
-            {
-                fgets(linha, 256, flivro); if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
-                if(feof(flivro))
-                    break;
-                if(linha[0] == '#')
-                {
-                    if((p = strchr(linha, ' ')) != NULL)
-                        * p = '\0';
-                    if(!strcmp(linha, "#LINHASRUINS"))
-                        break; /* daqui para baixo nao conta */
-                    continue; /* essa eh #comentario, ignora */
-                }
-                if(!igual_strlances_strlinha(strlance, linha))
-                    continue;
-                pegaNmoves(linha2, linha, strlance); /* pega total de lances em strlance + 1 */
-                if(!strcmp(linha2, sjoga)) /* igual ao anterior, nao conta */
-                    continue;
-                strcpy(sjoga, linha2);
-                nlinha++;
-                if(nlinha == sorteio)
-                    break;
-            }
-            printdbg(debug, "# xboard move > 1 - sorteado= %d, linha: %s", sorteio, linha);
-            /* contou ate a linha sorteada, jogue */
-            livro_linha(tabu.meionum, linha);
-            melhor.valor = estatico_melhor(tabu);
-        } //else nao e o primeiro lance nem de brancas, nem de pretas
+    printdbg(debug, "# livro: %d candidatos para '%s'\n", ncands, strlance);
 
-    if(flivro)
-        fclose(flivro);
-    return;
+    // TODO Phase 2: evaluate, sort, pick from top half (step 3)
+    // temporary: pick first candidate
+    livro_linha(tabu.meionum, cands[0].linha);
+    melhor.valor = 0;
 }
 
 /* conta quantas linhas boas tem o livro; para em #LINHASRUINS */
