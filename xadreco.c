@@ -2402,7 +2402,6 @@ char compjoga(tabuleiro *tabu)
     int i;
     int nv = 1;
     int melhorvalor1;
-    int melhorou;
     int engine_val;
     int moveto;
     movimento *succ;
@@ -2489,15 +2488,11 @@ char compjoga(tabuleiro *tabu)
                 }
                 if(difclocks() < tempomovclock)
                 {
-                    // salva melhor se iteracao completa melhorou
-                    melhorou = (tabu->vez == BRANCO) ? (val > melhorvalor1) : (val < melhorvalor1);
-                    if(melhorou || melhor.tamanho == 0)
-                    {
-                        memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
-                        melhor.tamanho = mel[0].tamanho;
-                        melhor.valor = val;
-                        melhorvalor1 = val;
-                    }
+                    // salva resultado da iteracao completa (mais profunda = mais precisa)
+                    memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
+                    melhor.tamanho = mel[0].tamanho;
+                    melhor.valor = val;
+                    melhorvalor1 = val;
                 }
                 else
                     if(melhor.tamanho > 0) /* time exceeded and we have a move: stop now */
