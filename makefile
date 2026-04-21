@@ -8,7 +8,7 @@
 # TODO:
 #   random just for first move
 
-.PHONY: clean cleanall
+.PHONY: clean cleanall deploy
 .PRECIOUS: %.o
 SHELL=/bin/bash -o pipefail
 
@@ -51,6 +51,12 @@ $(o) : % : %.o $(OBJ)
 #library
 libeco-ux64.o : libeco.c
 	$(CC) $(LIBECO_CFLAGS) $(LIBECO_CPPFLAGS) $(LDLIBS) libeco.c -o libeco-ux64.o
+
+deploy: $(o)
+	cp $(o) $(o)-deploy
+	$(eval DEPLOYVER := $(shell ./$(o)-deploy -V 2>&1 | sed -n 's/.*Version \([0-9]*\.[0-9]*\).*/\1/p' | head -1))
+	sed -i 's/{me} v[0-9]*\.[0-9]*/{me} v$(DEPLOYVER)/' config.yml
+	@echo "Deployed $(o)-deploy v$(DEPLOYVER)"
 
 clean:
 	rm -f *.o errors.err
