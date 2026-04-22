@@ -381,6 +381,10 @@ void printdbg(int dbg, ...);
 void printf2(char *fmt, ...);
 /* le entrada padrao */
 void scanf2(char *movinito);
+// le um token de uma linha ja em memoria, avanca *pos
+int tokenizer(char *line, int *pos, char *token);
+// monta o tabuleiro a partir dos 6 campos FEN na linha
+void monta_fen(char *line, int *pos, tabuleiro *tabu);
 
 // apoio xadrez -----------------------------------------------------
 //retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
@@ -1653,12 +1657,11 @@ char humajoga(tabuleiro *tabu)
     int tente;
     int de, pa, moves, minutes;
     double secs, osecs = 0.0, incre = 0.0;
-    int i, j, k;
     //     int casacor;
     //nao precisa se tem textbackground
     //     listab *plaux;
-    char pieces[80], color[80], castle[80], enpassant[80], halfmove[80], fullmove[80]; //para testar uma posicao
-    int testasim = 0, estat;
+    char pieces[80], color[4], castle[8], enpassant[4], halfmove[8], fullmove[8]; //campos FEN
+    int estat;
     movinito[79] = movinito[0] = '\0';
     char *tc = NULL; /* time control has ":" */
 
@@ -2002,164 +2005,30 @@ char humajoga(tabuleiro *tabu)
         }
         if(!strcmp(movinito, "setboard"))   //funciona no prompt tambem
         {
-            printdbg(debug, "# xboard: setboard. Xadreco will set a board position.\n");
-//            if (setboard == -1)
-//            {
-//                setboard = 0;
-//                tente = 1;
-//                continue;
-//            }
-            inicia(tabu);
-            zera_pecas(tabu); // limpa pecas para FEN preencher
-            //o jogo e editado
-            //Posicao FEN
-            scanf2(movinito);  //trava se colocar uma posicao FEN invalida!
-            if(!strcmp(movinito, "testpos"))   //xadreco command
-            {
-                testasim = 1; //a posicao vem da funcao testapos, e nao de scanf()
-                testapos(pieces, color, castle, enpassant, halfmove, fullmove);
-            }
-            if(testasim)
-                strcpy(movinito, pieces);
-            printdbg(debug, "# xboard: %s\n", movinito);
-            j = 7; //linha de '8' a '1'
-            i = 0; //coluna de 'a' a 'h'
-            k = 0; //indice da string
-            while(movinito[k] != '\0')
-            {
-                if(i < 0 || i > 8)  //coluna fora do tabuleiro (8 valido: aguarda '/' para resetar)
-                    msgsai("# Posicao FEN incorreta.", 24);  //em vez de msg sai, printf2("Error (Wrong FEN %s): setboard", movinito);
-                switch(movinito[k])  //KkQqRrBbNnPp
-                {
-                    case 'K':
-                        tabu->tab[SQ(i, j)] = DACOR(REI, BRANCO);
-                        tabu->rei_pos[0] = SQ(i, j);
-                        i++;
-                        break;
-                    case 'k':
-                        tabu->tab[SQ(i, j)] = DACOR(REI, PRETO);
-                        tabu->rei_pos[1] = SQ(i, j);
-                        i++;
-                        break;
-                    case 'Q':
-                        tabu->tab[SQ(i, j)] = DACOR(DAMA, BRANCO);
-                        i++;
-                        break;
-                    case 'q':
-                        tabu->tab[SQ(i, j)] = DACOR(DAMA, PRETO);
-                        i++;
-                        break;
-                    case 'R':
-                        tabu->tab[SQ(i, j)] = DACOR(TORRE, BRANCO);
-                        i++;
-                        break;
-                    case 'r':
-                        tabu->tab[SQ(i, j)] = DACOR(TORRE, PRETO);
-                        i++;
-                        break;
-                    case 'B':
-                        tabu->tab[SQ(i, j)] = DACOR(BISPO, BRANCO);
-                        i++;
-                        break;
-                    case 'b':
-                        tabu->tab[SQ(i, j)] = DACOR(BISPO, PRETO);
-                        i++;
-                        break;
-                    case 'N':
-                        tabu->tab[SQ(i, j)] = DACOR(CAVALO, BRANCO);
-                        i++;
-                        break;
-                    case 'n':
-                        tabu->tab[SQ(i, j)] = DACOR(CAVALO, PRETO);
-                        i++;
-                        break;
-                    case 'P':
-                        tabu->tab[SQ(i, j)] = DACOR(PEAO, BRANCO);
-                        i++;
-                        break;
-                    case 'p':
-                        tabu->tab[SQ(i, j)] = DACOR(PEAO, PRETO);
-                        i++;
-                        break;
-                    case '/':
-                        i = 0;
-                        j--;
-                        break;
-                    default: //numero de casas vazias
-                        i += (movinito[k] - '0');
-                }
-                k++;
-            }
-            //Cor da vez
-            if(testasim)
-                strcpy(movinito, color);
-            //Veja o que o sono faz no codigo da gente: (apertando ctrl-s para salvar... ainda bem que nao foi ctrl-z)
-            //sssssssssss
-            else
-                scanf2(movinito);
-            printdbg(debug, "# xboard: %s\n", movinito);
-            if(movinito[0] == 'w')
-                tabu->vez = BRANCO;
-            else
-                tabu->vez = PRETO;
-            //int roqueb, roquep: 1:pode para os dois lados. 0:nao pode mais. 3:mexeu TD. So pode K. 2:mexeu TR. So pode Q
-            if(testasim)
-                strcpy(movinito, castle);
-            else
-                scanf2(movinito);  //Roque
-            printdbg(debug, "# xboard: %s\n", movinito);
-            tabu->roqueb = 0; //nao pode mais
-            tabu->roquep = 0; //nao pode mais
-            if(!strchr(movinito, '-'))   //alguem pode
-            {
-                if(strchr(movinito, 'K'))
-                    tabu->roqueb = 3;                //so pode REI
-                if(strchr(movinito, 'Q'))
-                {
-                    if(tabu->roqueb == 3)
-                        tabu->roqueb = 1;                 //pode dos dois
-                    else
-                        tabu->roqueb = 2;                 //so pode DAMA
-                }
-                if(strchr(movinito, 'k'))
-                    tabu->roquep = 3;
-                if(strchr(movinito, 'q'))
-                {
-                    if(tabu->roquep == 3)
-                        tabu->roquep = 1;                //pode dos dois
-                    else
-                        tabu->roquep = 2;                //so pode DAMA
-                }
-            }
-            if(testasim)
-                strcpy(movinito, enpassant);
-            else
-                scanf2(movinito);  //En passant
-            printdbg(debug, "# xboard: %s\n", movinito);
-            tabu->peao_pulou = -1; //nao pode
-            if(!strchr(movinito, '-'))   //alguem pode
-                tabu->peao_pulou = movinito[0] - 'a'; //pulou 2 na coluna dada
-            if(testasim)
-                strcpy(movinito, halfmove);
-            else
-                scanf2(movinito);  //Num. de movimentos (ply)
-            printdbg(debug, "# xboard: %s\n", movinito);
-            tabu->empate_50 = atoi(movinito);  //contador:quando chega a 50, empate.
-            if(testasim)
-                strcpy(movinito, fullmove);
-            else
-                scanf2(movinito);  //Num. de lances
-            printdbg(debug, "# xboard: %s\n", movinito);
-            /* tabu->meionum = 0; //mudou para ply. */
-            /* tabu->meionum = (atoi(movinito)-1)+0.3; */
+            char fen_buf[256];
+            int fen_pos;
 
-            /* tabu->meionum => 0, 1, 2, 3, 4, 5
-             * FEN          => 1, 1, 2, 2, 3, 3 */
-            tabu->meionum = (atoi(movinito) -1) * 2 + (tabu->vez == PRETO ? 1 : 0);
-            //inicia no 0.3 para indicar 0
-            /* ultimo resultado: - tudo certo, y troca vez */
-            /* ultimo_resultado[0] = 'y'; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) */
-            ultimo_resultado[0] = '\0'; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.)
+            printdbg(debug, "# xboard: setboard. Xadreco will set a board position.\n");
+            inicia(tabu);
+            scanf2(movinito);
+            if(!strcmp(movinito, "testpos"))
+            {
+                testapos(pieces, color, castle, enpassant, halfmove, fullmove);
+                snprintf(fen_buf, sizeof(fen_buf), "%s %s %s %s %s %s", pieces, color, castle, enpassant, halfmove, fullmove);
+            }
+            else
+            {
+                // movinito has pieces field, read remaining 5 fields from stdin
+                scanf2(color);
+                scanf2(castle);
+                scanf2(enpassant);
+                scanf2(halfmove);
+                scanf2(fullmove);
+                snprintf(fen_buf, sizeof(fen_buf), "%s %s %s %s %s %s", movinito, color, castle, enpassant, halfmove, fullmove);
+            }
+            fen_pos = 0;
+            monta_fen(fen_buf, &fen_pos, tabu);
+            ultimo_resultado[0] = '\0';
             res = situacao(*tabu);
             switch(res)
             {
@@ -4353,6 +4222,87 @@ void scanf2(char *movinito)
 {
     scanf("%s", movinito);
     printdbg(debug, "# scanf: %s\n", movinito);
+}
+
+// le um token de uma linha ja em memoria, avanca *pos
+int tokenizer(char *line, int *pos, char *token)
+{
+    int n;
+    if(sscanf(line + *pos, "%s%n", token, &n) != 1)
+        return 0;
+    *pos += n;
+    printdbg(debug, "# token: %s\n", token);
+    return 1;
+}
+
+// monta o tabuleiro a partir dos 6 campos FEN na linha
+void monta_fen(char *line, int *pos, tabuleiro *tabu)
+{
+    char pieces[128], color[4], castle[8], enpassant[4], halfmove[8], fullmove[8];
+    int i, j, k;
+
+    if(!tokenizer(line, pos, pieces))    return;
+    if(!tokenizer(line, pos, color))     return;
+    if(!tokenizer(line, pos, castle))    return;
+    if(!tokenizer(line, pos, enpassant)) return;
+    if(!tokenizer(line, pos, halfmove))  return;
+    if(!tokenizer(line, pos, fullmove))  return;
+
+    // campo 1: pecas
+    zera_pecas(tabu);
+    j = 7;
+    i = 0;
+    k = 0;
+    while(pieces[k] != '\0')
+    {
+        if(i < 0 || i > 8)
+            msgsai("# Posicao FEN incorreta.", 24);
+        switch(pieces[k])
+        {
+            case 'K': tabu->tab[SQ(i, j)] = DACOR(REI, BRANCO); tabu->rei_pos[0] = SQ(i, j); i++; break;
+            case 'k': tabu->tab[SQ(i, j)] = DACOR(REI, PRETO);  tabu->rei_pos[1] = SQ(i, j); i++; break;
+            case 'Q': tabu->tab[SQ(i, j)] = DACOR(DAMA, BRANCO);   i++; break;
+            case 'q': tabu->tab[SQ(i, j)] = DACOR(DAMA, PRETO);    i++; break;
+            case 'R': tabu->tab[SQ(i, j)] = DACOR(TORRE, BRANCO);  i++; break;
+            case 'r': tabu->tab[SQ(i, j)] = DACOR(TORRE, PRETO);   i++; break;
+            case 'B': tabu->tab[SQ(i, j)] = DACOR(BISPO, BRANCO);  i++; break;
+            case 'b': tabu->tab[SQ(i, j)] = DACOR(BISPO, PRETO);   i++; break;
+            case 'N': tabu->tab[SQ(i, j)] = DACOR(CAVALO, BRANCO); i++; break;
+            case 'n': tabu->tab[SQ(i, j)] = DACOR(CAVALO, PRETO);  i++; break;
+            case 'P': tabu->tab[SQ(i, j)] = DACOR(PEAO, BRANCO);   i++; break;
+            case 'p': tabu->tab[SQ(i, j)] = DACOR(PEAO, PRETO);    i++; break;
+            case '/': i = 0; j--; break;
+            default:  i += (pieces[k] - '0'); break;
+        }
+        k++;
+    }
+
+    // campo 2: cor da vez
+    tabu->vez = (color[0] == 'w') ? BRANCO : PRETO;
+
+    // campo 3: roque
+    tabu->roqueb = 0;
+    tabu->roquep = 0;
+    if(!strchr(castle, '-'))
+    {
+        if(strchr(castle, 'K')) tabu->roqueb = 3;
+        if(strchr(castle, 'Q'))
+            tabu->roqueb = (tabu->roqueb == 3) ? 1 : 2;
+        if(strchr(castle, 'k')) tabu->roquep = 3;
+        if(strchr(castle, 'q'))
+            tabu->roquep = (tabu->roquep == 3) ? 1 : 2;
+    }
+
+    // campo 4: en passant
+    tabu->peao_pulou = -1;
+    if(!strchr(enpassant, '-'))
+        tabu->peao_pulou = enpassant[0] - 'a';
+
+    // campo 5: halfmove clock (empate 50 lances)
+    tabu->empate_50 = atoi(halfmove);
+
+    // campo 6: fullmove number → meionum
+    tabu->meionum = (atoi(fullmove) - 1) * 2 + (tabu->vez == PRETO ? 1 : 0);
 }
 
 /* arena gerenciamento de memoria --------------------------------------- */
