@@ -2152,7 +2152,6 @@ char compjoga(tabuleiro *tabu)
     int i;
     int nv = 1;
     int melhorvalor1;
-    int engine_val;
     int moveto;
     movimento *succ;
     int val;
@@ -2279,47 +2278,7 @@ char compjoga(tabuleiro *tabu)
     //nivel extra de debug
     if(debug == 2)
         fclose(fmini);
-    //Utilizado: ABANDONA==-2730, alterado quando contra outra engine
-    //resigna se estiver perdendo muito (absoluto: brancas negativo, pretas positivo)
-    if((tabu->vez == BRANCO && melhor.valor < ABANDONA) || (tabu->vez == PRETO && melhor.valor > -ABANDONA))
-    {
-        printdbg(debug, "# xadreco : resign. value: %+.2f\n", melhor.valor / 100.0);
-        --ofereci;
-        printf2("resign\n");
-    }
-    //pode oferecer empate duas vezes (caso !randomchess). Uma assim que perder 2 peoes. Outra apos 60 lances e com menos de 2 peoes
-//    if(!randomchess)
-//    {
-//        if (tabu->meionum >= MOVE_EMPATE2 && ofereci == 0)
-//            ofereci = 1;
-//    }
-//    else // randomchess
-    if(tabu->meionum > MOVE_EMPATE1 && ofereci > 0 && randomchess) //posso oferecer empates
-    {
-        if((int)(rand() % 2)) //sorteio 50% de chances
-        {
-            /* printf2("offer draw\n"); */
-            OFERECEREMPATE = 1;
-            --ofereci;
-        }
-    }
-
-    //oferecer empate: valor absoluto, engine perde se brancas negativo ou pretas positivo
-    engine_val = (tabu->vez == BRANCO) ? melhor.valor : -melhor.valor; // engine perspective
-    if(engine_val < QUANTO_EMPATE1 && (tabu->meionum > MOVE_EMPATE1 && tabu->meionum < MOVE_EMPATE2) && ofereci > 0)
-    {
-        printdbg(debug, "# xadreco : offer draw (1) value: %+.2f\n", melhor.valor / 100.0);
-        /* printf2("offer draw\n"); */
-        OFERECEREMPATE = 1;
-        --ofereci;
-    }
-    if(engine_val < QUANTO_EMPATE2 && tabu->meionum >= MOVE_EMPATE2 && ofereci > 0)
-    {
-        printdbg(debug, "# xadreco : offer draw (2) value: %+.2f\n", melhor.valor / 100.0);
-        /* printf2("offer draw\n"); */
-        OFERECEREMPATE = 1;
-        --ofereci;
-    }
+    //resign e draw removidos: lichess-bot gerencia externamente
     //Nova definicao: sem lances, pode ser que queira avancar apos mate.
     //algum problema ocorreu que esta sem lances
     if(melhor.tamanho == 0)
