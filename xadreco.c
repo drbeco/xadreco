@@ -1665,7 +1665,7 @@ int xeque_rei_das(int cor, tabuleiro tabu)
 // game-ending: 'w'=new, 'y'=go, 'B'/'b'=resign, 'c'=draw accepted
 int comando_proto(char *movinito, tabuleiro *tabu)
 {
-    int moves, minutes, myrating, opprating, estat;
+    int moves, minutes;
     double secs, osecs = 0.0, incre = 0.0;
     char *tc;
     char fen_buf[256];
@@ -1698,27 +1698,6 @@ int comando_proto(char *movinito, tabuleiro *tabu)
         }
         return 'y';
     }
-    if(!strcmp(movinito, "resign"))
-    {
-        if(tabu->vez == PRETO)
-            return 'b';        //pretas abandonam
-        else
-            return 'B';        //brancas abandonam
-    }
-    if(!strcmp(movinito, "draw"))   //aceitar empate?
-    {
-        if(primeiro == segundo && primeiro == 'h')  //humano contra humano, aceita sempre
-            return 'c';
-        estat = -estatico(*tabu, 0, 0, -LIMITE, +LIMITE);
-        if(estat < QUANTO_EMPATE1)
-        {
-            printdbg(debug, "# xadreco : draw accepted %d  turn: %d\n", estat, tabu->vez);
-            return 'c';
-        }
-        printdbg(debug, "# xadreco : draw rejected %d  turn: %d\n", estat, tabu->vez);
-        return 1;
-    }
-
     // --- controle de jogadores ---
 
     if(!strcmp(movinito, "force"))   //nao joga, apenas acompanha
@@ -1728,51 +1707,14 @@ int comando_proto(char *movinito, tabuleiro *tabu)
         printdbg(debug, "# xboard: force. Xadreco is in force mode.\n");
         return 1;
     }
-    if(!strcmp(movinito, "playother"))   //computador com a cor que nao ta da vez
-    {
-        if(tabu->vez == BRANCO)
-        {
-            primeiro = 'h';
-            segundo = 'c';
-            printdbg(debug, "# xboard: playother. Xadreco is now black.\n");
-        }
-        else
-        {
-            primeiro = 'c';
-            segundo = 'h';
-            printdbg(debug, "# xboard: playother. Xadreco is now white.\n");
-        }
-        return 1;
-    }
-    if(!strcmp(movinito, "computer"))   //contra outra engine
-    {
-        ofereci = 2;
-        ABANDONA = -LIMITE;
-        COMPUTER = 1;
-        printdbg(debug, "# xboard: computer. Xadreco now knows its playing against another engine.\n");
-        return 1;
-    }
-
-    // --- desfazer ---
-
-    if(!strcmp(movinito, "undo"))   //volta um ply
-    {
-        primeiro = 'h';
-        segundo = 'h';
-        volta_lance(tabu);
-        printdbg(debug, "# xboard: undo. Back one ply. Xadreco is in force mode.\n");
-        return 1;
-    }
-    if(!strcmp(movinito, "remove"))   //volta um lance (2 plies)
-    {
-        volta_lance(tabu);
-        volta_lance(tabu);
-        printdbg(debug, "# xboard: remove. Back one move.\n");
-        return 1;
-    }
 
     // --- analise ---
 
+    if(!strcmp(movinito, "hint"))
+    {
+        mostra_lances(*tabu);
+        return 1;
+    }
     if(!strcmp(movinito, "analyze"))
     {
         printdbg(debug, "# xboard: analyze. Xadreco starts analyzing in force mode.\n");
@@ -1787,11 +1729,6 @@ int comando_proto(char *movinito, tabuleiro *tabu)
     {
         analise = 0;
         printdbg(debug, "# xboard: exit. Xadreco stops analyzing.\n");
-        return 1;
-    }
-    if(!strcmp(movinito, "hint"))
-    {
-        mostra_lances(*tabu);
         return 1;
     }
     if(!strcmp(movinito, "post"))   //showthinking
@@ -1939,13 +1876,6 @@ int comando_proto(char *movinito, tabuleiro *tabu)
         pong = atoi(movinito);
         printf2("pong %d\n", pong);
         printdbg(debug, "# xboard ping %d : xadreco pong %d\n", pong, pong);
-        return 1;
-    }
-    if(!strcmp(movinito, "rating"))
-    {
-        scanf2(movinito); myrating = atoi(movinito);
-        scanf2(movinito); opprating = atoi(movinito);
-        printdbg(debug, "# xboard: rating %d %d\n", myrating, opprating);
         return 1;
     }
     if(!strcmp(movinito, "version"))
