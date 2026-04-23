@@ -90,9 +90,6 @@
 #ifndef RANDOM
 #define RANDOM -1
 #endif
-#ifndef NOWAIT
-#define NOWAIT 0
-#endif
 #ifndef XDEBUG
 #define XDEBUG 0
 #endif
@@ -338,8 +335,6 @@ int OFERECEREMPATE = 0;
 //imprime o tabuleiro
 void imptab(tabuleiro tabu);
 void mostra_tabu(tabuleiro tabu);
-//mostra na tela informacoes do jogo e analises
-void mostra_lances(tabuleiro tabu);
 //transforma lances int 0077 em char tipo a1h8
 void lance2movi(char *m, int de, int pa, int especial);
 //faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.
@@ -395,6 +390,8 @@ int tokenizer(char *line, int *pos, char *token);
 void monta_fen(char *line, int *pos, tabuleiro *tabu);
 // processa um comando do protocolo (xboard/uci). retorna: 0=quit, 1=tratado, -1=nao e comando, 'w'/'y'/'B'/'b'/'c'=game-ending
 int comando_proto(char *movinito, tabuleiro *tabu);
+// handshake do protocolo: "xboard" ou "quit". Retorna 1=ok, 0=quit
+int cumprimento(char *movinito);
 // busca: trio de funcoes para aprofundamento iterativo
 void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time);
 int  xadreco_continua(busca *ctx); // retorna 1=continuar, 0=terminou
@@ -486,10 +483,8 @@ int main(int argc, char *argv[])
 
     int opt; /* return from getopt() */
     tabuleiro tabu;
-    char feature[256];
     char res;
-    char movinito[80] = "wait_xboard"; /* scanf : entrada de comandos ou lances */
-    int d2 = 0; /* wait for 2 dones */
+    char movinito[80];
     int verflag = 0; /* -V counter: 1=copyr, 2=version only */
     // int joga; /* flag enquanto joga */
     struct tm *tmatual;
@@ -509,7 +504,7 @@ int main(int argc, char *argv[])
     /* -x,  --xboard                  Gives 'xboard' keyword immediately */
     /* -b path/bookfile.txt, --book   Sets the path for book file */
     opterr = 0;
-    while((opt = getopt(argc, argv, "vhVr:xb:")) != EOF)
+    while((opt = getopt(argc, argv, "vhVr:b:")) != EOF)
         switch(opt)
         {
             case 'h':
@@ -526,10 +521,6 @@ int main(int argc, char *argv[])
                 if(seed)
                     srand(seed);
                 randomchess = 1;
-                break;
-            case 'x': /* no wait for first xboard keyword */
-                strcpy(movinito, "xboard");
-                d2 = 2; /* don't wait for done */
                 break;
             case 'b': /* book file name */
                 strcpy(bookfname, optarg);
@@ -560,12 +551,6 @@ int main(int argc, char *argv[])
     if(verflag == 1)
         copyr();
 
-    /* if NOWAIT == 1, defined to NOT wait at compiler time */
-#if NOWAIT == 1
-    strcpy(movinito, "xboard");
-    d2 = 2; /* don't wait for done */
-#endif
-
     /* if XDEBUG<=0, command line -vvv..., otherwise debug=XDEBUG */
 #if XDEBUG > 0
     debug = XDEBUG;
@@ -580,79 +565,11 @@ int main(int argc, char *argv[])
     //turn off buffers. Immediate input/output.
     setbuf(stdout, NULL);
     setbuf(stdin, NULL);
-    printdbg(debug, "# Xadreco version %s build %s (C) 1994-2026, by Dr. Beco\n"
-             "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
-             "# This is free software, and you are welcome to redistribute it\n"
-             "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
-             "# for details.\n\n", VERSION, BUILD);
 
-    /* 'xboard': scanf if not there yet */
-    if(strcmp("xboard", movinito))
-        scanf2(movinito);
-
-    if(strcmp(movinito, "xboard"))   // primeiro comando: xboard
-    {
-        /* printdbg(debug, "# xboard: %s\n", movinito); */
-        msgsai("# xadreco : xboard command missing.\n", 36);
-    }
-    printf2("\n"); /* output a newline when xboard comes in */
-    sleep(1);
-
-    /* Xadreco 5.8 accepts Xboard Protocol V2 */
-    sprintf(feature, "%s", "feature ping=1 setboard=1 playother=1 san=0 usermove=0 time=1 draw=1 sigint=0 sigterm=1 reuse=1 analyze=1 variants=\"normal\" colors=0 ics=1 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
-
-
-    printf2("feature done=0\n");
-    printf2("feature myname=\"Xadreco %s\"\n", VERSION);
-    printf2("%s\n", feature);
-    printf2("feature done=1\n");
-
-    /* comandos que aparecem no inicio, terminando com done
-     * ignorar todos exceto: quit e post, ate contar dois 'done'
-     */
-    while(d2 < 2)
-    {
-        scanf2(movinito);
-
-        if(!strcmp(movinito, "quit"))
-            msgsai("# Thanks for playing Xadreco.", 0);
-        //protover N = versao do protocolo
-        //new = novo jogo, brancas iniciam
-        //hard, easy = liga/desliga pondering (pensar no tempo do oponente). Ainda nao implementado.
-
-        if(!strcmp(movinito, "easy"))   //showthinking ou mostrapensando
-        {
-            analise = 0;
-            mostrapensando = 0;
-            printdbg(debug, "# xboard: easy. Xadreco stop thinking. (1)\n");
-        }
-        else
-            if(!strcmp(movinito, "post"))   //showthinking ou mostrapensando
-            {
-                analise = 0;
-                mostrapensando = 1;
-                printdbg(debug, "# xboard: post. Xadreco will show what its thinking. (1)\n");
-            }
-            else
-                if(!strcmp(movinito, "done"))
-                    d2++;
-                else
-                    if(!strcmp(movinito, "ping"))
-                    {
-                        scanf2(movinito);
-                        pong = atoi(movinito);
-                        printf2("pong %d\n", pong);
-                    }
-                    else
-                        if(!strcmp(movinito, "force")) /* lichess don't send 'accept', goes by 'force' */
-                            break;
-                        else
-                            if(!strcmp(movinito, "new")) /* python-chess sends new without done */
-                                break;
-                            else
-                                printdbg(debug, "# xboard: ignoring %s\n", movinito);
-    } /* main while starting xboard protocol */
-    printdbg(debug, "# xboard: main while done\n");
+    // handshake do protocolo
+    scanf2(movinito);
+    if(!cumprimento(movinito))
+        sai(0);
 
     /* joga==0, fim. joga==1, novo lance. (joga==2, nova partida) */
     //------------------------------------------------------------------------------
@@ -819,24 +736,6 @@ int main(int argc, char *argv[])
 
 
 // mostra a lista de lances da tela, a melhor variante, e responde ao comando "hint"
-void mostra_lances(tabuleiro tabu)
-{
-//     struct movimento *pmovi, *loop;
-//     char m[80];
-//     int linha = 1, coluna = 34, nmov = 0;
-//     m[0] = '\0';
-    //nivel pontuacao tempo totalnodo variante
-    //nivel esta errado!
-//    printf ("# xadreco : ply score time nodes pv\n");
-    printf2("%3d %+6d %3d %7d ", nivel, melhor.valor, (int)difclocks(), totalnodo);
-    //melhor.valor*10 o xboard divide por 100. centi-peao
-    //melhor.valor/100 para a Dama ficar com valor 9
-    imprime_linha(&melhor, tabu.meionum, tabu.vez);
-//    fflush(stdout);
-}
-
-//fim do mostra_lances
-
 // imprime o movimento
 // funcao intermediaria chamada no intervalo humajoga / compjoga
 void imptab(tabuleiro tabu)
@@ -1662,6 +1561,72 @@ int xeque_rei_das(int cor, tabuleiro tabu)
 //----------------------------------------------
 // processa um comando do protocolo xboard
 // retorna: 0=quit, 1=tratado, -1=nao e comando
+// handshake do protocolo xboard
+// retorna 1=ok, 0=quit
+int cumprimento(char *movinito)
+{
+    char feature[256];
+    int d2 = 0;
+
+    if(!strcmp(movinito, "quit"))
+        return 0;
+
+    if(strcmp(movinito, "xboard"))
+    {
+        msgsai("# xadreco : xboard command missing.\n", 36);
+        return 0;
+    }
+
+    printdbg(debug, "# Xadreco version %s build %s (C) 1994-2026, by Dr. Beco\n"
+             "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
+             "# This is free software, and you are welcome to redistribute it\n"
+             "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
+             "# for details.\n\n", VERSION, BUILD);
+
+    printf2("\n");
+    sleep(1);
+
+    sprintf(feature, "%s", "feature ping=1 setboard=1 playother=0 san=0 usermove=0 time=1 draw=0 sigint=0 sigterm=1 reuse=1 analyze=1 variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
+    printf2("feature done=0\n");
+    printf2("feature myname=\"Xadreco %s\"\n", VERSION);
+    printf2("%s\n", feature);
+    printf2("feature done=1\n");
+
+    // espera dois 'done' ou 'force'/'new' para iniciar
+    while(d2 < 2)
+    {
+        scanf2(movinito);
+        if(!strcmp(movinito, "quit"))
+            return 0;
+        if(!strcmp(movinito, "easy"))
+        {
+            analise = 0;
+            mostrapensando = 0;
+        }
+        else if(!strcmp(movinito, "post"))
+        {
+            analise = 0;
+            mostrapensando = 1;
+        }
+        else if(!strcmp(movinito, "done"))
+            d2++;
+        else if(!strcmp(movinito, "ping"))
+        {
+            scanf2(movinito);
+            pong = atoi(movinito);
+            printf2("pong %d\n", pong);
+        }
+        else if(!strcmp(movinito, "force"))
+            break;
+        else if(!strcmp(movinito, "new"))
+            break;
+        else
+            printdbg(debug, "# xboard: ignoring %s\n", movinito);
+    }
+    printdbg(debug, "# xboard: handshake done\n");
+    return 1;
+}
+
 // game-ending: 'w'=new, 'y'=go, 'B'/'b'=resign, 'c'=draw accepted
 int comando_proto(char *movinito, tabuleiro *tabu)
 {
@@ -1712,7 +1677,8 @@ int comando_proto(char *movinito, tabuleiro *tabu)
 
     if(!strcmp(movinito, "hint"))
     {
-        mostra_lances(*tabu);
+        printf("%3d %+6d %3d %7d ", nivel, melhor.valor, (int)difclocks(), totalnodo);
+        imprime_linha(&melhor, tabu->meionum, tabu->vez);
         return 1;
     }
     if(!strcmp(movinito, "analyze"))

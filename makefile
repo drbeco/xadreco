@@ -24,11 +24,9 @@ CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99
 #CFLAGS = -Ofast -ansi -pedantic-errors
 #RANDOM=-1:command line. RANDOM=-2:no random. RANDOM>=0: yes, seed N, 0=seed by time
 RANDOM ?= -1
-#NOWAIT=1: no wait for xboard command. NOWAIT=0: command line decides
-NOWAIT ?= 0
 #XDEBUG==0: command line. XDEBUG>0, fixed value
 XDEBUG ?= 0
-CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG) -DRANDOM=$(RANDOM) -DNOWAIT=$(NOWAIT) -DXDEBUG=$(XDEBUG)
+CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG) -DRANDOM=$(RANDOM) -DXDEBUG=$(XDEBUG)
 LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm
 #LDLIBS += -lgmp
 #OBJ = libeco-ux64.o
