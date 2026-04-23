@@ -1436,16 +1436,18 @@ int cumprimento(char *movinito)
 }
 
 // processa um comando do protocolo
-// retorna: 0=quit, 1=tratado, -1=nao e comando
-int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
+// retorna: 0=quit, 1=tratado
+int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
 {
-    int moves, minutes;
+    int pos, moves, minutes;
     double secs, osecs = 0.0, incre = 0.0;
     char *tc;
-    char fen_buf[256];
-    int fen_pos;
-    char pieces[80], color[4], castle[8], enpassant[4], halfmove[8], fullmove[8];
+    char movinito[80];
     char res;
+
+    pos = 0;
+    if(!tokenizer(line, &pos, movinito))
+        return 1;  // linha vazia
 
     // --- lifecycle ---
 
@@ -1502,7 +1504,7 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
     if(!strcmp(movinito, "post"))   //showthinking
     {
         mostrapensando = 1;
-        printdbg(debug, "# xboard: post. Xadreco will show what its thinking.\n");
+        printdbg(debug, "# xboard: post.\n");
         return 1;
     }
     if(!strcmp(movinito, "nopost"))
@@ -1516,14 +1518,15 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
 
     if(!strcmp(movinito, "sd"))   //set depth
     {
-        nivel = (int)(movinito[3] - '0');
-        nivel = (nivel > 6 || nivel < 0) ? 2 : nivel;
+        tokenizer(line, &pos, movinito);
+        nivel = atoi(movinito);
+        if(nivel > 6 || nivel < 0) nivel = 2;
         printdbg(debug, "# xboard: sd %d\n", nivel);
         return 1;
     }
     if(!strcmp(movinito, "st"))   //set time per move (seconds)
     {
-        scanf2(movinito);
+        tokenizer(line, &pos, movinito);
         tempomovclock = atof(movinito);
         if(tempomovclock < 0.5)
             tempomovclock = 0.5;
@@ -1533,9 +1536,9 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
     }
     if(!strcmp(movinito, "level"))   //level moves minutes increment
     {
-        scanf2(movinito);
+        tokenizer(line, &pos, movinito);
         moves = atoi(movinito);
-        scanf2(movinito);
+        tokenizer(line, &pos, movinito);
         if((tc = strchr(movinito, ':')) != NULL)
         {
             *tc = '\0';
@@ -1549,7 +1552,7 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
             minutes = atoi(movinito);
             secs = minutes * 60.0;
         }
-        scanf2(movinito);
+        tokenizer(line, &pos, movinito);
         incre = atof(movinito);
         if(moves <= 0) moves = TOTAL_MOVIMENTOS;
         if(secs <= 0.0) secs = 10.0;
@@ -1569,14 +1572,14 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
     }
     if(!strcmp(movinito, "otim"))   //opponent time (centiseconds)
     {
-        scanf2(movinito);
+        tokenizer(line, &pos, movinito);
         osecs = atof(movinito) / 100.0;
         printdbg(debug, "# xboard: otim %.1fs\n", osecs);
         return 1;
     }
     if(!strcmp(movinito, "time"))   //my time (centiseconds)
     {
-        scanf2(movinito);
+        tokenizer(line, &pos, movinito);
         secs = atof(movinito) / 100.0;
         moves = TOTAL_MOVIMENTOS - tabu->meionum / 2;
         if(moves <= 0) moves = 5;
@@ -1596,24 +1599,28 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
 
     if(!strcmp(movinito, "setboard"))
     {
+        char pieces[80], color[4], castle[8], enpassant[4], halfmove[8], fullmove[8];
+
         printdbg(debug, "# xboard: setboard.\n");
         inicia(tabu);
-        scanf2(movinito);
+        tokenizer(line, &pos, movinito);
         if(!strcmp(movinito, "testpos"))
         {
             testapos(pieces, color, castle, enpassant, halfmove, fullmove);
-            snprintf(fen_buf, sizeof(fen_buf), "%s %s %s %s %s %s",
+            snprintf(line, 256, "%s %s %s %s %s %s",
                      pieces, color, castle, enpassant, halfmove, fullmove);
+            pos = 0;
         }
         else
         {
-            scanf2(color); scanf2(castle); scanf2(enpassant);
-            scanf2(halfmove); scanf2(fullmove);
-            snprintf(fen_buf, sizeof(fen_buf), "%s %s %s %s %s %s",
-                     movinito, color, castle, enpassant, halfmove, fullmove);
+            // movinito has pieces, rest of line has the other 5 fields
+            // rebuild line from movinito + remaining
+            // monta_fen will read from line at pos, but movinito already consumed pieces
+            // simplest: put it back
+            pos = 0; // restart — line still has "setboard pieces color castle ep hm fm"
+            tokenizer(line, &pos, movinito); // skip "setboard"
         }
-        fen_pos = 0;
-        monta_fen(fen_buf, &fen_pos, tabu);
+        monta_fen(line, &pos, tabu);
         res = situacao(*tabu);
         switch(res)
         {
@@ -1636,7 +1643,7 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
 
     if(!strcmp(movinito, "ping"))
     {
-        scanf2(movinito);
+        tokenizer(line, &pos, movinito);
         pong = atoi(movinito);
         printf2("pong %d\n", pong);
         printdbg(debug, "# xboard ping %d : xadreco pong %d\n", pong, pong);
@@ -1644,28 +1651,23 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
     }
     if(!strcmp(movinito, "version"))
     {
-        printdbg(debug, "# Xadreco v%s build %s, XBoard protocol, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD);
+        printdbg(debug, "# Xadreco v%s build %s, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD);
         return 1;
     }
     if(!strcmp(movinito, "t"))   //jogo de teste interno
     {
         testajogo(movinito, tabu->meionum);
-        return -1; //testajogo preenche movinito com o lance, tenta jogar
+        // testajogo preenche movinito com o lance, tenta jogar
+        if(joga_movinito(movinito, tabu))
+            if(debug) mostra_tabu(*tabu);
+        return 1;
     }
 
     // --- mensagens do XBoard entre chaves ---
 
     if(movinito[0] == '{')
     {
-        char completo[256];
-        strcpy(completo, movinito);
-        while(!strchr(movinito, '}'))
-        {
-            scanf2(movinito);
-            strcat(completo, " ");
-            strcat(completo, movinito);
-        }
-        printdbg(debug, "# xboard: %s\n", completo);
+        printdbg(debug, "# xboard: %s", line); // linha inteira ja tem a mensagem
         return 1;
     }
 
@@ -1684,15 +1686,23 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
             || !strcmp(movinito, "easy") || !strcmp(movinito, "aborted")
             || !strcmp(movinito, "result") || !strcmp(movinito, "1-0")
             || !strcmp(movinito, "0-1") || !strcmp(movinito, "1/2-1/2")
-            || !strcmp(movinito, "illegal") || !strcmp(movinito, "*")
-            || !strcmp(movinito, "?"))
+            || !strcmp(movinito, "illegal") || !strcmp(movinito, "*"))
     {
         printdbg(debug, "# xboard: ignoring %s\n", movinito);
         return 1;
     }
 
-    // --- nao e comando ---
-    return -1;
+    // --- lance do oponente (e.g., "e2e4", "e7e8q") ---
+
+    if(joga_movinito(movinito, tabu))
+    {
+        if(debug) mostra_tabu(*tabu);
+        return 1;
+    }
+
+    // --- desconhecido ---
+    printdbg(debug, "# comando_proto: unknown '%s'\n", movinito);
+    return 1;
 }
 
 //----------------------------------------------
@@ -2033,7 +2043,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     {
         succ = (movimento *)n->info;
         copitab(&tab, &atual);
-        disc = (char) joga_em(&tab, *succ, 1);
+        (void) joga_em(&tab, *succ, 1);
         //joga o lance atual, a funcao joga_em deve inserir no listab
         totalnodonivel++;
         profflag = succ->flag_50 + 1;	//se for zero, fim da busca.
@@ -3140,7 +3150,7 @@ void livro_linha(int mnum, char *linha)
         movi2lance(&de, &pa, m);
         if(!valido(tab, de, pa, &mval))
             break;
-        disc = (char) joga_em(&tab, mval, 0);
+        (void) joga_em(&tab, mval, 0);
         if(n / 5 >= mnum) //chegou na posicao atual! comeca inserir
             melhor.linha[melhor.tamanho++] = mval;
         n += 5;
