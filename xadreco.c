@@ -387,6 +387,8 @@ int tokenizer(char *line, int *pos, char *token);
 void monta_fen(char *line, int *pos, tabuleiro *tabu);
 // processa um comando do protocolo (xboard/uci). retorna: 0=quit, 1=tratado, -1=nao e comando, 'w'/'y'/'B'/'b'/'c'=game-ending
 int comando_proto(char *movinito, tabuleiro *tabu);
+// busca completa: livro + aprofundamento iterativo. Preenche melhor.
+int xadreco_joga(tabuleiro *tabu, int max_depth, double max_time);
 
 // apoio xadrez -----------------------------------------------------
 //retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
@@ -2143,28 +2145,27 @@ char situacao(tabuleiro tabu)
     return ('-'); //nada
 }
 
-// ------------------------------- jogo do computador -----------------------
-char compjoga(tabuleiro *tabu)
+// ------------------------------- busca completa ---------------------------
+// livro + aprofundamento iterativo (bloqueia ate terminar)
+// preenche melhor com a melhor linha e score
+int xadreco_joga(tabuleiro *tabu, int max_depth, double max_time)
 {
-    IFDEBUG("compjoga()");
-    // declaracao de variaveis locais ---------------------------------------
-    char res;
-    int i;
-    int nv = 1;
-    int melhorvalor1;
-    int moveto;
+    int nv, val, i, moveto, melhorvalor1;
     movimento *succ;
-    int val;
     no *n;
-    limpa_pensa();  //limpa algumas variaveis para iniciar a ponderacao
+
+    limpa_pensa();
+    tempomovclock = max_time;
+    tinimov = time(NULL);
+
     // valores absolutos: positivo=bom para brancas
-    val = 0; // neutro: loop while(abs(val) < XEQUEMATE) precisa comecar abaixo de XEQUEMATE
+    val = 0;
     if(tabu->vez == BRANCO)
         melhorvalor1 = -LIMITE; // brancas quer o maximo
     else
         melhorvalor1 = +LIMITE; // pretas quer o minimo
 
-    // debug e inicializacoes -----------------------------------------------
+    // debug
     if(debug == 2)  //nivel extra de debug
     {
         fmini = fopen("minimax.log", "w");
@@ -2172,7 +2173,7 @@ char compjoga(tabuleiro *tabu)
             debug = 1;
     }
 
-    // checar se usa livro --------------------------------------------------
+    // livro de aberturas
     if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usalivro(*tabu);
@@ -2181,24 +2182,23 @@ char compjoga(tabuleiro *tabu)
         melhorvalor1 = melhor.valor;
     }
 
-    // se nao livro: random ou minimax -------------------------------------
+    // se nao livro: random ou minimax
     if(melhor.tamanho == 0)
     {
-        //busca com aprofundamento iterativo: nv controla a profundidade, nivel so para display
         nv = 1;
         lst_recria(&plmov);
-        geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
+        geramov(*tabu, plmov, GERA_TUDO);
         totalnodo = 0;
-        //primeiro lance: joga rapido, metade do tempo, maximo 10s
+
+        // primeiro lance: joga rapido, metade do tempo, maximo 10s
         if(tabu->meionum <= 1)
         {
             tempomovclock /= 2.0;
-            if(tempomovclock > 8.0)
-                tempomovclock = 8.0;
-            if(tempomovclock < 0.5)
-                tempomovclock = 0.5;
+            if(tempomovclock > 8.0) tempomovclock = 8.0;
+            if(tempomovclock < 0.5) tempomovclock = 0.5;
         }
-        //randomchess: sorteia um lance da lista
+
+        // randomchess: sorteia um lance da lista
         if(randomchess)
         {
             n = plmov->cabeca;
@@ -2206,8 +2206,7 @@ char compjoga(tabuleiro *tabu)
             moveto = (int)(rand() % plmov->qtd);  //sorteia um lance possivel da lista de lances
             for(i = 0; i < moveto; ++i)
                 if(n != NULL)
-                    n = n->prox; //escolhe este lance como o que sera jogado
-
+                    n = n->prox;
             if(n != NULL)
             {
                 succ = (movimento *)n->info;
@@ -2216,25 +2215,22 @@ char compjoga(tabuleiro *tabu)
                 succ->valor_estatico = 0;
                 val = 0;
                 melhorvalor1 = val;
-            } //if n
-        } //end if randomchess
-        else
+            }
+        }
+        else // minimax com aprofundamento iterativo
         {
             while(abs(val) < XEQUEMATE) // enquanto nao achou mate para nenhum lado
             {
                 totalnodonivel = 0;
                 profflag = 1;
-                if(debug == 2)  //nivel extra de debug
+                if(debug == 2)
                 {
                     fprintf(fmini, "#\n#\n# *************************************************************");
                     fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
                 }
                 val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv);
                 if(mel[0].tamanho == 0)
-                {
-                    //sem lances, pode ser que queira avancar apos mate.
                     break;
-                }
                 if(difclocks() < tempomovclock)
                 {
                     // salva resultado da iteracao completa (mais profunda = mais precisa)
@@ -2244,7 +2240,7 @@ char compjoga(tabuleiro *tabu)
                     melhorvalor1 = val;
                 }
                 else
-                    if(melhor.tamanho > 0) /* time exceeded and we have a move: stop now */
+                    if(melhor.tamanho > 0)
                         break;
                 totalnodo += totalnodonivel;
                 lst_ordem(plmov);  //ordena lista de movimentos
@@ -2256,112 +2252,60 @@ char compjoga(tabuleiro *tabu)
                 }
                 if(mostrapensando && abs(val) != FIMTEMPO && abs(val) != LIMITE)
                 {
-                    // XBoard: score do ponto de vista da engine (positivo=engine ganhando)
-                    printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? val : -val, (int)difclocks(), totalnodo);
+                    printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? val : -val,
+                           (int)difclocks(), totalnodo);
                     imprime_linha(&mel[0], tabu->meionum + 1, ADV(tabu->vez));
                 }
-                // termino do laco infinito baseado no tempo
                 if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 5))
                 {
                     if(mel[0].tamanho == 0)
-                    {
-                        printdbg(debug, "# compjoga: Sem lances; difclocks()>tempomovclock; mel[0].tamanho==0; (!break);\n");
-                    }
+                        printdbg(debug, "# xadreco_joga: sem lances; tempo estourado\n");
                     else
                         break;
                 }
+                if(nv >= max_depth) break;
                 nv++; // busca em amplitude: aumenta um nivel.
             } //while val < XEQUEMATE
         } // else (not randomchess)
     } // fim do se nao usou livro
+
+    // melhorvalor1 acompanha melhor.valor ao longo da busca.
+    // No caminho do livro, melhorvalor1 = melhor.valor (acima).
+    // No caminho do minimax, melhorvalor1 = val da ultima iteracao completa salva.
+    // Garante que melhor.valor esta consistente em todos os caminhos.
     melhor.valor = melhorvalor1;
-    //nivel extra de debug
-    if(debug == 2)
-        fclose(fmini);
-    //resign e draw removidos: lichess-bot gerencia externamente
-    //Nova definicao: sem lances, pode ser que queira avancar apos mate.
-    //algum problema ocorreu que esta sem lances
+
+    if(debug == 2) fclose(fmini);
+    return melhor.valor;
+}
+
+// ------------------------------- jogo do computador -----------------------
+char compjoga(tabuleiro *tabu)
+{
+    IFDEBUG("compjoga()");
+    char res;
+
+    xadreco_joga(tabu, nivel, tempomovclock);
     if(melhor.tamanho == 0)
     {
         res = randommove(tabu);
         if(res == 'e')
-            return res; //vazio mesmo! Nem aleatorio foi!
-        printdbg(debug, "# xadreco : Error. I don't know what to play... Playing a random move (compjoga)!\n");
+            return res;
+        printdbg(debug, "# xadreco : Playing a random move (compjoga)!\n");
     }
     assert(melhor.tamanho > 0 && "melhor.tamanho == 0 before joga_em in compjoga");
-    res = joga_em(tabu, melhor.linha[0], 1);  // computador joga
-    return (res);
-} //fim da compjoga
+    res = joga_em(tabu, melhor.linha[0], 1);
+    return res;
+}
 
 char analisa(tabuleiro *tabu)
 {
     IFDEBUG("analisa()");
-    tabuleiro tanalise;
-    int nv = 0;
-    int val;
-    // lances calc. em maior nivel tem mais importancia?
-    //mudou para logo abaixo do scanf de humajoga
-    val = (tabu->vez == BRANCO) ? -LIMITE : +LIMITE;
-    copitab(&tanalise, tabu);
-    limpa_pensa();
-    if(debug == 2)
-        //nivel extra de debug
-    {
-        fmini = fopen("minimax.log", "w");
-        if(fmini == NULL)
-            debug = 1;
-    }
-    //busca com aprofundamento iterativo: nv controla a profundidade
-    if(USALIVRO && tabu->meionum < 50 && setboard != 1)
-        usalivro(*tabu);
-    if(melhor.tamanho > 0)
-    {
-        printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? melhor.valor : -melhor.valor, (int)difclocks(), totalnodo);
-        imprime_linha(&melhor, tabu->meionum + 1, ADV(tabu->vez));
-    }
-    else
-    {
-        nv = 1;
-        lst_recria(&plmov);
-        geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
-        totalnodo = 0;
-        while(abs(val) < XEQUEMATE) // enquanto nao achou mate para nenhum lado
-        {
-            totalnodonivel = 0;
-            profflag = 1;
-            val = minimax(*tabu, 0, -LIMITE, LIMITE, nv);
-            totalnodo += totalnodonivel;
-            lst_ordem(plmov);
-            if(abs(val) != FIMTEMPO && abs(val) != LIMITE)
-            {
-                // XBoard: score do ponto de vista da engine
-                printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? val : -val, (int)difclocks(), totalnodo);
-                imprime_linha(&mel[0], tabu->meionum + 1, ADV(tabu->vez));
-            }
-            if(debug == 2)
-            {
-                fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\npv: ", val / 100.0, totalnodo);
-                imprime_linha(&mel[0], 1, 2);
-            }
-            if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 5))
-                break;
-            if(mel[0].tamanho == 0)
-                break;
-            nv++;
-        }
-        memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
-        melhor.tamanho = mel[0].tamanho;
-        melhor.valor = val;
-    }
-    if(debug == 2)          //nivel extra de debug
-        fclose(fmini);
+
+    xadreco_joga(tabu, MAX_PROF, 999999.0);
     if(melhor.tamanho == 0)
-        //...apos o termino da partida, so pode-se usar edicao, undo, etc.
-        //algum problema ocorreu que esta sem lances
-        return ('e');
-    //erro 35! computador sem lances!? nivel deve ser > zero
-    return ('-');
-    //tudo certo... (situa)
+        return 'e';
+    return '-';
 }
 
 //--------------------------------------------------------------------------
