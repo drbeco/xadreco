@@ -228,6 +228,16 @@ typedef struct sresultado
 }
 resultado;
 
+// contexto da busca (estado do aprofundamento iterativo)
+typedef struct sbusca
+{
+    tabuleiro *tabu;     // ponteiro para o tabuleiro do jogo (nao copia)
+    int nv;              // nivel atual do aprofundamento iterativo
+    int val;             // valor retornado pela ultima iteracao
+    int max_depth;       // profundidade maxima (sd N)
+    int melhorvalor;     // melhor valor encontrado
+} busca;
+
 // identidade das pecas (mesma para brancas e pretas)
 enum piece_identity
 {
@@ -351,8 +361,6 @@ void zera_pecas(tabuleiro *tabu);
 void testapos(char *pieces, char *color, char *castle, char *enpassant, char *halfmove, char *fullmove);
 //retorna um lance do jogo de teste
 void testajogo(char *movinito, int mnum);
-//limpa algumas variaveis para iniciar a ponderacao
-void limpa_pensa(void);
 //preenche a estrutura movimento usando arena e lst_insere
 //Argumentos:
 //   c0c1-c2c3: lance
@@ -387,8 +395,10 @@ int tokenizer(char *line, int *pos, char *token);
 void monta_fen(char *line, int *pos, tabuleiro *tabu);
 // processa um comando do protocolo (xboard/uci). retorna: 0=quit, 1=tratado, -1=nao e comando, 'w'/'y'/'B'/'b'/'c'=game-ending
 int comando_proto(char *movinito, tabuleiro *tabu);
-// busca completa: livro + aprofundamento iterativo. Preenche melhor.
-int xadreco_joga(tabuleiro *tabu, int max_depth, double max_time);
+// busca: trio de funcoes para aprofundamento iterativo
+void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time);
+int  xadreco_continua(busca *ctx); // retorna 1=continuar, 0=terminou
+void xadreco_para(busca *ctx);     // cleanup (sem output de lance)
 
 // apoio xadrez -----------------------------------------------------
 //retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
@@ -407,7 +417,7 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result);
 char situacao(tabuleiro tabu);
 // livro --------------------------------------------------------------
 //preenche melhor com uma variante do livro, baseado na posicao do tabuleiro tabu
-void usalivro(tabuleiro tabu);
+void usa_livro(tabuleiro tabu);
 //pega a lista de tabuleiros e cria uma string de movimentos, como "e1e2 e7e5"
 void listab2string(char *strlance);
 //le string linha do livro de aberturas e preenche melhor.linha e melhor.tamanho
@@ -2145,27 +2155,28 @@ char situacao(tabuleiro tabu)
     return ('-'); //nada
 }
 
-// ------------------------------- busca completa ---------------------------
-// livro + aprofundamento iterativo (bloqueia ate terminar)
-// preenche melhor com a melhor linha e score
-int xadreco_joga(tabuleiro *tabu, int max_depth, double max_time)
+// ------------------------------- busca: trio xadreco_inicia/continua/para --
+
+// prepara a busca: livro, geramov, inicializa contexto
+void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
 {
-    int nv, val, i, moveto, melhorvalor1;
+    int i, moveto;
     movimento *succ;
     no *n;
 
-    limpa_pensa();
+    melhor = (resultado){0};
     tempomovclock = max_time;
     tinimov = time(NULL);
 
-    // valores absolutos: positivo=bom para brancas
-    val = 0;
+    ctx->tabu = tabu;
+    ctx->nv = 1;
+    ctx->val = 0;
+    ctx->max_depth = max_depth;
     if(tabu->vez == BRANCO)
-        melhorvalor1 = -LIMITE; // brancas quer o maximo
+        ctx->melhorvalor = -LIMITE; // brancas quer o maximo
     else
-        melhorvalor1 = +LIMITE; // pretas quer o minimo
+        ctx->melhorvalor = +LIMITE; // pretas quer o minimo
 
-    // debug
     if(debug == 2)  //nivel extra de debug
     {
         fmini = fopen("minimax.log", "w");
@@ -2176,16 +2187,15 @@ int xadreco_joga(tabuleiro *tabu, int max_depth, double max_time)
     // livro de aberturas
     if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
-        usalivro(*tabu);
+        usa_livro(*tabu);
         if(melhor.tamanho == 0)
             USALIVRO = 0;
-        melhorvalor1 = melhor.valor;
+        ctx->melhorvalor = melhor.valor;
     }
 
     // se nao livro: random ou minimax
     if(melhor.tamanho == 0)
     {
-        nv = 1;
         lst_recria(&plmov);
         geramov(*tabu, plmov, GERA_TUDO);
         totalnodo = 0;
@@ -2202,7 +2212,6 @@ int xadreco_joga(tabuleiro *tabu, int max_depth, double max_time)
         if(randomchess)
         {
             n = plmov->cabeca;
-            val = 0;
             moveto = (int)(rand() % plmov->qtd);  //sorteia um lance possivel da lista de lances
             for(i = 0; i < moveto; ++i)
                 if(n != NULL)
@@ -2213,70 +2222,77 @@ int xadreco_joga(tabuleiro *tabu, int max_depth, double max_time)
                 melhor.linha[0] = *succ;
                 melhor.tamanho = 1;
                 succ->valor_estatico = 0;
-                val = 0;
-                melhorvalor1 = val;
+                ctx->val = 0;
+                ctx->melhorvalor = 0;
             }
         }
-        else // minimax com aprofundamento iterativo
-        {
-            while(abs(val) < XEQUEMATE) // enquanto nao achou mate para nenhum lado
-            {
-                totalnodonivel = 0;
-                profflag = 1;
-                if(debug == 2)
-                {
-                    fprintf(fmini, "#\n#\n# *************************************************************");
-                    fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, nv);
-                }
-                val = minimax(*tabu, 0, -LIMITE, +LIMITE, nv);
-                if(mel[0].tamanho == 0)
-                    break;
-                if(difclocks() < tempomovclock)
-                {
-                    // salva resultado da iteracao completa (mais profunda = mais precisa)
-                    memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
-                    melhor.tamanho = mel[0].tamanho;
-                    melhor.valor = val;
-                    melhorvalor1 = val;
-                }
-                else
-                    if(melhor.tamanho > 0)
-                        break;
-                totalnodo += totalnodonivel;
-                lst_ordem(plmov);  //ordena lista de movimentos
-                if(debug == 2)
-                {
-                    fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\n# pv: ", val / 100.0, totalnodo);
-                    if(!mostrapensando || abs(val) == FIMTEMPO || abs(val) == LIMITE)
-                        imprime_linha(&mel[0], 1, 2);
-                }
-                if(mostrapensando && abs(val) != FIMTEMPO && abs(val) != LIMITE)
-                {
-                    printf("%3d %+6d %3d %7d ", nv, (tabu->vez == BRANCO) ? val : -val,
-                           (int)difclocks(), totalnodo);
-                    imprime_linha(&mel[0], tabu->meionum + 1, ADV(tabu->vez));
-                }
-                if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && nv == 5))
-                {
-                    if(mel[0].tamanho == 0)
-                        printdbg(debug, "# xadreco_joga: sem lances; tempo estourado\n");
-                    else
-                        break;
-                }
-                if(nv >= max_depth) break;
-                nv++; // busca em amplitude: aumenta um nivel.
-            } //while val < XEQUEMATE
-        } // else (not randomchess)
-    } // fim do se nao usou livro
+    }
+}
 
-    // melhorvalor1 acompanha melhor.valor ao longo da busca.
-    // No caminho do livro, melhorvalor1 = melhor.valor (acima).
-    // No caminho do minimax, melhorvalor1 = val da ultima iteracao completa salva.
-    // Garante que melhor.valor esta consistente em todos os caminhos.
-    melhor.valor = melhorvalor1;
+// executa UMA iteracao do aprofundamento iterativo
+// retorna 1 = continuar buscando, 0 = terminou
+int xadreco_continua(busca *ctx)
+{
+    // livro ou randomchess ja encontrou lance
+    if(melhor.tamanho > 0 && ctx->nv == 1)
+        return 0;
 
-    if(debug == 2) fclose(fmini);
-    return melhor.valor;
+    totalnodonivel = 0;
+    profflag = 1;
+    if(debug == 2)
+    {
+        fprintf(fmini, "#\n#\n# *************************************************************");
+        fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, ctx->nv);
+    }
+    ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv);
+    if(mel[0].tamanho == 0)
+        return 0;
+    if(difclocks() < tempomovclock)
+    {
+        // salva resultado da iteracao completa (mais profunda = mais precisa)
+        memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
+        melhor.tamanho = mel[0].tamanho;
+        melhor.valor = ctx->val;
+        ctx->melhorvalor = ctx->val;
+    }
+    else
+        if(melhor.tamanho > 0)
+            return 0;
+    totalnodo += totalnodonivel;
+    lst_ordem(plmov);  //ordena lista de movimentos
+    if(debug == 2)
+    {
+        fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\n# pv: ", ctx->val / 100.0, totalnodo);
+        if(!mostrapensando || abs(ctx->val) == FIMTEMPO || abs(ctx->val) == LIMITE)
+            imprime_linha(&mel[0], 1, 2);
+    }
+    if(mostrapensando && abs(ctx->val) != FIMTEMPO && abs(ctx->val) != LIMITE)
+    {
+        printf("%3d %+6d %3d %7d ", ctx->nv, (ctx->tabu->vez == BRANCO) ? ctx->val : -ctx->val,
+               (int)difclocks(), totalnodo);
+        imprime_linha(&mel[0], ctx->tabu->meionum + 1, ADV(ctx->tabu->vez));
+    }
+    if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && ctx->nv == 5))
+    {
+        if(mel[0].tamanho == 0)
+            printdbg(debug, "# xadreco_continua: sem lances; tempo estourado\n");
+        else
+            return 0;
+    }
+    if(abs(ctx->val) >= XEQUEMATE)
+        return 0;
+    if(ctx->nv >= ctx->max_depth)
+        return 0;
+    ctx->nv++; // busca em amplitude: aumenta um nivel.
+    return 1;
+}
+
+// cleanup da busca (sem output de lance — responsabilidade do caller)
+void xadreco_para(busca *ctx)
+{
+    melhor.valor = ctx->melhorvalor;
+    if(debug == 2)
+        fclose(fmini);
 }
 
 // ------------------------------- jogo do computador -----------------------
@@ -2284,8 +2300,12 @@ char compjoga(tabuleiro *tabu)
 {
     IFDEBUG("compjoga()");
     char res;
+    busca ctx;
 
-    xadreco_joga(tabu, nivel, tempomovclock);
+    xadreco_inicia(&ctx, tabu, nivel, tempomovclock);
+    while(xadreco_continua(&ctx));
+    xadreco_para(&ctx);
+
     if(melhor.tamanho == 0)
     {
         res = randommove(tabu);
@@ -2301,8 +2321,12 @@ char compjoga(tabuleiro *tabu)
 char analisa(tabuleiro *tabu)
 {
     IFDEBUG("analisa()");
+    busca ctx;
 
-    xadreco_joga(tabu, MAX_PROF, 999999.0);
+    xadreco_inicia(&ctx, tabu, MAX_PROF, 999999.0);
+    while(xadreco_continua(&ctx));
+    xadreco_para(&ctx);
+
     if(melhor.tamanho == 0)
         return 'e';
     return '-';
@@ -3497,9 +3521,9 @@ int igual_strlances_strlinha(char *strlances, char *strlinha)
 }
 
 //preenche melhor com uma variante do livro, avaliando candidatos
-void usalivro(tabuleiro tabu)
+void usa_livro(tabuleiro tabu)
 {
-    IFDEBUG("usalivro()");
+    IFDEBUG("usa_livro()");
     char linha[256], strlance[256], nextmove[5];
     FILE *flivro;
     char *p;
@@ -3665,7 +3689,7 @@ void inicia(tabuleiro *tabu)
     lst_recria(&plmov);
     lst_recria(&pltab);
     ofereci = 1; //computador pode oferecer 1 empate
-    USALIVRO = 1; // usalivro checks if file exists
+    USALIVRO = 1; // usa_livro checks if file exists
     setboard = 0;
     ultimo_resultado[0] = '\0';
     primeiro = 'h'; //humano inicia, com comandos para acertar detalhes do jogo
@@ -3698,15 +3722,6 @@ void zera_pecas(tabuleiro *tabu)
     setboard = 1;
 }
 
-//limpa algumas variaveis para iniciar ponderacao
-void limpa_pensa(void)
-{
-    IFDEBUG("limpa_pensa()");
-    melhor.tamanho = 0;
-    melhor.valor = 0; // neutro; compjoga/analisa inicializa baseado na cor
-    profflag = 1;
-    totalnodonivel = 0;
-}
 
 //preenche a estrutura movimento usando arena e lst_insere
 void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff)
@@ -3882,7 +3897,7 @@ char randommove(tabuleiro *tabu)
     movimento *succ;
     no *n;
 
-    limpa_pensa();  //limpa plance para iniciar a ponderacao
+    melhor = (resultado){0};
     lst_recria(&plmov);
     geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
     if(plmov->qtd == 0)
