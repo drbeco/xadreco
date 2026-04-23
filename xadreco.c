@@ -332,8 +332,6 @@ int OFERECEREMPATE = 0;
 
 /* ---------------------------------------------------------------------- */
 /* prototipos gerais */ /* general prototypes */
-//imprime o tabuleiro
-void imptab(tabuleiro tabu);
 void mostra_tabu(tabuleiro tabu);
 //transforma lances int 0077 em char tipo a1h8
 void lance2movi(char *m, int de, int pa, int especial);
@@ -388,8 +386,10 @@ void scanf2(char *movinito);
 int tokenizer(char *line, int *pos, char *token);
 // monta o tabuleiro a partir dos 6 campos FEN na linha
 void monta_fen(char *line, int *pos, tabuleiro *tabu);
-// processa um comando do protocolo (xboard/uci). retorna: 0=quit, 1=tratado, -1=nao e comando, 'w'/'y'/'B'/'b'/'c'=game-ending
-int comando_proto(char *movinito, tabuleiro *tabu);
+// processa um comando do protocolo. retorna: 0=quit, 1=tratado, -1=nao e comando
+int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx);
+// tenta jogar um lance do usuario (e.g., "e2e4", "e7e8q"). retorna 1=jogou, 0=invalido
+int joga_movinito(char *movinito, tabuleiro *tabu);
 // handshake do protocolo: "xboard" ou "quit". Retorna 1=ok, 0=quit
 int cumprimento(char *movinito);
 // busca: trio de funcoes para aprofundamento iterativo
@@ -406,8 +406,6 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor);
 int xeque_rei_das(int cor, tabuleiro tabu);
 //para voltar um movimento. Use duas vezes para voltar um lance inteiro.
 void volta_lance(tabuleiro *tabu);
-//analisa uma posicao mas nao joga
-char analisa(tabuleiro *tabu);
 //procura nos movimentos de geramov se o lance em questao eh valido. Retorna o *movimento preenchido. Se nao, retorna NULL.
 int valido(tabuleiro tabu, int de, int pa, movimento *result);
 //retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
@@ -458,12 +456,6 @@ int tab_insere(tabuleiro tabu);
 //copia font para dest. dest=font.
 void copitab(tabuleiro *dest, tabuleiro *font);
 
-// turnos -----------------------------------------------------------
-//humano joga. Aceita comandos XBoard/WinBoard.
-char humajoga(tabuleiro *tabu);
-//computador joga. Chama o livro de aberturas ou o minimax.
-char compjoga(tabuleiro *tabu);
-
 /* ---------------------------------------------------------------------- */
 /* codigo principal - main code */
 int main(int argc, char *argv[])
@@ -483,12 +475,9 @@ int main(int argc, char *argv[])
 
     int opt; /* return from getopt() */
     tabuleiro tabu;
-    char res;
     char movinito[80];
     int verflag = 0; /* -V counter: 1=copyr, 2=version only */
     // int joga; /* flag enquanto joga */
-    struct tm *tmatual;
-    char hora[] = "2013-12-03 00:28:21";
     int seed = 0;
 
     srand(time(NULL) + getpid());
@@ -571,190 +560,64 @@ int main(int argc, char *argv[])
     if(!cumprimento(movinito))
         sai(0);
 
-    /* joga==0, fim. joga==1, novo lance. (joga==2, nova partida) */
     //------------------------------------------------------------------------------
     // novo jogo
-    inicia(&tabu);  // zera variaveis
+    int ligado = 1;
+    int buscando = 0;
+    busca ctx;
+
+    inicia(&tabu);
     assert(tabu.vez == BRANCO && "board not initialized");
     tab_insere(tabu);
     assert(pltab != NULL && pltab->cabeca != NULL && "board history null");
+
     //------------------------------------------------------------------------------
-    //joga_novamente: (play another move)
+    // laco de jogo (event loop)
 
-    while(TRUE)
+    while(ligado)
     {
-        tatual = time(NULL);
-        // printdbg(debug, "# xadreco : Tempo atual %s", ctime(&tatual)); //ctime returns "\n"
-        tmatual = localtime(&tatual); // convert time_t to struct tm
-        /* strftime(hora, sizeof(hora), "%F %T", tmatual); */ /* not accepted in that other operating xystem */
-        strftime(hora, sizeof(hora), "%Y-%m-%d %H:%M:%S", tmatual);
-        if(tabu.meionum == 2) //pretas jogou o primeiro. Relogios iniciam
+        // --- input: processa comando ou lance ---
+        if(pollinput())
         {
-            tinijogo = tinimov = tatual;
-            printdbg(debug, "# xadreco : N.2. Relogio ligado em %s\n", hora);  //ctime(&tinijogo));
-        }
-        if(tabu.meionum > 2)
-        {
-            tdifs = difftime(tatual, tinimov);
-            if(tabu.vez == BRANCO) //iniciando vez das brancas
+            scanf2(movinito);
+            ligado = comando_proto(movinito, &tabu, &buscando, &ctx);
+            if(ligado == -1)  // nao e comando, tenta como lance
             {
-                tpretasac += tdifs; //acumulou lance anterior, das pretas
-                printdbg(debug, "# xadreco : N.%d. Pretas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.meionum, tdifs, tpretasac, hora);
-            }
-            else
-            {
-                tbrancasac += tdifs;
-                printdbg(debug, "# xadreco : N.%d. Brancas. Tempo %fs. Acumulado: %fs. Hora: %s\n", tabu.meionum, tdifs, tbrancasac, hora);
-            }
-            tinimov = tatual; //ancora para proximo tempo acumulado
-        }
-
-        if(tabu.vez == BRANCO)  /* jogam as brancas */
-            if(primeiro == 'c')
-                res = compjoga(&tabu);
-            else
-                res = humajoga(&tabu);
-        else                     /* jogam as pretas */
-            if(segundo == 'c')
-                res = compjoga(&tabu);
-            else
-                res = humajoga(&tabu);
-
-        if(res != 'w' && res != 'c') /* BUG : porque ? */
-            imptab(tabu);
-        switch(res)
-        {
-            case 'w': //Novo jogo
-                inicia(&tabu);  // zera variaveis
-                tab_insere(tabu);
-                break;
-            case '*':
-                strcpy(ultimo_resultado, "* {Game was unfinished}");
-                printf2("* {Game was unfinished}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'M':
-                strcpy(ultimo_resultado, "0-1 {Black mates}");
-                printf2("0-1 {Black mates}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'm':
-                strcpy(ultimo_resultado, "1-0 {White mates}");
-                printf2("1-0 {White mates}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'a':
-                strcpy(ultimo_resultado, "1/2-1/2 {Stalemate}");
-                printf2("1/2-1/2 {Stalemate}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'p':
-                strcpy(ultimo_resultado, "1/2-1/2 {Draw by endless checks}");
-                printf2("1/2-1/2 {Draw by endless checks}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'c':
-                strcpy(ultimo_resultado, "1/2-1/2 {Draw by mutual agreement}");  //aceitar empate
-                printdbg(debug, "# xadreco : offer draw, draw accepted\n");
-                printf2("offer draw\n");
-                printf2("1/2-1/2 {Draw by mutual agreement}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'i':
-                strcpy(ultimo_resultado, "1/2-1/2 {Draw by insufficient mating material}");
-                printf2("1/2-1/2 {Draw by insufficient mating material}\n");
-                primeiro = segundo = 'h';
-                break;
-            case '5':
-                strcpy(ultimo_resultado, "1/2-1/2 {Draw by fifty moves rule}");
-                printf2("1/2-1/2 {Draw by fifty moves rule}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'r':
-                strcpy(ultimo_resultado, "1/2-1/2 {Draw by triple repetition}");
-                printf2("1/2-1/2 {Draw by triple repetition}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'T':
-                strcpy(ultimo_resultado, "0-1 {White flag fell}");
-                printf2("0-1 {White flag fell}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 't':
-                strcpy(ultimo_resultado, "1-0 {Black flag fell}");
-                printf2("1-0 {Black flag fell}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'B':
-                strcpy(ultimo_resultado, "0-1 {White resigns}");
-                printf2("0-1 {White resigns}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'b':
-                strcpy(ultimo_resultado, "1-0 {Black resigns}");
-                printf2("1-0 {Black resigns}\n");
-                primeiro = segundo = 'h';
-                break;
-            case 'e': //se existe um resultado, envia ele para finalizar a partida
-                if(ultimo_resultado[0] != '\0')
-                {
-                    printdbg(debug, "# xadreco : case 'e' (empty) %s\n", ultimo_resultado);
-                    printf2("%s\n", ultimo_resultado);
-                    primeiro = segundo = 'h';
-                }
+                if(!joga_movinito(movinito, &tabu))
+                    printf2("Illegal move: %s\n", movinito);
                 else
+                    if(debug) mostra_tabu(tabu);
+                ligado = 1;
+            }
+        }
+
+        // --- busca: uma iteracao do aprofundamento iterativo ---
+        if(buscando)
+        {
+            buscando = xadreco_continua(&ctx);
+            if(!buscando)
+            {
+                xadreco_para(&ctx);
+                if(melhor.tamanho > 0)
                 {
-                    printdbg(debug, "# xadreco (main) : I really don't know what to play... resigning!\n");
-                    printf2("resign\n");
-                    if(primeiro == 'c')
-                    {
-                        res = 'B';
-                        strcpy(ultimo_resultado, "0-1 {White resigns}");
-                        printf2("0-1 {White resigns}\n");
-
-                    }
-                    else
-                    {
-                        res = 'b';
-                        strcpy(ultimo_resultado, "1-0 {Black resigns}");
-                        printf2("1-0 {Black resigns}\n");
-                    }
-                    primeiro = segundo = 'h';
+                    joga_em(&tabu, melhor.linha[0], 1);
+                    lance2movi(movinito, tabu.de, tabu.pa, tabu.especial);
+                    printf2("move %s\n", movinito);
+                    if(debug) mostra_tabu(tabu);
                 }
-                break;
-            case 'x': //xeque: joga novamente
-            case 'y': //retorna y: simplesmente gira o laco para jogar de novo. Troca de adv.
-            default: //'-' para tudo certo...
-                //       primeiro = segundo = 'h';
-                break;
-        } //fim do switch(res)
-    } //while (TRUE)
+            }
+        }
 
-    msgsai("# out of main loop...\n", 0);  //vai apenas para o log, mas nao para a saida
+        // --- idle ---
+        if(!buscando && !pollinput())
+            usleep(1000);
+
+    } //while (ligado)
+
+    msgsai("# out of main loop...\n", 0);
     return EXIT_SUCCESS;
 }
 
-
-// mostra a lista de lances da tela, a melhor variante, e responde ao comando "hint"
-// imprime o movimento
-// funcao intermediaria chamada no intervalo humajoga / compjoga
-void imptab(tabuleiro tabu)
-{
-    char movinito[80];
-    movinito[79] = '\0';
-    lance2movi(movinito, tabu.de, tabu.pa, tabu.especial);
-    /* imprime o movimento */
-    if((tabu.vez == BRANCO && segundo == 'c') || (tabu.vez == PRETO && primeiro == 'c'))
-    {
-        printf2("move %s\n", movinito);
-        if(OFERECEREMPATE == 1)
-        {
-            printf2("offer draw\n");
-            OFERECEREMPATE = 0;
-        }
-    }
-    if(debug) mostra_tabu(tabu);
-}
 
 //mostra tabuleiro em ascii no stderr (debug)
 void mostra_tabu(tabuleiro tabu)
@@ -1627,8 +1490,9 @@ int cumprimento(char *movinito)
     return 1;
 }
 
-// game-ending: 'w'=new, 'y'=go, 'B'/'b'=resign, 'c'=draw accepted
-int comando_proto(char *movinito, tabuleiro *tabu)
+// processa um comando do protocolo
+// retorna: 0=quit, 1=tratado, -1=nao e comando
+int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
 {
     int moves, minutes;
     double secs, osecs = 0.0, incre = 0.0;
@@ -1638,38 +1502,29 @@ int comando_proto(char *movinito, tabuleiro *tabu)
     char pieces[80], color[4], castle[8], enpassant[4], halfmove[8], fullmove[8];
     char res;
 
-    // --- lifecycle: retorna ao main loop ---
+    // --- lifecycle ---
 
     if(!strcmp(movinito, "quit"))
         msgsai("# Thanks for playing Xadreco.", 0);
     if(!strcmp(movinito, "new"))
     {
-        printdbg(debug, "# xboard: new. Xadreco sets the board in initial position.\n");
-        return 'w';
+        *buscando = 0;
+        inicia(tabu);
+        tab_insere(*tabu);
+        printdbg(debug, "# xboard: new.\n");
+        return 1;
     }
-    if(!strcmp(movinito, "go"))   //troca de lado e joga
+    if(!strcmp(movinito, "go"))   //inicia busca
     {
-        if(tabu->vez == BRANCO)
-        {
-            primeiro = 'c';
-            segundo = 'h';
-            printdbg(debug, "# xboard: go. Xadreco is now white.\n");
-        }
-        else
-        {
-            primeiro = 'h';
-            segundo = 'c';
-            printdbg(debug, "# xboard: go. Xadreco is now black.\n");
-        }
-        return 'y';
+        xadreco_inicia(ctx, tabu, nivel, tempomovclock);
+        *buscando = 1;
+        printdbg(debug, "# xboard: go.\n");
+        return 1;
     }
-    // --- controle de jogadores ---
-
     if(!strcmp(movinito, "force"))   //nao joga, apenas acompanha
     {
-        primeiro = 'h';
-        segundo = 'h';
-        printdbg(debug, "# xboard: force. Xadreco is in force mode.\n");
+        *buscando = 0;
+        printdbg(debug, "# xboard: force.\n");
         return 1;
     }
 
@@ -1681,20 +1536,22 @@ int comando_proto(char *movinito, tabuleiro *tabu)
         imprime_linha(&melhor, tabu->meionum, tabu->vez);
         return 1;
     }
-    if(!strcmp(movinito, "analyze"))
+    if(!strcmp(movinito, "analyze"))   //busca infinita
     {
-        printdbg(debug, "# xboard: analyze. Xadreco starts analyzing in force mode.\n");
-        analise = 1;
-        mostrapensando = 0;
-        primeiro = 'h';
-        segundo = 'h';
-        disc = analisa(tabu);
+        xadreco_inicia(ctx, tabu, MAX_PROF, 999999.0);
+        *buscando = 1;
+        mostrapensando = 1;
+        printdbg(debug, "# xboard: analyze.\n");
         return 1;
     }
-    if(!strcmp(movinito, "exit"))   //analise termina
+    if(!strcmp(movinito, "exit") || !strcmp(movinito, "?"))
     {
-        analise = 0;
-        printdbg(debug, "# xboard: exit. Xadreco stops analyzing.\n");
+        if(*buscando)
+        {
+            xadreco_para(ctx);
+            *buscando = 0;
+        }
+        printdbg(debug, "# xboard: stop.\n");
         return 1;
     }
     if(!strcmp(movinito, "post"))   //showthinking
@@ -1827,10 +1684,8 @@ int comando_proto(char *movinito, tabuleiro *tabu)
             default:  tabu->situa = 0;
         }
         USALIVRO = 0;
-        primeiro = 'h';
-        segundo = 'h';
         tab_insere(*tabu);
-        imptab(*tabu);
+        if(debug) mostra_tabu(*tabu);
         return 1;
     }
 
@@ -1898,42 +1753,20 @@ int comando_proto(char *movinito, tabuleiro *tabu)
 }
 
 //----------------------------------------------
-char humajoga(tabuleiro *tabu)
+// tenta jogar um lance do usuario (e.g., "e2e4", "e7e8q")
+// retorna 1 se jogou, 0 se invalido
+int joga_movinito(char *movinito, tabuleiro *tabu)
 {
-    char movinito[80];
+    int de, pa;
     movimento mval;
-    char res;
-    int tente, de, pa, ret;
+    char sit;
 
-    movinito[79] = movinito[0] = '\0';
+    if(!movi2lance(&de, &pa, movinito))
+        return 0;
+    if(!valido(*tabu, de, pa, &mval))
+        return 0;
 
-    do
-    {
-        tente = 0;
-        scanf2(movinito);
-
-        ret = comando_proto(movinito, tabu);
-        if(ret == 0) sai(0);                       // quit
-        if(ret == 1) { tente = 1; continue; }       // command handled
-        if(ret > 1) return (char)ret;               // game-ending: w, y, B, b, c
-
-        // ret == -1: nao e comando, tenta como lance
-        if(!movi2lance(&de, &pa, movinito))
-        {
-            printf2("Error (unknown command): %s\n", movinito);
-            tente = 1;
-            continue;
-        }
-        if(!valido(*tabu, de, pa, &mval))
-        {
-            printf2("Illegal move: %s\n", movinito);
-            tente = 1;
-            continue;
-        }
-    }
-    while(tente);
-
-    // promocao: sufixo do lance (e.g., "e7e8q")
+    // promocao: sufixo do lance
     switch(movinito[4])
     {
         case 'q': mval.especial = 4; break;
@@ -1943,15 +1776,22 @@ char humajoga(tabuleiro *tabu)
         default: break;
     }
 
-    // humano joga
-    res = joga_em(tabu, mval, 1);
+    sit = joga_em(tabu, mval, 1);
 
-    // se em modo analise, analisa a nova posicao
-    if(analise == 1)
-        disc = analisa(tabu);
+    // verifica mate/empate apos o lance (joga_em retorna situacao)
+    switch(sit)
+    {
+        case 'M': printf2("0-1 {Black mates}\n"); break;
+        case 'm': printf2("1-0 {White mates}\n"); break;
+        case 'a': printf2("1/2-1/2 {Stalemate}\n"); break;
+        case 'i': printf2("1/2-1/2 {Draw by insufficient mating material}\n"); break;
+        case '5': printf2("1/2-1/2 {Draw by fifty moves rule}\n"); break;
+        case 'r': printf2("1/2-1/2 {Draw by triple repetition}\n"); break;
+        default: break;
+    }
 
-    return res;
-} //fim do huma_joga---------------
+    return 1;
+}
 
 int valido(tabuleiro tabu, int de, int pa, movimento *result)
 {
@@ -2189,43 +2029,6 @@ void xadreco_para(busca *ctx)
     melhor.valor = ctx->melhorvalor;
     if(debug == 2)
         fclose(fmini);
-}
-
-// ------------------------------- jogo do computador -----------------------
-char compjoga(tabuleiro *tabu)
-{
-    IFDEBUG("compjoga()");
-    char res;
-    busca ctx;
-
-    xadreco_inicia(&ctx, tabu, nivel, tempomovclock);
-    while(xadreco_continua(&ctx));
-    xadreco_para(&ctx);
-
-    if(melhor.tamanho == 0)
-    {
-        res = randommove(tabu);
-        if(res == 'e')
-            return res;
-        printdbg(debug, "# xadreco : Playing a random move (compjoga)!\n");
-    }
-    assert(melhor.tamanho > 0 && "melhor.tamanho == 0 before joga_em in compjoga");
-    res = joga_em(tabu, melhor.linha[0], 1);
-    return res;
-}
-
-char analisa(tabuleiro *tabu)
-{
-    IFDEBUG("analisa()");
-    busca ctx;
-
-    xadreco_inicia(&ctx, tabu, MAX_PROF, 999999.0);
-    while(xadreco_continua(&ctx));
-    xadreco_para(&ctx);
-
-    if(melhor.tamanho == 0)
-        return 'e';
-    return '-';
 }
 
 //--------------------------------------------------------------------------
