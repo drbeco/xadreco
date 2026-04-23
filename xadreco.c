@@ -1,23 +1,6 @@
-//-----------------------------------------------------------------------------
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//%% Direitos Autorais segundo normas do codigo-livre: (GNU - GPL)
-//%% Universidade Estadual Paulista - UNESP, Universidade Federal de Pernambuco - UFPE
-//%% Jogo de xadrez: xadreco
-//%% Arquivo xadreco.c
-//%% Tecnica: MiniMax
-//%% Autor: Ruben Carlo Benante
-//%% Contato: rcb@beco.cc
-//%% Criacao: 19/08/1994
-//%% Atualizacao: 27/03/1997
-//%% Atualizacao: 10/06/1999
-//%% Atualizacao para XBoard: 26/09/2004
-//%% Atualizacao versao 6.1: 2026-04-15
-//%% Atualizacao edicao v7.x: 2026-04-15
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//-----------------------------------------------------------------------------
 /***************************************************************************
- *   xadreco version 6.1. Chess engine compatible                          *
- *   with XBoard Protocol (C)                                              *
+ *   Xadreco version 8.x Chess engine                                      *
+ *   with UCI Protocol (C)                                                 *
  *   Copyright (C) 1994-2026 by Ruben Carlo Benante <rcb@beco.cc>          *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -38,9 +21,22 @@
  * To contact the author, please write to:                                 *
  * Ruben Carlo Benante.                                                    *
  * email: rcb@beco.cc                                                      *
- * web page:                                                               *
- * http://xadreco.beco.cc/                                                 *
+ * web page: http://xadreco.beco.cc/                                       *
  ***************************************************************************/
+//--------------------------------------------------------------------------
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//%% Jogo de xadrez: xadreco
+//%% Arquivo xadreco.c
+//%% Tecnica: MiniMax com corte Alfa-Beta
+//%% Criacao: 19/08/1994
+//%% Atualizacao: 27/03/1997
+//%% Atualizacao: 10/06/1999
+//%% Atualizacao para XBoard: 26/09/2004
+//%% Atualizacao versao 6.1: 2026-04-15
+//%% Atualizacao edicao v7.x: 2026-04-15
+//%% Atualizacao UCI v8.x: 2026-04-23
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//--------------------------------------------------------------------------
 
 /* ---------------------------------------------------------------------- */
 /* includes */
@@ -87,9 +83,6 @@
 #define IFDEBUG(M) if(DEBUG) fprintf(stderr, "# [DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
 
 /* Command line defaults */
-#ifndef RANDOM
-#define RANDOM -1
-#endif
 #ifndef XDEBUG
 #define XDEBUG 0
 #endif
@@ -109,14 +102,6 @@
 #define LIMITE 105000
 //define o valor do xequemate
 #define XEQUEMATE 100000
-//numero do movimento que a maquina pode pedir empate pela primeira vez
-#define MOVE_EMPATE1 52
-//numero do movimento que a maquina pode pedir empate pela segunda vez
-#define MOVE_EMPATE2 88
-// pede empate se tiver menos que 2 PEOES
-#define QUANTO_EMPATE1 -200
-//pede empate se lances > MOVE_EMPATE2 e tem menos que 0.2 PEAO
-#define QUANTO_EMPATE2 20
 // geramodo de geramov: gera todos, gera unico (confere afogado), gera deste (0-63)
 #define GERA_TUDO  -1
 #define GERA_UNICO -2
@@ -273,30 +258,18 @@ const tabuleiro TAB_INICIO =
 };
 
 // outros globais ------------------------------------
-//my rating and opponent rating
-int myrating, opprating;
 //log file for debug==2
 FILE *fmini;
+//0: sem livro. 1: usa livro de aberturas (opcao -b)
+int livro = 0;
 //1:consulta o livro de aberturas livro.txt. 0:nao consulta
-int USALIVRO;
-//o computador pode oferecer empate (duas|uma) vezes.
-int ofereci;
-//sem uso. variavel de descarte, para nao sujar o stdin, dic=pega()
-char disc;
-//mostra as linhas que o computador esta escolhendo
-int mostrapensando = 0;
-//primeiro e segundo jogadores: h:humano, c:computador
-char primeiro = 'h', segundo = 'c';
-//0 nao analise. 1 para analise. ("exit" coloca ela como 0 novamente)
-int analise = 0;
+int usando_livro;
 // 0: pensa para jogar. 1: joga ao acaso.
 int randomchess = 0;
+//mostra as linhas que o computador esta escolhendo
+int mostrapensando = 0;
 //-1 para primeira vez. 0 nao edita. 1 edita. Posicao FEN.
 int setboard = 0;
-//armazena o ultimo resultado, ex: 1-0 {White mates}
-char ultimo_resultado[80] = "";
-//pause entre lances (computador x computador)
-char pausa;
 //nivel de profundidade (agora com aprofundamento iterativo, esta sem uso)
 int nivel = 3;
 //Flag de captura ou xeque para liberar mais um nivel em profsuf
@@ -307,28 +280,17 @@ int totalnodo = 0;
 int totalnodonivel = 0;
 
 // controle de tempo
-time_t tinijogo, tinimov, tatual, tultimoinput;
-double tbrancasac, tpretasac; //tempo brancas/pretas acumulado
+time_t tinimov, tatual, tultimoinput;
 double tdifs; // diferenca em segundos tdifs=difftime(t2,t1), calcular o tempo gasto no minimax e outras
 //3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min por jogo (de 100 lances)
 double tempomovclock; //em segundos
 double tempomovclockmax; // max allowed
-//Nome do arquivo de log
-char flog[80] = "";
-//abandona a partida quando perder algo como DAMA, 2 TORRES, 1 BISPO e 1 PEAO; ou nunca, quando jogando contra outra engine
-int ABANDONA = -2430;
-//flag que diz se esta jogando contra outra engine.
-int COMPUTER = 0;
-//flag que diz que o comando "?" foi executado
-//int teminterroga = 0;
 
 char bookfname[80] = "livro.txt"; /* book file name */
 /* int verb = 0; /1* verbose variable *1/ */
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
 int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
 int pong; /* what to ping back */
-/* se decidir oferecer empate, primeiro manda o lance, depois a oferta */
-int OFERECEREMPATE = 0;
 
 /* ---------------------------------------------------------------------- */
 /* prototipos gerais */ /* general prototypes */
@@ -390,6 +352,8 @@ void monta_fen(char *line, int *pos, tabuleiro *tabu);
 int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx);
 // tenta jogar um lance do usuario (e.g., "e2e4", "e7e8q"). retorna 1=jogou, 0=invalido
 int joga_movinito(char *movinito, tabuleiro *tabu);
+// processa opcoes de linha de comando (getopt)
+void opcoes(int argc, char *argv[]);
 // handshake do protocolo: "xboard" ou "quit". Retorna 1=ok, 0=quit
 int cumprimento(char *movinito);
 // busca: trio de funcoes para aprofundamento iterativo
@@ -460,6 +424,8 @@ void copitab(tabuleiro *dest, tabuleiro *font);
 /* codigo principal - main code */
 int main(int argc, char *argv[])
 {
+    int ligado; // jogo ligado, rodando
+    int buscando; // procurando lances
     // gerenciamento de memoria com arenas
     arena atab; // historico de posicoes de tabuleiro do jogo
     arena_inicia(&atab, ARENA_TAB);
@@ -473,87 +439,10 @@ int main(int argc, char *argv[])
     if(lst_cria(&amov, &plmov))
         msgsai("# Erro arena cheia em main lst_cria amov", 39);
 
-    int opt; /* return from getopt() */
     tabuleiro tabu;
     char movinito[80];
-    int verflag = 0; /* -V counter: 1=copyr, 2=version only */
-    // int joga; /* flag enquanto joga */
-    int seed = 0;
 
-    srand(time(NULL) + getpid());
-    IFDEBUG("Starting optarg loop...");
-
-    /* getopt() configured options:
-     *        -h  help
-     *        -V  version
-     *        -v  verbose
-     */
-    /* Usage: xadreco [-h|-v] [-r] [-x] [-b path/bookfile.txt] */
-    /* -r seed,  --random seed        Xadreco plays random moves. Initializes seed. If seed=0, 'true' random */
-    /* -x,  --xboard                  Gives 'xboard' keyword immediately */
-    /* -b path/bookfile.txt, --book   Sets the path for book file */
-    opterr = 0;
-    while((opt = getopt(argc, argv, "vhVr:b:")) != EOF)
-        switch(opt)
-        {
-            case 'h':
-                help();
-                break;
-            case 'V':
-                verflag++;
-                break;
-            case 'v':
-                debug++;
-                break;
-            case 'r':
-                seed = atoi(optarg);
-                if(seed)
-                    srand(seed);
-                randomchess = 1;
-                break;
-            case 'b': /* book file name */
-                strcpy(bookfname, optarg);
-                break;
-            case '?':
-            default:
-                printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
-                return EXIT_FAILURE;
-        }
-    /* RANDOM >= 0, defined YES at compiler time */
-    /* RANDOM < -1, defined NO at compiler time */
-    /* Otherwise, RANDOM == -1 defined by command line */
-#if RANDOM >= 0
-    seed = RANDOM;
-    if(seed)
-        srand(seed);
-    randomchess = 1;
-#endif
-#if RANDOM < -1
-    randomchess = 0;
-#endif
-
-    if(verflag >= 2)
-    {
-        printf("%s\n", VERSION);
-        exit(EXIT_SUCCESS);
-    }
-    if(verflag == 1)
-        copyr();
-
-    /* if XDEBUG<=0, command line -vvv..., otherwise debug=XDEBUG */
-#if XDEBUG > 0
-    debug = XDEBUG;
-#endif
-
-    printdbg(debug, "# DEBUG MACRO compiled value: %d\n", DEBUG);
-    printdbg(debug, "# Debug verbose level set at: %d\n", debug);
-    printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
-    printdbg(debug, "# wait: -x %s\n", movinito);
-    printdbg(debug, "# book: -b %s\n", bookfname);
-
-    //turn off buffers. Immediate input/output.
-    setbuf(stdout, NULL);
-    setbuf(stdin, NULL);
+    opcoes(argc, argv);
 
     // handshake do protocolo
     scanf2(movinito);
@@ -562,8 +451,8 @@ int main(int argc, char *argv[])
 
     //------------------------------------------------------------------------------
     // novo jogo
-    int ligado = 1;
-    int buscando = 0;
+    ligado = 1;
+    buscando = 0;
     busca ctx;
 
     inicia(&tabu);
@@ -618,6 +507,69 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
+//----------------------------------------------
+// processa um comando do protocolo xboard
+// retorna: 0=quit, 1=tratado, -1=nao e comando
+// processa opcoes de linha de comando
+void opcoes(int argc, char *argv[])
+{
+    int opt;
+    int verflag = 0;
+    int seed = 0;
+
+    srand(time(NULL) + getpid());
+
+    /* Usage: xadreco [-h|-v] [-V|-VV] [-r seed] [-b bookfile] */
+    opterr = 0;
+    while((opt = getopt(argc, argv, "vhVr:b:")) != EOF)
+        switch(opt)
+        {
+            case 'h':
+                help();
+                break;
+            case 'V':
+                verflag++;
+                break;
+            case 'v':
+                debug++;
+                break;
+            case 'r':
+                seed = atoi(optarg);
+                if(seed)
+                    srand(seed);
+                randomchess = 1;
+                break;
+            case 'b':
+                strcpy(bookfname, optarg);
+                livro = 1;
+                break;
+            case '?':
+            default:
+                printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
+                exit(EXIT_FAILURE);
+        }
+
+    if(verflag >= 2)
+    {
+        printf("%s\n", VERSION);
+        exit(EXIT_SUCCESS);
+    }
+    if(verflag == 1)
+        copyr();
+
+#if XDEBUG > 0
+    debug = XDEBUG;
+#endif
+
+    printdbg(debug, "# DEBUG MACRO compiled value: %d\n", DEBUG);
+    printdbg(debug, "# Debug verbose level set at: %d\n", debug);
+    printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
+    printdbg(debug, "# book: -b %s\n", bookfname);
+
+    // turn off buffers. Immediate input/output.
+    setbuf(stdout, NULL);
+    setbuf(stdin, NULL);
+}
 
 //mostra tabuleiro em ascii no stderr (debug)
 void mostra_tabu(tabuleiro tabu)
@@ -1289,9 +1241,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     if(lmov && lmov->qtd > 1)
         lst_parte(lmov); //particiona: capturas e especiais primeiro
     return (lmov ? lmov->qtd > 0 : 0);
-}
-//fim de   ----------- int geramov(tabuleiro tabu, lista *lmov, int geramodo)
+} //fim de   ----------- int geramov(tabuleiro tabu, lista *lmov, int geramodo)
 
+// confere se uma cor ataca uma casa 
 int ataca(int cor, int col, int lin, tabuleiro tabu)
 {
     //retorna verdadeiro (1) ou falso (0)
@@ -1411,7 +1363,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
     return (0);
 }
 
-//fim de int ataca(int cor, int col, int lin, tabuleiro tabu)
+// confere se um rei de dada cor esta em xeque 
 int xeque_rei_das(int cor, tabuleiro tabu)
 {
     int sq = tabu.rei_pos[ICOR(cor)];
@@ -1419,11 +1371,6 @@ int xeque_rei_das(int cor, tabuleiro tabu)
     return ataca(ADV(cor), COL(sq), ROW(sq), tabu);
 }
 
-// fim de int xeque_rei_das(int cor, tabuleiro tabu)
-
-//----------------------------------------------
-// processa um comando do protocolo xboard
-// retorna: 0=quit, 1=tratado, -1=nao e comando
 // handshake do protocolo xboard
 // retorna 1=ok, 0=quit
 int cumprimento(char *movinito)
@@ -1463,12 +1410,10 @@ int cumprimento(char *movinito)
             return 0;
         if(!strcmp(movinito, "easy"))
         {
-            analise = 0;
             mostrapensando = 0;
         }
         else if(!strcmp(movinito, "post"))
         {
-            analise = 0;
             mostrapensando = 1;
         }
         else if(!strcmp(movinito, "done"))
@@ -1556,7 +1501,6 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
     }
     if(!strcmp(movinito, "post"))   //showthinking
     {
-        analise = 0;
         mostrapensando = 1;
         printdbg(debug, "# xboard: post. Xadreco will show what its thinking.\n");
         return 1;
@@ -1670,7 +1614,6 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
         }
         fen_pos = 0;
         monta_fen(fen_buf, &fen_pos, tabu);
-        ultimo_resultado[0] = '\0';
         res = situacao(*tabu);
         switch(res)
         {
@@ -1683,7 +1626,7 @@ int comando_proto(char *movinito, tabuleiro *tabu, int *buscando, busca *ctx)
             case '*': tabu->situa = 7; break;
             default:  tabu->situa = 0;
         }
-        USALIVRO = 0;
+        usando_livro = 0;
         tab_insere(*tabu);
         if(debug) mostra_tabu(*tabu);
         return 1;
@@ -1921,11 +1864,11 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
     }
 
     // livro de aberturas
-    if(USALIVRO && tabu->meionum < 52 && setboard != 1 && !randomchess)
+    if(livro && usando_livro && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usa_livro(*tabu);
         if(melhor.tamanho == 0)
-            USALIVRO = 0;
+            usando_livro = 0;
         ctx->melhorvalor = melhor.valor;
     }
 
@@ -2971,7 +2914,7 @@ void volta_lance(tabuleiro *tabu)
     tabuleiro *t = (tabuleiro *)pltab->cauda->info;
     *tabu = *t;
     if(tabu->meionum < 50 && setboard < 1)
-        USALIVRO = 1; //nao usar abertura em posicoes de setboard
+        usando_livro = 1; //nao usar abertura em posicoes de setboard
 }
 
 int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
@@ -3382,34 +3325,21 @@ void inicia(tabuleiro *tabu)
 {
     *tabu = TAB_INICIO; // tabuleiro completo: pecas + estado inicial
     // globais do jogo:
-    pausa = 'n';
-    melhor.tamanho = 0;
-    melhor.valor = 0;
+    melhor = (resultado){0};
     lst_recria(&plmov);
     lst_recria(&pltab);
-    ofereci = 1; //computador pode oferecer 1 empate
-    USALIVRO = 1; // usa_livro checks if file exists
+    usando_livro = 1;
     setboard = 0;
-    ultimo_resultado[0] = '\0';
-    primeiro = 'h'; //humano inicia, com comandos para acertar detalhes do jogo
-    segundo = 'c'; //computador espera para saber se jogara de brancas ou pretas
-    nivel = 3; // usado apenas no display do post (XBoard)
-    ABANDONA = -2430; // volta o abandona para jogar contra humanos...
-    COMPUTER = 0; // jogando contra outra engine?
-    mostrapensando = 0; //post and nopost commands
-    analise = 0; //analyze and exit commands
-    tempomovclock = 3.0;	//em segundos
-    tempomovclockmax = 120.0; // max allowed - no correpondence bot
-    tbrancasac = 0.0; //tempo acumulado
-    tpretasac = 0.0; //acumulated time
-    tinijogo = 0;
+    nivel = 3;
+    mostrapensando = 0;
+    tempomovclock = 3.0;
+    tempomovclockmax = 120.0;
     tinimov = 0;
     tatual = time(NULL);
     tdifs = 0.0;
-    tultimoinput = time(NULL); //pausa para nao fazer muito poll seguido
+    tultimoinput = time(NULL);
     totalnodo = 0;
     totalnodonivel = 0;
-    OFERECEREMPATE = 0;
 }
 
 //zera pecas do tabuleiro (para setboard preencher via FEN)
@@ -3638,13 +3568,13 @@ void help(void)
 {
     IFDEBUG("help()");
     printf("Xadreco - %s, by Dr. Beco\n", VERSION);
-    printf("\nUsage: xadreco [-h|-v] [-r] [-x] [-b path/bookfile.txt]\n");
+    printf("\nUsage: xadreco [-h|-v] [-r seed] [-b path/bookfile.txt]\n");
     printf("\nOptions:\n");
     printf("\t-h,  --help\n\t\tShow this help.\n");
     printf("\t-V,  --version\n\t\tShow version and copyright information.\n");
+    printf("\t-VV\n\t\tShow only version number.\n");
     printf("\t-v,  --verbose\n\t\tSet verbose level (cumulative).\n");
     printf("\t-r seed,  --random seed\n\t\tXadreco plays random moves. Initializes seed. If seed=0, 'true' random.\n");
-    printf("\t-x,  --xboard\n\t\tGives 'xboard' keyword immediately\n");
     printf("\t-b path/bookfile.txt,  --book\n\t\tSets the path for book file\n");
     printf("\nExit status:\n\t0 if ok.\n\t1 some error occurred.\n");
     printf("\nTodo:\n\tLong options not implemented yet.\n");
