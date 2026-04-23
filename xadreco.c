@@ -1367,75 +1367,28 @@ int xeque_rei_das(int cor, tabuleiro tabu)
     return ataca(ADV(cor), COL(sq), ROW(sq), tabu);
 }
 
-// handshake do protocolo xboard
+// handshake do protocolo UCI
 // retorna 1=ok, 0=quit
 int cumprimento(char *line)
 {
-    char feature[256];
     char movinito[80];
-    int d2 = 0;
     int pos = 0;
 
     if(!tokenizer(line, &pos, movinito))
         return 0;
-
     if(!strcmp(movinito, "quit"))
         return 0;
-
-    if(strcmp(movinito, "xboard"))
+    if(!strcmp(movinito, "uci"))
     {
-        msgsai("# xadreco : xboard command missing.\n", 36);
-        return 0;
+        printf2("id name Xadreco %s\n", VERSION);
+        printf2("id author Dr. Beco\n");
+        printf2("option name Book type check default false\n");
+        printf2("option name BookFile type string default livro.txt\n");
+        printf2("uciok\n");
+        printdbg(debug, "# uci: handshake done\n");
+        return 1;
     }
-
-    printdbg(debug, "# Xadreco version %s build %s (C) 1994-2026, by Dr. Beco\n"
-             "# Xadreco comes with ABSOLUTELY NO WARRANTY;\n"
-             "# This is free software, and you are welcome to redistribute it\n"
-             "# under certain conditions; Please, visit http://www.fsf.org/licenses/gpl.html\n"
-             "# for details.\n\n", VERSION, BUILD);
-
-    printf2("\n");
-    sleep(1);
-
-    sprintf(feature, "%s", "feature ping=1 setboard=1 playother=0 san=0 usermove=0 time=1 draw=0 sigint=0 sigterm=1 reuse=1 analyze=1 variants=\"normal\" colors=0 ics=0 name=0 pause=0 nps=0 debug=1 memory=0 smp=0 exclude=0 setscore=0");
-    printf2("feature done=0\n");
-    printf2("feature myname=\"Xadreco %s\"\n", VERSION);
-    printf2("%s\n", feature);
-    printf2("feature done=1\n");
-
-    // espera dois 'done' ou 'force'/'new' para iniciar
-    while(d2 < 2)
-    {
-        fgets(line, 256, stdin);
-        pos = 0;
-        tokenizer(line, &pos, movinito);
-        if(!strcmp(movinito, "quit"))
-            return 0;
-        if(!strcmp(movinito, "easy"))
-        {
-            mostrapensando = 0;
-        }
-        else if(!strcmp(movinito, "post"))
-        {
-            mostrapensando = 1;
-        }
-        else if(!strcmp(movinito, "done"))
-            d2++;
-        else if(!strcmp(movinito, "ping"))
-        {
-            tokenizer(line, &pos, movinito);
-            pong = atoi(movinito);
-            printf2("pong %d\n", pong);
-        }
-        else if(!strcmp(movinito, "force"))
-            break;
-        else if(!strcmp(movinito, "new"))
-            break;
-        else
-            printdbg(debug, "# xboard: ignoring %s\n", movinito);
-    }
-    printdbg(debug, "# xboard: handshake done\n");
-    return 1;
+    return 0;
 }
 
 // processa um comando do protocolo
@@ -3620,6 +3573,8 @@ void printf2(char *fmt, ...)
     va_start(args, fmt);
     vprintf(fmt, args);
     va_end(args);
+    fflush(stdout);
+    fflush(stderr);
 }
 
 /* print debug information  */
