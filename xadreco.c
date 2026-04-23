@@ -261,7 +261,7 @@ const tabuleiro TAB_INICIO =
 //log file for debug==2
 FILE *fmini;
 //0: sem livro. 1: usa livro de aberturas (opcao -b)
-int livro = 0;
+int ulivro = 0;
 //1:consulta o livro de aberturas livro.txt. 0:nao consulta
 int usando_livro;
 // 0: pensa para jogar. 1: joga ao acaso.
@@ -300,8 +300,6 @@ void lance2movi(char *m, int de, int pa, int especial);
 //faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.
 int movi2lance(int *de, int *pa, char *m);
 //retorna o adversario: ADV(v) macro em defines
-//pegar caracter (linux e windows)
-char pega(char *no, char *msg);
 /* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
 float mudaintervalo(float min1, float max1, float min2, float max2, float x1);
 /* retorna valor inteiro aleatorio entre [min,max[ */
@@ -342,8 +340,6 @@ void copyr(void);
 void printdbg(int dbg, ...);
 /* imprime outros debugs */
 void printf2(char *fmt, ...);
-/* le entrada padrao */
-void scanf2(char *movinito);
 // le um token de uma linha ja em memoria, avanca *pos
 int tokenizer(char *line, int *pos, char *token);
 // monta o tabuleiro a partir dos 6 campos FEN na linha
@@ -355,7 +351,7 @@ int joga_movinito(char *movinito, tabuleiro *tabu);
 // processa opcoes de linha de comando (getopt)
 void opcoes(int argc, char *argv[]);
 // handshake do protocolo: "xboard" ou "quit". Retorna 1=ok, 0=quit
-int cumprimento(char *movinito);
+int cumprimento(char *line);
 // busca: trio de funcoes para aprofundamento iterativo
 void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time);
 int  xadreco_continua(busca *ctx); // retorna 1=continuar, 0=terminou
@@ -440,20 +436,20 @@ int main(int argc, char *argv[])
         msgsai("# Erro arena cheia em main lst_cria amov", 39);
 
     tabuleiro tabu;
-    char movinito[80];
+    char line[256];
+    busca ctx;
 
     opcoes(argc, argv);
 
     // handshake do protocolo
-    scanf2(movinito);
-    if(!cumprimento(movinito))
+    fgets(line, sizeof(line), stdin);
+    if(!cumprimento(line))
         sai(0);
 
     //------------------------------------------------------------------------------
     // novo jogo
     ligado = 1;
     buscando = 0;
-    busca ctx;
 
     inicia(&tabu);
     assert(tabu.vez == BRANCO && "board not initialized");
@@ -468,20 +464,12 @@ int main(int argc, char *argv[])
         // --- input: processa comando ou lance ---
         if(pollinput())
         {
-            scanf2(movinito);
-            ligado = comando_proto(movinito, &tabu, &buscando, &ctx);
-            if(ligado == -1)  // nao e comando, tenta como lance
-            {
-                if(!joga_movinito(movinito, &tabu))
-                    printf2("Illegal move: %s\n", movinito);
-                else
-                    if(debug) mostra_tabu(tabu);
-                ligado = 1;
-            }
+            fgets(line, sizeof(line), stdin);
+            ligado = comando_proto(line, &tabu, &buscando, &ctx);
         }
 
         // --- busca: uma iteracao do aprofundamento iterativo ---
-        if(buscando)
+        if(ligado && buscando)
         {
             buscando = xadreco_continua(&ctx);
             if(!buscando)
@@ -490,8 +478,8 @@ int main(int argc, char *argv[])
                 if(melhor.tamanho > 0)
                 {
                     joga_em(&tabu, melhor.linha[0], 1);
-                    lance2movi(movinito, tabu.de, tabu.pa, tabu.especial);
-                    printf2("move %s\n", movinito);
+                    lance2movi(line, tabu.de, tabu.pa, tabu.especial);
+                    printf2("move %s\n", line);
                     if(debug) mostra_tabu(tabu);
                 }
             }
@@ -541,7 +529,7 @@ void opcoes(int argc, char *argv[])
                 break;
             case 'b':
                 strcpy(bookfname, optarg);
-                livro = 1;
+                ulivro = 1;
                 break;
             case '?':
             default:
@@ -1373,10 +1361,15 @@ int xeque_rei_das(int cor, tabuleiro tabu)
 
 // handshake do protocolo xboard
 // retorna 1=ok, 0=quit
-int cumprimento(char *movinito)
+int cumprimento(char *line)
 {
     char feature[256];
+    char movinito[80];
     int d2 = 0;
+    int pos = 0;
+
+    if(!tokenizer(line, &pos, movinito))
+        return 0;
 
     if(!strcmp(movinito, "quit"))
         return 0;
@@ -1405,7 +1398,9 @@ int cumprimento(char *movinito)
     // espera dois 'done' ou 'force'/'new' para iniciar
     while(d2 < 2)
     {
-        scanf2(movinito);
+        fgets(line, 256, stdin);
+        pos = 0;
+        tokenizer(line, &pos, movinito);
         if(!strcmp(movinito, "quit"))
             return 0;
         if(!strcmp(movinito, "easy"))
@@ -1420,7 +1415,7 @@ int cumprimento(char *movinito)
             d2++;
         else if(!strcmp(movinito, "ping"))
         {
-            scanf2(movinito);
+            tokenizer(line, &pos, movinito);
             pong = atoi(movinito);
             printf2("pong %d\n", pong);
         }
@@ -1874,7 +1869,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
     }
 
     // livro de aberturas
-    if(livro && usando_livro && tabu->meionum < 52 && setboard != 1 && !randomchess)
+    if(ulivro && usando_livro && tabu->meionum < 52 && setboard != 1 && !randomchess)
     {
         usa_livro(*tabu);
         if(melhor.tamanho == 0)
@@ -3285,20 +3280,6 @@ void usa_livro(tabuleiro tabu)
     melhor.valor = cands[sorteio].score;
 }
 
-//pegar caracter (linux e windows)
-char pega(char *no, char *msg)
-{
-    int p;
-    printf("%s", msg);
-    p = getchar();
-    while(!strchr(no, p))
-    {
-        printf("?");
-        p = getchar();
-    }
-    return (char) p;
-}
-
 /* retorna x2 pertencente a (min2,max2) equivalente a x1 pertencente a (min1,max1) */
 float mudaintervalo(float min1, float max1, float min2, float max2, float x1)
 {
@@ -3646,12 +3627,6 @@ void printdbg(int dbg, ...)
     va_end(args);
 }
 
-/* le entrada padrao */
-void scanf2(char *movinito)
-{
-    scanf("%s", movinito);
-    printdbg(debug, "# scanf: %s\n", movinito);
-}
 
 // le um token de uma linha ja em memoria, avanca *pos
 int tokenizer(char *line, int *pos, char *token)
