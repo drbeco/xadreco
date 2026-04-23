@@ -504,6 +504,7 @@ void opcoes(int argc, char *argv[])
     int opt;
     int verflag = 0;
     int seed = 0;
+    FILE *f;
 
     srand(time(NULL) + getpid());
 
@@ -553,6 +554,13 @@ void opcoes(int argc, char *argv[])
     printdbg(debug, "# Debug verbose level set at: %d\n", debug);
     printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
     printdbg(debug, "# book: -b %s\n", bookfname);
+    if(ulivro && (f = fopen(bookfname, "r")))
+        fclose(f);
+    else if(ulivro)
+    {
+        ulivro = 0;
+        printdbg(debug, "# book not found, ulivro=0\n");
+    }
 
     // turn off buffers. Immediate input/output.
     setbuf(stdout, NULL);
@@ -3185,6 +3193,7 @@ void usa_livro(tabuleiro tabu)
     flivro = fopen(bookfname, "r");
     if(!flivro)
     {
+        usando_livro = 0;
         melhor.tamanho = 0;
         return;
     }
