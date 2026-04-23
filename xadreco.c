@@ -267,7 +267,6 @@ int usando_livro;
 // 0: pensa para jogar. 1: joga ao acaso.
 int randomchess = 0;
 //mostra as linhas que o computador esta escolhendo
-int mostrapensando = 0;
 //-1 para primeira vez. 0 nao edita. 1 edita. Posicao FEN.
 int setboard = 0;
 //nivel de profundidade (agora com aprofundamento iterativo, esta sem uso)
@@ -324,8 +323,6 @@ void testajogo(char *movinito, int mnum);
 void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
-//imprime uma sequencia de lances armazenada em resultado, numerados.
-void imprime_linha(resultado *res, int mnum, int vez);
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 int pollinput(void);
 //calcula diferenca de tempo em segundo do lance atual
@@ -443,6 +440,7 @@ int main(int argc, char *argv[])
 
     // handshake do protocolo
     fgets(line, sizeof(line), stdin);
+    printdbg(debug, "# GUI: %s", line);
     if(!cumprimento(line))
         sai(0);
 
@@ -465,6 +463,7 @@ int main(int argc, char *argv[])
         if(pollinput())
         {
             fgets(line, sizeof(line), stdin);
+            printdbg(debug, "# GUI: %s", line);
             ligado = comando_proto(line, &tabu, &buscando, &ctx);
         }
 
@@ -479,8 +478,8 @@ int main(int argc, char *argv[])
                 {
                     joga_em(&tabu, melhor.linha[0], 1);
                     lance2movi(line, tabu.de, tabu.pa, tabu.especial);
-                    printf2("move %s\n", line);
-                    if(debug) mostra_tabu(tabu);
+                    printf2("bestmove %s\n", line);
+                    if(debug >= 2) mostra_tabu(tabu);
                 }
             }
         }
@@ -550,16 +549,16 @@ void opcoes(int argc, char *argv[])
     debug = XDEBUG;
 #endif
 
-    printdbg(debug, "# DEBUG MACRO compiled value: %d\n", DEBUG);
-    printdbg(debug, "# Debug verbose level set at: %d\n", debug);
-    printdbg(debug, "# play random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
-    printdbg(debug, "# book: -b %s\n", bookfname);
+    printdbg(debug, "# xadreco: DEBUG MACRO compiled value: %d\n", DEBUG);
+    printdbg(debug, "# xadreco: verbose level set at: %d\n", debug);
+    printdbg(debug, "# xadreco: random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
+    printdbg(debug, "# xadreco: book: -b %s\n", bookfname);
     if(ulivro && (f = fopen(bookfname, "r")))
         fclose(f);
     else if(ulivro)
     {
         ulivro = 0;
-        printdbg(debug, "# book not found, ulivro=0\n");
+        printdbg(debug, "# xadreco: book not found, ulivro=0\n");
     }
 
     // turn off buffers. Immediate input/output.
@@ -1385,21 +1384,20 @@ int cumprimento(char *line)
         printf2("option name Book type check default false\n");
         printf2("option name BookFile type string default livro.txt\n");
         printf2("uciok\n");
-        printdbg(debug, "# uci: handshake done\n");
+        printdbg(debug, "# xadreco: handshake done\n");
         return 1;
     }
     return 0;
 }
 
-// processa um comando do protocolo
+// processa um comando do protocolo UCI
 // retorna: 0=quit, 1=tratado
 int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
 {
-    int pos, moves, minutes;
-    double secs, osecs = 0.0, incre = 0.0;
-    char *tc;
+    int pos;
+    int wtime, btime, winc, binc, depth, movetime, infinite, movestogo, moves_left;
+    double mytime, myinc;
     char movinito[80];
-    char res;
 
     pos = 0;
     if(!tokenizer(line, &pos, movinito))
@@ -1409,255 +1407,118 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
 
     if(!strcmp(movinito, "quit"))
         msgsai("# Thanks for playing Xadreco.", 0);
-    if(!strcmp(movinito, "new"))
+    if(!strcmp(movinito, "ucinewgame"))
     {
         *buscando = 0;
         inicia(tabu);
         tab_insere(*tabu);
-        printdbg(debug, "# xboard: new.\n");
+        printdbg(debug, "# xadreco: board reset\n");
         return 1;
     }
-    if(!strcmp(movinito, "go"))   //inicia busca
+    if(!strcmp(movinito, "isready"))
     {
-        xadreco_inicia(ctx, tabu, nivel, tempomovclock);
-        *buscando = 1;
-        printdbg(debug, "# xboard: go.\n");
+        printf2("readyok\n");
+        printdbg(debug, "# xadreco: readyok\n");
         return 1;
     }
-    if(!strcmp(movinito, "force"))   //nao joga, apenas acompanha
-    {
-        *buscando = 0;
-        printdbg(debug, "# xboard: force.\n");
-        return 1;
-    }
-
-    // --- analise ---
-
-    if(!strcmp(movinito, "hint"))
-    {
-        printf("%3d %+6d %3d %7d ", nivel, melhor.valor, (int)difclocks(), totalnodo);
-        imprime_linha(&melhor, tabu->meionum, tabu->vez);
-        return 1;
-    }
-    if(!strcmp(movinito, "analyze"))   //busca infinita
-    {
-        xadreco_inicia(ctx, tabu, MAX_PROF, 999999.0);
-        *buscando = 1;
-        mostrapensando = 1;
-        printdbg(debug, "# xboard: analyze.\n");
-        return 1;
-    }
-    if(!strcmp(movinito, "exit") || !strcmp(movinito, "?"))
+    if(!strcmp(movinito, "stop"))
     {
         if(*buscando)
         {
             xadreco_para(ctx);
             *buscando = 0;
         }
-        printdbg(debug, "# xboard: stop.\n");
+        printdbg(debug, "# xadreco: search stopped\n");
         return 1;
     }
-    if(!strcmp(movinito, "post"))   //showthinking
+    if(!strcmp(movinito, "debug"))
     {
-        mostrapensando = 1;
-        printdbg(debug, "# xboard: post.\n");
-        return 1;
-    }
-    if(!strcmp(movinito, "nopost"))
-    {
-        mostrapensando = 0;
-        printdbg(debug, "# xboard: nopost.\n");
+        tokenizer(line, &pos, movinito);
+        debug = !strcmp(movinito, "on") ? 1 : 0;
+        printdbg(debug, "# xadreco: debug %s\n", movinito);
         return 1;
     }
 
-    // --- controle de tempo ---
+    // --- position ---
 
-    if(!strcmp(movinito, "sd"))   //set depth
+    if(!strcmp(movinito, "position"))
     {
         tokenizer(line, &pos, movinito);
-        nivel = atoi(movinito);
-        if(nivel > 6 || nivel < 0) nivel = 2;
-        printdbg(debug, "# xboard: sd %d\n", nivel);
-        return 1;
-    }
-    if(!strcmp(movinito, "st"))   //set time per move (seconds)
-    {
-        tokenizer(line, &pos, movinito);
-        tempomovclock = atof(movinito);
-        if(tempomovclock < 0.5)
-            tempomovclock = 0.5;
-        tempomovclockmax = tempomovclock;
-        printdbg(debug, "# xboard: st %f s per move\n", tempomovclock);
-        return 1;
-    }
-    if(!strcmp(movinito, "level"))   //level moves minutes increment
-    {
-        tokenizer(line, &pos, movinito);
-        moves = atoi(movinito);
-        tokenizer(line, &pos, movinito);
-        if((tc = strchr(movinito, ':')) != NULL)
+        if(!strcmp(movinito, "startpos"))
+            *tabu = TAB_INICIO;
+        else if(!strcmp(movinito, "fen"))
         {
-            *tc = '\0';
-            minutes = atoi(movinito);
-            tc++;
-            secs = atof(tc);
-            secs += minutes * 60.0;
+            inicia(tabu);
+            monta_fen(line, &pos, tabu);
         }
-        else
+        if(tokenizer(line, &pos, movinito))
         {
-            minutes = atoi(movinito);
-            secs = minutes * 60.0;
+            if(!strcmp(movinito, "moves"))
+                while(tokenizer(line, &pos, movinito))
+                    joga_movinito(movinito, tabu);
+            else
+                printdbg(debug, "# xadreco: position: unexpected '%s' (expected 'moves')\n", movinito);
         }
-        tokenizer(line, &pos, movinito);
-        incre = atof(movinito);
-        if(moves <= 0) moves = TOTAL_MOVIMENTOS;
-        if(secs <= 0.0) secs = 10.0;
-        if(incre <= 0.0) incre = 0.0;
-        if(minutes == 0 && secs < 10.0 && incre <= 0.0)
-            secs = 30.0 * 60.0;
-        else
-            secs += incre * TOTAL_MOVIMENTOS;
-        tempomovclockmax = secs / 4.0;
-        if(tempomovclockmax < 1.0) tempomovclockmax = 1.0;
-        tempomovclock = secs / (float)moves;
-        if(tempomovclock > tempomovclockmax) tempomovclock = tempomovclockmax;
-        if(tempomovclock < 0.5) tempomovclock = 0.5;
-        printdbg(debug, "# xadreco level: %.1fs+%.1fs por %d lances: st %f s (max %f)\n",
-                 secs, incre, moves, tempomovclock, tempomovclockmax);
-        return 1;
-    }
-    if(!strcmp(movinito, "otim"))   //opponent time (centiseconds)
-    {
-        tokenizer(line, &pos, movinito);
-        osecs = atof(movinito) / 100.0;
-        printdbg(debug, "# xboard: otim %.1fs\n", osecs);
-        return 1;
-    }
-    if(!strcmp(movinito, "time"))   //my time (centiseconds)
-    {
-        tokenizer(line, &pos, movinito);
-        secs = atof(movinito) / 100.0;
-        moves = TOTAL_MOVIMENTOS - tabu->meionum / 2;
-        if(moves <= 0) moves = 5;
-        if(incre >= 0.0) { secs += incre * moves; osecs += incre * moves; }
-        tempomovclockmax = secs / 4.0;
-        if(tempomovclockmax < 1.0) tempomovclockmax = 1.0;
-        tempomovclock = secs / (float)moves;
-        if(osecs > 0.0) tempomovclock *= (secs / osecs);
-        if(tempomovclock > tempomovclockmax) tempomovclock = tempomovclockmax;
-        if(tempomovclock < 0.5) tempomovclock = 0.5;
-        printdbg(debug, "# xadreco time: meu: %.1fs opo:%.1fs ratio:%.2f para %d lances: st %f s (max %f)\n",
-                 secs, osecs, osecs > 0.0 ? secs / osecs : 0.0, moves, tempomovclock, tempomovclockmax);
-        return 1;
-    }
-
-    // --- posicao ---
-
-    if(!strcmp(movinito, "setboard"))
-    {
-        char pieces[80], color[4], castle[8], enpassant[4], halfmove[8], fullmove[8];
-
-        printdbg(debug, "# xboard: setboard.\n");
-        inicia(tabu);
-        tokenizer(line, &pos, movinito);
-        if(!strcmp(movinito, "testpos"))
-        {
-            testapos(pieces, color, castle, enpassant, halfmove, fullmove);
-            snprintf(line, 256, "%s %s %s %s %s %s",
-                     pieces, color, castle, enpassant, halfmove, fullmove);
-            pos = 0;
-        }
-        else
-        {
-            // movinito has pieces, rest of line has the other 5 fields
-            // rebuild line from movinito + remaining
-            // monta_fen will read from line at pos, but movinito already consumed pieces
-            // simplest: put it back
-            pos = 0; // restart — line still has "setboard pieces color castle ep hm fm"
-            tokenizer(line, &pos, movinito); // skip "setboard"
-        }
-        monta_fen(line, &pos, tabu);
-        res = situacao(*tabu);
-        switch(res)
-        {
-            case 'a': case 'p': case 'i': case '5': case 'r': tabu->situa = 1; break;
-            case 'x': tabu->situa = 2; break;
-            case 'M': tabu->situa = 3; break;
-            case 'm': tabu->situa = 4; break;
-            case 'T': tabu->situa = 5; break;
-            case 't': tabu->situa = 6; break;
-            case '*': tabu->situa = 7; break;
-            default:  tabu->situa = 0;
-        }
-        usando_livro = 0;
         tab_insere(*tabu);
-        if(debug) mostra_tabu(*tabu);
+        if(debug >= 2) mostra_tabu(*tabu);
+        printdbg(debug, "# xadreco: position set\n");
         return 1;
     }
 
-    // --- info ---
+    // --- go ---
 
-    if(!strcmp(movinito, "ping"))
+    if(!strcmp(movinito, "go"))
     {
-        tokenizer(line, &pos, movinito);
-        pong = atoi(movinito);
-        printf2("pong %d\n", pong);
-        printdbg(debug, "# xboard ping %d : xadreco pong %d\n", pong, pong);
+        wtime = 0; btime = 0; winc = 0; binc = 0;
+        depth = 0; movetime = 0; infinite = 0; movestogo = 0;
+
+        while(tokenizer(line, &pos, movinito))
+        {
+            if(!strcmp(movinito, "wtime"))     { tokenizer(line, &pos, movinito); wtime = atoi(movinito); }
+            else if(!strcmp(movinito, "btime")) { tokenizer(line, &pos, movinito); btime = atoi(movinito); }
+            else if(!strcmp(movinito, "winc"))  { tokenizer(line, &pos, movinito); winc = atoi(movinito); }
+            else if(!strcmp(movinito, "binc"))  { tokenizer(line, &pos, movinito); binc = atoi(movinito); }
+            else if(!strcmp(movinito, "depth")) { tokenizer(line, &pos, movinito); depth = atoi(movinito); }
+            else if(!strcmp(movinito, "movetime")) { tokenizer(line, &pos, movinito); movetime = atoi(movinito); }
+            else if(!strcmp(movinito, "movestogo")) { tokenizer(line, &pos, movinito); movestogo = atoi(movinito); }
+            else if(!strcmp(movinito, "infinite")) infinite = 1;
+        }
+
+        if(movetime > 0)
+            tempomovclock = movetime / 1000.0;
+        else if(wtime > 0 || btime > 0)
+        {
+            mytime = (tabu->vez == BRANCO) ? wtime / 1000.0 : btime / 1000.0;
+            myinc = (tabu->vez == BRANCO) ? winc / 1000.0 : binc / 1000.0;
+            moves_left = movestogo > 0 ? movestogo : TOTAL_MOVIMENTOS - tabu->meionum / 2;
+            if(moves_left < 10) moves_left = 10;
+            tempomovclock = mytime / moves_left + myinc;
+            tempomovclockmax = mytime / 4.0;
+            if(tempomovclock > tempomovclockmax) tempomovclock = tempomovclockmax;
+            if(tempomovclock < 0.5) tempomovclock = 0.5;
+        }
+
+        nivel = depth > 0 ? depth : MAX_PROF;
+        if(infinite) tempomovclock = 999999.0;
+
+        xadreco_inicia(ctx, tabu, nivel, tempomovclock);
+        *buscando = 1;
+        printdbg(debug, "# xadreco: go depth=%d time=%.1fs\n", nivel, tempomovclock);
         return 1;
     }
-    if(!strcmp(movinito, "version"))
+
+    // --- setoption ---
+
+    if(!strcmp(movinito, "setoption"))
     {
-        printdbg(debug, "# Xadreco v%s build %s, by Ruben Carlo Benante, 1994-2026.\n", VERSION, BUILD);
-        return 1;
-    }
-    if(!strcmp(movinito, "t"))   //jogo de teste interno
-    {
-        testajogo(movinito, tabu->meionum);
-        // testajogo preenche movinito com o lance, tenta jogar
-        if(joga_movinito(movinito, tabu))
-            if(debug) mostra_tabu(*tabu);
+        // setoption name Book value true
+        // setoption name BookFile value livro.txt
+        printdbg(debug, "# xadreco: setoption (stub)\n");
         return 1;
     }
 
-    // --- mensagens do XBoard entre chaves ---
-
-    if(movinito[0] == '{')
-    {
-        printdbg(debug, "# xboard: %s", line); // linha inteira ja tem a mensagem
-        return 1;
-    }
-
-    // --- comandos XBoard ignorados silenciosamente ---
-
-    if(!strcmp(movinito, "san") || !strcmp(movinito, "usermove")
-            || !strcmp(movinito, "sigint") || !strcmp(movinito, "sigterm")
-            || !strcmp(movinito, "reuse") || !strcmp(movinito, "myname")
-            || !strcmp(movinito, "variants") || !strcmp(movinito, "colors")
-            || !strcmp(movinito, "ics") || !strcmp(movinito, "name")
-            || !strcmp(movinito, "pause") || !strcmp(movinito, "xboard")
-            || !strcmp(movinito, "protover") || !strcmp(movinito, "2")
-            || !strcmp(movinito, "accepted") || !strcmp(movinito, "done")
-            || !strcmp(movinito, "random") || !strcmp(movinito, "hard")
-            || !strcmp(movinito, ".") || !strcmp(movinito, "computer")
-            || !strcmp(movinito, "easy") || !strcmp(movinito, "aborted")
-            || !strcmp(movinito, "result") || !strcmp(movinito, "1-0")
-            || !strcmp(movinito, "0-1") || !strcmp(movinito, "1/2-1/2")
-            || !strcmp(movinito, "illegal") || !strcmp(movinito, "*"))
-    {
-        printdbg(debug, "# xboard: ignoring %s\n", movinito);
-        return 1;
-    }
-
-    // --- lance do oponente (e.g., "e2e4", "e7e8q") ---
-
-    if(joga_movinito(movinito, tabu))
-    {
-        if(debug) mostra_tabu(*tabu);
-        return 1;
-    }
-
-    // --- desconhecido ---
-    printdbg(debug, "# comando_proto: unknown '%s'\n", movinito);
+    // --- unknown ---
+    printdbg(debug, "# xadreco: unknown command (ignored)\n");
     return 1;
 }
 
@@ -1878,6 +1739,9 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
 // retorna 1 = continuar buscando, 0 = terminou
 int xadreco_continua(busca *ctx)
 {
+    int i;
+    char m[80];
+
     // livro ou randomchess ja encontrou lance
     if(melhor.tamanho > 0 && ctx->nv == 1)
         return 0;
@@ -1905,22 +1769,22 @@ int xadreco_continua(busca *ctx)
             return 0;
     totalnodo += totalnodonivel;
     lst_ordem(plmov);  //ordena lista de movimentos
-    if(debug == 2)
+    if(abs(ctx->val) != FIMTEMPO && abs(ctx->val) != LIMITE)
     {
-        fprintf(fmini, "#\n# val: %+.2f totalnodo: %d\n# pv: ", ctx->val / 100.0, totalnodo);
-        if(!mostrapensando || abs(ctx->val) == FIMTEMPO || abs(ctx->val) == LIMITE)
-            imprime_linha(&mel[0], 1, 2);
-    }
-    if(mostrapensando && abs(ctx->val) != FIMTEMPO && abs(ctx->val) != LIMITE)
-    {
-        printf("%3d %+6d %3d %7d ", ctx->nv, (ctx->tabu->vez == BRANCO) ? ctx->val : -ctx->val,
-               (int)difclocks(), totalnodo);
-        imprime_linha(&mel[0], ctx->tabu->meionum + 1, ADV(ctx->tabu->vez));
+        printf("info depth %d score cp %d time %d nodes %d pv ",
+               ctx->nv, (ctx->tabu->vez == BRANCO) ? ctx->val : -ctx->val,
+               (int)(difclocks() * 1000), totalnodo);
+        for(i = 0; i < mel[0].tamanho; i++)
+        {
+            lance2movi(m, mel[0].linha[i].de, mel[0].linha[i].pa, mel[0].linha[i].especial);
+            printf("%s ", m);
+        }
+        printf("\n");
     }
     if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && ctx->nv == 5))
     {
         if(mel[0].tamanho == 0)
-            printdbg(debug, "# xadreco_continua: sem lances; tempo estourado\n");
+            printdbg(debug, "# xadreco: sem lances; tempo estourado\n");
         else
             return 0;
     }
@@ -2056,16 +1920,6 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
                 fprintf(fmini, "#\n# succ: alfa>=beta (%+.2f>=%+.2f) %s Corte!", alfa / 100.0, beta / 100.0, m);
             }
             break;
-        }
-        if(debug == 2 && prof == 0)
-        {
-            lance2movi(m, succ->de, succ->pa, succ->especial);
-            fprintf(fmini, "#\n# child_val=%+.2f best=%+.2f", child_val / 100.0, novo_valor / 100.0);
-            if(mel[prof].tamanho > 0)
-            {
-                fprintf(fmini, "#\n# melhor_caminho=");
-                imprime_linha(&mel[prof], 1, 2);
-            }
         }
         if(prof == 0)
             succ->valor_estatico = (atual.vez == BRANCO) ? child_val : -child_val; // para lst_ordem (descending)
@@ -3199,7 +3053,7 @@ void usa_livro(tabuleiro tabu)
         return;
     }
 
-    printdbg(debug, "# livro: %d candidatos para '%s'\n", ncands, strlance);
+    printdbg(debug, "# xadreco livro: %d candidatos para '%s'\n", ncands, strlance);
 
     // Phase 2: evaluate each candidate with minimax
     for(i = 0; i < ncands; i++)
@@ -3214,7 +3068,7 @@ void usa_livro(tabuleiro tabu)
             cands[i].score = minimax(temp, 0, -LIMITE, LIMITE, 2);
         }
         if(debug >= 2)
-            printdbg(debug, "# livro: cand[%d] = %s score=%d linha: %s\n",
+            printdbg(debug, "# xadreco livro: cand[%d] = %s score=%d linha: %s\n",
                      i, cands[i].move, cands[i].score, cands[i].linha);
     }
 
@@ -3235,7 +3089,7 @@ void usa_livro(tabuleiro tabu)
     pool = (ncands + 1) / 2;
     sorteio = irand_minmax(0, pool);
 
-    printdbg(debug, "# livro: pool=%d, sorteado=%d, move=%s, score=%d\n",
+    printdbg(debug, "# xadreco livro: pool=%d, sorteado=%d, move=%s, score=%d\n",
              pool, sorteio, cands[sorteio].move, cands[sorteio].score);
 
     livro_linha(tabu.meionum, cands[sorteio].linha);
@@ -3265,7 +3119,7 @@ int irand_minmax(int min, int max)
 //termina o programa
 void sai(int error)
 {
-    printdbg(debug, "# xadreco : sai ( %d )\n", error);
+    printdbg(debug, "# xadreco: sai ( %d )\n", error);
     if(plmov)
         arena_destroi(plmov->a);  //libera arena de movimentos
     if(pltab)
@@ -3284,7 +3138,6 @@ void inicia(tabuleiro *tabu)
     usando_livro = 1;
     setboard = 0;
     nivel = 3;
-    mostrapensando = 0;
     tempomovclock = 3.0;
     tempomovclockmax = 120.0;
     tinimov = 0;
@@ -3327,7 +3180,7 @@ void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff)
 
 void msgsai(char *msg, int error)  //aborta programa por falta de memoria
 {
-    printdbg(debug, "# xadreco : %s\n", msg);
+    printdbg(debug, "# xadreco: %s\n", msg);
     sai(error);
 }
 
@@ -3403,51 +3256,6 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
            fullmove);
 }
 
-//imprime uma sequencia de lances armazenada em resultado
-//tabuvez==2 para pular numeracao em debug==2
-void imprime_linha(resultado *res, int mnum, int tabuvez)
-{
-    int i, num, vez;
-    char m[80];
-
-    num = (int)((mnum + 1.0) / 2.0);
-    vez = tabuvez;
-    printdbg(debug, "# ");
-    for(i = 0; i < res->tamanho; i++)
-    {
-        lance2movi(m, res->linha[i].de, res->linha[i].pa, res->linha[i].especial);
-        if(vez == BRANCO)  //jogou anterior as pretas
-        {
-            if(tabuvez == BRANCO && num == (int)((mnum + 1.0) / 2.0))
-            {
-                printf("%d. ... %s ", num, m);  //primeiro lance da variante
-                if(debug == 2) fprintf(fmini, "%d. ... %s ", num, m);
-            }
-            else
-            {
-                if(tabuvez != 2)
-                    printf("%s ", m);
-                if(debug == 2) fprintf(fmini, "%s ", m);
-            }
-            num++;
-        }
-        else // jogou anterior as brancas
-        {
-            if(tabuvez == 2)  //codigo so para log, nao imprimir na tela.
-            {
-                if(debug == 2) fprintf(fmini, "%s ", m);
-            }
-            else //vez das pretas, normal. Tela e log.
-            {
-                printf("%d. %s ", num, m);
-                if(debug == 2) fprintf(fmini, "%d. %s ", num, m);
-            }
-        }
-        vez = ADV(vez);
-    }
-    printf("\n");
-}
-
 // retorna verdadeiro se existe algum caracter no buffer para ser lido
 int pollinput(void)
 {
@@ -3484,7 +3292,7 @@ char randommove(tabuleiro *tabu)
     geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
     if(plmov->qtd == 0)
     {
-        printdbg(debug, "# empty from randommove - geramov() gave 0 moves back\n");
+        printdbg(debug, "# xadreco: empty randommove - geramov() gave 0 moves back\n");
         return 'e';
     }
     moveto = (int)(rand() % plmov->qtd);  //sorteia um lance possivel da lista de lances
@@ -3501,7 +3309,7 @@ char randommove(tabuleiro *tabu)
         melhor.valor = 0;
         return '-'; //ok
     }
-    printdbg(debug, "# empty from randommove - BUG\n");
+    printdbg(debug, "# xadreco: empty randommove - BUG\n");
     return 'e'; // really empty!
 }
 
@@ -3599,7 +3407,6 @@ int tokenizer(char *line, int *pos, char *token)
     if(sscanf(line + *pos, "%s%n", token, &n) != 1)
         return 0;
     *pos += n;
-    printdbg(debug, "# token: %s\n", token);
     return 1;
 }
 
