@@ -1440,7 +1440,10 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
     {
         tokenizer(line, &pos, movinito);
         if(!strcmp(movinito, "startpos"))
+        {
             *tabu = TAB_INICIO;
+            setboard = 0;
+        }
         else if(!strcmp(movinito, "fen"))
         {
             inicia(tabu);
