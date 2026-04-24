@@ -1669,8 +1669,8 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
     no *n;
 
     melhor = (resultado){0};
-    tempomovclock = max_time;
-    tinimov = time(NULL);
+    busca_tempo_move = max_time;
+    busca_tinimov = time(NULL);
 
     ctx->tabu = tabu;
     ctx->nv = 1;
@@ -1702,14 +1702,14 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
     {
         lst_recria(&plmov);
         geramov(*tabu, plmov, GERA_TUDO);
-        totalnodo = 0;
+        busca_totalnodo = 0;
 
         // primeiro lance: joga rapido, metade do tempo, maximo 10s
         if(tabu->meionum <= 1)
         {
-            tempomovclock /= 2.0;
-            if(tempomovclock > 8.0) tempomovclock = 8.0;
-            if(tempomovclock < 0.5) tempomovclock = 0.5;
+            busca_tempo_move /= 2.0;
+            if(busca_tempo_move > 8.0) busca_tempo_move = 8.0;
+            if(busca_tempo_move < 0.5) busca_tempo_move = 0.5;
         }
 
         // randomchess: sorteia um lance da lista
@@ -1744,8 +1744,8 @@ int xadreco_continua(busca *ctx)
     if(melhor.tamanho > 0 && ctx->nv == 1)
         return 0;
 
-    totalnodonivel = 0;
-    profflag = 1;
+    busca_totalnodonivel = 0;
+    busca_profflag = 1;
     if(debug == 2)
     {
         fprintf(fmini, "#\n#\n# *************************************************************");
@@ -1754,7 +1754,7 @@ int xadreco_continua(busca *ctx)
     ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv);
     if(mel[0].tamanho == 0)
         return 0;
-    if(difclocks() < tempomovclock)
+    if(difclocks() < busca_tempo_move)
     {
         // salva resultado da iteracao completa (mais profunda = mais precisa)
         memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
@@ -1765,13 +1765,13 @@ int xadreco_continua(busca *ctx)
     else
         if(melhor.tamanho > 0)
             return 0;
-    totalnodo += totalnodonivel;
+    busca_totalnodo += busca_totalnodonivel;
     lst_ordem(plmov);  //ordena lista de movimentos
     if(abs(ctx->val) != FIMTEMPO && abs(ctx->val) != LIMITE)
     {
         printf("info depth %d score cp %d time %d nodes %d pv ",
                ctx->nv, (ctx->tabu->vez == BRANCO) ? ctx->val : -ctx->val,
-               (int)(difclocks() * 1000), totalnodo);
+               (int)(difclocks() * 1000), busca_totalnodo);
         for(i = 0; i < mel[0].tamanho; i++)
         {
             lance2movi(movinito, mel[0].linha[i].de, mel[0].linha[i].pa, mel[0].linha[i].especial);
@@ -1779,7 +1779,7 @@ int xadreco_continua(busca *ctx)
         }
         printf("\n");
     }
-    if((difclocks() > tempomovclock && debug != 2) || (debug == 2 && ctx->nv == 5))
+    if((difclocks() > busca_tempo_move && debug != 2) || (debug == 2 && ctx->nv == 5))
     {
         if(mel[0].tamanho == 0)
             printdbg(debug, "# xadreco: sem lances; tempo estourado\n");
@@ -3226,28 +3226,25 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
            fullmove);
 }
 
-// retorna verdadeiro se existe algum caracter no buffer para ser lido
-int pollinput(void)
+// entrada de dados nao-bloqueante para Linux e Windows
+void *tem_entrada(void *n __attribute__((unused)))
 {
-    static fd_set readfds;
-    struct timeval tv;
-    int ret;
+    while(1)
+    {
+        while(entra.ocupada) // aguarda liberar a entrada
+            waitms(10);
+        fgets(entra.barbante, BIGBUFF, stdin);
+        entra.ocupada = 1;
+    }
 
-    FD_ZERO(&readfds);
-    FD_SET(fileno(stdin), &readfds);
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-    select(16, &readfds, NULL, NULL, &tv);
-    ret = FD_ISSET(fileno(stdin), &readfds);
-    return (ret);
+    return NULL;
 }
 
 // retorna tempo decorrido desde o inicio do lance, em segundos
 double difclocks(void)
 {
-    tatual = time(NULL);
-    tdifs = difftime(tatual, tinimov);
-    return tdifs;
+    time_t tmp = time(NULL);
+    return difftime(tmp, busca_tinimov);
 }
 
 char randommove(tabuleiro *tabu)
