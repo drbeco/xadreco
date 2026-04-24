@@ -108,6 +108,11 @@
 // geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
 // profundidade maxima de busca (limita mel[] e melhor)
 #define MAX_PROF 64
+#define BIGBUFF   4096
+#define SMALLBUFF 256
+#define TINYBUFF  32
+#define TABSIZE   64
+#define SQINFO    7
 // Cores: brancas=0, pretas=bit3. Pecas: brancas 1-6, pretas 9-14, vazia 0.
 #define BRANCO 0                         // cor branca
 #define PRETO  8                         // cor preta (bit 3)
@@ -171,7 +176,7 @@ lista;
 
 typedef struct stabuleiro
 {
-    int tab[64]; //contem as pecas: brancas 1-6, pretas 9-14, vazia 0. SQ(col,lin)=col+lin*8
+    int tab[TABSIZE]; //contem as pecas: brancas 1-6, pretas 9-14, vazia 0. SQ(col,lin)=col+lin*8
     int vez; //contem BRANCO(0) ou PRETO(8)
     int peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
     int roqueb, roquep; //roque: 0:nao pode mais. 1:pode ambos. 2:mexeu Torre do Rei. Pode O-O-O. 3:mexeu Torre da Dama. Pode O-O.
@@ -285,7 +290,7 @@ double tdifs; // diferenca em segundos tdifs=difftime(t2,t1), calcular o tempo g
 double tempomovclock; //em segundos
 double tempomovclockmax; // max allowed
 
-char bookfname[80] = "livro.txt"; /* book file name */
+char bookfname[SMALLBUFF] = "livro.txt"; /* book file name */
 /* int verb = 0; /1* verbose variable *1/ */
 //coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
 int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
@@ -433,15 +438,15 @@ int main(int argc, char *argv[])
         msgsai("# Erro arena cheia em main lst_cria amov", 39);
 
     tabuleiro tabu;
-    char line[256];
+    char linha[BIGBUFF];
     busca ctx;
 
     opcoes(argc, argv);
 
     // handshake do protocolo
-    fgets(line, sizeof(line), stdin);
-    printdbg(debug, "# GUI: %s", line);
-    if(!cumprimento(line))
+    fgets(linha, sizeof(linha), stdin);
+    printdbg(debug, "# GUI: %s", linha);
+    if(!cumprimento(linha))
         sai(0);
 
     //------------------------------------------------------------------------------
@@ -462,9 +467,9 @@ int main(int argc, char *argv[])
         // --- input: processa comando ou lance ---
         if(pollinput())
         {
-            fgets(line, sizeof(line), stdin);
-            printdbg(debug, "# GUI: %s", line);
-            ligado = comando_proto(line, &tabu, &buscando, &ctx);
+            fgets(linha, sizeof(linha), stdin);
+            printdbg(debug, "# GUI: %s", linha);
+            ligado = comando_proto(linha, &tabu, &buscando, &ctx);
         }
 
         // --- busca: uma iteracao do aprofundamento iterativo ---
@@ -477,8 +482,8 @@ int main(int argc, char *argv[])
                 if(melhor.tamanho > 0)
                 {
                     joga_em(&tabu, melhor.linha[0], 1);
-                    lance2movi(line, tabu.de, tabu.pa, tabu.especial);
-                    printf2("bestmove %s\n", line);
+                    lance2movi(linha, tabu.de, tabu.pa, tabu.especial);
+                    printf2("bestmove %s\n", linha);
                     if(debug >= 2) mostra_tabu(tabu);
                 }
             }
@@ -1370,7 +1375,7 @@ int xeque_rei_das(int cor, tabuleiro tabu)
 // retorna 1=ok, 0=quit
 int cumprimento(char *line)
 {
-    char movinito[80];
+    char movinito[SMALLBUFF];
     int pos = 0;
 
     if(!tokenizer(line, &pos, movinito))
@@ -1397,7 +1402,7 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
     int pos;
     int wtime, btime, winc, binc, depth, movetime, infinite, movestogo, moves_left;
     double mytime, myinc;
-    char movinito[80];
+    char movinito[SMALLBUFF];
 
     pos = 0;
     if(!tokenizer(line, &pos, movinito))
@@ -1740,7 +1745,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
 int xadreco_continua(busca *ctx)
 {
     int i;
-    char m[80];
+    char movinito[SMALLBUFF];
 
     // livro ou randomchess ja encontrou lance
     if(melhor.tamanho > 0 && ctx->nv == 1)
@@ -1776,8 +1781,8 @@ int xadreco_continua(busca *ctx)
                (int)(difclocks() * 1000), totalnodo);
         for(i = 0; i < mel[0].tamanho; i++)
         {
-            lance2movi(m, mel[0].linha[i].de, mel[0].linha[i].pa, mel[0].linha[i].especial);
-            printf("%s ", m);
+            lance2movi(movinito, mel[0].linha[i].de, mel[0].linha[i].pa, mel[0].linha[i].especial);
+            printf("%s ", movinito);
         }
         printf("\n");
     }
@@ -1815,7 +1820,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     movimento *succ;
     int novo_valor, child_val, contamov = 0;
     tabuleiro tab;
-    char m[8];
+    char m[TINYBUFF];
     no *n;
     lista *llmov = NULL;
     size_t saved;
@@ -2142,7 +2147,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta)
     int menorb = 0, menorp = 0;
     int qtdb, qtdp;
     int peca_movida;
-    int ordem[64][7];
+    int ordem[TABSIZE][SQINFO];
     //coloca todas pecas do tabuleiro em ordem de valor
     //64 casas, cada uma com 7 info: 0:i, 1:j, 2:peca,
     //3: qtdataquebranco, 4: menorb, 5: qtdataquepreto, 6: menorp
@@ -2911,7 +2916,7 @@ void listab2string(char *strlance)
 {
     no *nd;
     tabuleiro *t;
-    char m[8];
+    char m[TINYBUFF];
     int n = 0, i;
     if(!pltab || !pltab->cabeca)
     {
@@ -2940,7 +2945,7 @@ void listab2string(char *strlance)
 //com inicio no lance da vez (mnum).
 void livro_linha(int mnum, char *linha)
 {
-    char m[8];
+    char m[TINYBUFF];
     int n = 0, de, pa, i, conta = 0;
     movimento mval;
     //posicao inicial
@@ -2986,14 +2991,14 @@ int igual_strlances_strlinha(char *strlances, char *strlinha)
 void usa_livro(tabuleiro tabu)
 {
     IFDEBUG("usa_livro()");
-    char linha[256], strlance[256], nextmove[5];
+    char linha[BIGBUFF], strlance[BIGBUFF], nextmove[TINYBUFF];
     FILE *flivro;
     char *p;
     int ncands, i, j, pool, sorteio, ll, lli, dup, de, pa;
     tabuleiro temp;
     movimento mval;
-    typedef struct { char move[5]; char linha[256]; int score; } candidato;
-    candidato cands[128];
+    typedef struct { char move[TINYBUFF]; char linha[BIGBUFF]; int score; } candidato;
+    candidato cands[SMALLBUFF];
     candidato tmp;
 
     ncands = 0;
@@ -3011,7 +3016,7 @@ void usa_livro(tabuleiro tabu)
     // Phase 1: collect distinct next-move candidates
     while(1)
     {
-        fgets(linha, 256, flivro);
+        fgets(linha, BIGBUFF, flivro);
         if((p = strchr(linha, '\n')) != NULL) *p = ' '; // newline to space
         if(feof(flivro))
             break;
@@ -3203,7 +3208,7 @@ void testajogo(char *movinito, int mnum)
     char *jogo1 =
         "g1f3 g8f6 c2c4 b7b6 g2g3 c8b7 f1g2 d7d5 e1g1 d5c4 d1a4 c7c6 a4c4 b7a6 c4d4 a6e2 f1e1";
     //travou computador
-    char move[5]; // a1xb2Q#??\0
+    char move[TINYBUFF];
     int i;
 
     move[0] = '\0';
@@ -3368,7 +3373,7 @@ void copyr(void)
 void printf2(char *fmt, ...)
 {
     va_list args;
-    char sdbg[256];
+    char sdbg[BIGBUFF];
 
     if(DEBUG)
     {
@@ -3413,7 +3418,7 @@ int tokenizer(char *line, int *pos, char *token)
 // monta o tabuleiro a partir dos 6 campos FEN na linha
 void monta_fen(char *line, int *pos, tabuleiro *tabu)
 {
-    char pieces[128], color[4], castle[8], enpassant[4], halfmove[8], fullmove[8];
+    char pieces[SMALLBUFF], color[TINYBUFF], castle[TINYBUFF], enpassant[TINYBUFF], halfmove[TINYBUFF], fullmove[TINYBUFF];
     int i, j, k;
 
     if(!tokenizer(line, pos, pieces))    return;
