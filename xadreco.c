@@ -1390,8 +1390,8 @@ int cumprimento(char *line)
 int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
 {
     int pos;
-    int wtime, btime, winc, binc, depth, movetime, infinite, movestogo, moves_left;
-    double mytime, myinc;
+    int wtime, btime, winc, binc, nivel, movetime, infinite, movestogo, moves_left;
+    double mytime, myinc, tempo_move_max;
     char movinito[SMALLBUFF];
 
     pos = 0;
@@ -1465,7 +1465,7 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
     if(!strcmp(movinito, "go"))
     {
         wtime = 0; btime = 0; winc = 0; binc = 0;
-        depth = 0; movetime = 0; infinite = 0; movestogo = 0;
+        nivel = 0; movetime = 0; infinite = 0; movestogo = 0;
 
         while(tokenizer(line, &pos, movinito))
         {
@@ -1473,32 +1473,32 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
             else if(!strcmp(movinito, "btime")) { tokenizer(line, &pos, movinito); btime = atoi(movinito); }
             else if(!strcmp(movinito, "winc"))  { tokenizer(line, &pos, movinito); winc = atoi(movinito); }
             else if(!strcmp(movinito, "binc"))  { tokenizer(line, &pos, movinito); binc = atoi(movinito); }
-            else if(!strcmp(movinito, "depth")) { tokenizer(line, &pos, movinito); depth = atoi(movinito); }
+            else if(!strcmp(movinito, "depth")) { tokenizer(line, &pos, movinito); nivel = atoi(movinito); }
             else if(!strcmp(movinito, "movetime")) { tokenizer(line, &pos, movinito); movetime = atoi(movinito); }
             else if(!strcmp(movinito, "movestogo")) { tokenizer(line, &pos, movinito); movestogo = atoi(movinito); }
             else if(!strcmp(movinito, "infinite")) infinite = 1;
         }
 
         if(movetime > 0)
-            tempomovclock = movetime / 1000.0;
+            busca_tempo_move = movetime / 1000.0;
         else if(wtime > 0 || btime > 0)
         {
             mytime = (tabu->vez == BRANCO) ? wtime / 1000.0 : btime / 1000.0;
             myinc = (tabu->vez == BRANCO) ? winc / 1000.0 : binc / 1000.0;
             moves_left = movestogo > 0 ? movestogo : TOTAL_MOVIMENTOS - tabu->meionum / 2;
             if(moves_left < 10) moves_left = 10;
-            tempomovclock = mytime / moves_left + myinc;
-            tempomovclockmax = mytime / 4.0;
-            if(tempomovclock > tempomovclockmax) tempomovclock = tempomovclockmax;
-            if(tempomovclock < 0.5) tempomovclock = 0.5;
+            busca_tempo_move = mytime / moves_left + myinc;
+            tempo_move_max = mytime / 4.0;
+            if(busca_tempo_move > tempo_move_max) busca_tempo_move = tempo_move_max;
+            if(busca_tempo_move < 0.5) busca_tempo_move = 0.5;
         }
 
-        nivel = depth > 0 ? depth : MAX_PROF;
-        if(infinite) tempomovclock = 999999.0;
+        nivel = nivel > 0 ? nivel : MAX_PROF;
+        if(infinite) busca_tempo_move = 999999.0;
 
-        xadreco_inicia(ctx, tabu, nivel, tempomovclock);
+        xadreco_inicia(ctx, tabu, nivel, busca_tempo_move);
         *buscando = 1;
-        printdbg(debug, "# xadreco: go depth=%d time=%.1fs\n", nivel, tempomovclock);
+        printdbg(debug, "# xadreco: go depth=%d time=%.1fs\n", nivel, busca_tempo_move);
         return 1;
     }
 
@@ -1860,8 +1860,8 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         copitab(&tab, &atual);
         (void) joga_em(&tab, *succ, 1);
         //joga o lance atual, a funcao joga_em deve inserir no listab
-        totalnodonivel++;
-        profflag = succ->flag_50 + 1;	//se for zero, fim da busca.
+        busca_totalnodonivel++;
+        busca_profflag = succ->flag_50 + 1;	//se for zero, fim da busca.
         //flag_50:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu;
         //flag_50== 2 ou 3 : houve captura :Liberou
         //tab.situa:0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: sem resultado
@@ -1870,15 +1870,15 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             case 0:  //0:nada... Quem decide eh flag_50;
                 break;
             case 2:  //2:Xeque!  Liberou
-                profflag = 4;
+                busca_profflag = 4;
                 break;
             default: //situa: 1=Empate, 3,4=Mate, 5,6=Tempo. 7=sem resultado. Nao passar o nivel
-                profflag = 0;
+                busca_profflag = 0;
         }
         if(debug == 2)
         {
             lance2movi(m, succ->de, succ->pa, succ->especial);
-            fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, totalnodonivel, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
+            fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, busca_totalnodonivel, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
         }
         child_val = minimax(tab, prof + 1, alfa, beta, niv); // sem inversao de janela
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
@@ -3109,15 +3109,10 @@ void inicia(tabuleiro *tabu)
     lst_recria(&pltab);
     usando_livro = 1;
     setboard = 0;
-    nivel = 3;
-    tempomovclock = 3.0;
-    tempomovclockmax = 120.0;
-    tinimov = 0;
-    tatual = time(NULL);
-    tdifs = 0.0;
-    tultimoinput = time(NULL);
-    totalnodo = 0;
-    totalnodonivel = 0;
+    busca_tempo_move = 3.0;
+    busca_tinimov = 0;
+    busca_totalnodo = 0;
+    busca_totalnodonivel = 0;
 }
 
 //zera pecas do tabuleiro (para setboard preencher via FEN)
