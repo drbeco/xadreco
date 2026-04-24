@@ -274,37 +274,21 @@ const tabuleiro TAB_INICIO =
 
 // outros globais ------------------------------------
 //log file for debug==2
-FILE *fmini;
-//0: sem livro. 1: usa livro de aberturas (opcao -b)
-int ulivro = 0;
-//1:consulta o livro de aberturas livro.txt. 0:nao consulta
-int usando_livro;
-// 0: pensa para jogar. 1: joga ao acaso.
-int randomchess = 0;
-//mostra as linhas que o computador esta escolhendo
-//-1 para primeira vez. 0 nao edita. 1 edita. Posicao FEN.
-int setboard = 0;
-//nivel de profundidade (agora com aprofundamento iterativo, esta sem uso)
-int nivel = 3;
-//Flag de captura ou xeque para liberar mais um nivel em profsuf
-int profflag = 1;
-//total de nodos analisados para fazer um lance
-int totalnodo = 0;
-//total de nodos analisados em um nivel da arvore
-int totalnodonivel = 0;
+static FILE *fmini; //minimax log file for debug==2
+static int ulivro = 0; //0: sem livro. 1: usa livro de aberturas (opcao -b)
+static int usando_livro; //1:consulta o livro de aberturas livro.txt. 0:nao consulta
+static int randomchess = 0; //0: pensa para jogar. 1: joga ao acaso
+static int setboard = 0; //0: posicao normal. 1: posicao FEN carregada
+// busca: estado compartilhado entre minimax/profsuf/difclocks/xadreco_continua
+static int busca_profflag = 1; //flag de captura ou xeque para liberar mais um nivel em profsuf
+static int busca_totalnodo = 0; //total de nodos analisados para fazer um lance
+static int busca_totalnodonivel = 0; //total de nodos analisados em um nivel da arvore
+static time_t busca_tinimov; //tempo de inicio do lance
+static double busca_tempo_move; //tempo por lance em segundos
 
-// controle de tempo
-time_t tinimov, tatual, tultimoinput;
-double tdifs; // diferenca em segundos tdifs=difftime(t2,t1), calcular o tempo gasto no minimax e outras
-//3000 miliseg = 3 seg por lance = 300 seg por 100 lances = 5 min por jogo (de 100 lances)
-double tempomovclock; //em segundos
-double tempomovclockmax; // max allowed
-
-char bookfname[SMALLBUFF] = "livro.txt"; /* book file name */
-/* int verb = 0; /1* verbose variable *1/ */
-//coloque zero para evitar gravar arquivo. 0:sem debug, 1:-v debug, 2:-vv debug minimax
-int debug = 0; /* BUG: trocar por DEBUG - usando chave -v */
-int pong; /* what to ping back */
+static char bookfname[SMALLBUFF] = "livro.txt"; //nome do arquivo de aberturas
+static int debug = 0; //0:sem debug, 1:-v debug, 2:-vv debug minimax
+static filenta entra; //fila da string de entrada (thread)
 
 /* ---------------------------------------------------------------------- */
 /* prototipos gerais */ /* general prototypes */
@@ -1979,46 +1963,24 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
         return 1;
     }
     //retorna sem analisar... Deve desconsiderar o lance
-    if(difclocks() >= tempomovclock && debug != 2)
+    if(difclocks() >= busca_tempo_move && debug != 2)
     {
         mel[prof].tamanho = 0;
         *valor = estatico(atual, 1, prof, alfa, beta);	//-FIMTEMPO;//
         return 1;
     }
 
-    if(difftime(tatual, tultimoinput) >= 1) //faz poll uma vez por segundo apenas
+    if(entra.ocupada) // tem entrada? confere se eh stop
     {
-        // printf("(%d) ",clock2 - inputcheckclock);
-        if(pollinput())
+        if(!strncmp(entra.barbante, "stop", 4))
         {
-            do
-            {
-                input = getc(stdin);
-                // printf("input: %c", input);
-            }
-            while((input == '\n' || input == '\r') && pollinput());
-            // printf ("%c\n", input);
-            // ungetc (input, stdin);
-            if(input == '?')
-            {
-                mel[prof].tamanho = 0;
-                *valor = estatico(atual, 1, prof, alfa, beta);  //-FIMTEMPO;//
-                ungetc(input, stdin);
-                // teminterroga=1;
-                // printf("teminterroga: %d",teminterroga);
-                return 1;
-            }
-            else
-            {
-                ungetc(input, stdin);
-                // inputcheckclock = clock2;
-                tultimoinput = time(NULL);
-                // return 0;
-            }
+            mel[prof].tamanho = 0;
+            *valor = estatico(atual, 1, prof, alfa, beta);
+            return 1;
         }
     }
 
-    if(!profflag) //nao liberou profflag==0 retorna
+    if(!busca_profflag) //nao liberou busca_profflag==0 retorna
     {
         mel[prof].tamanho = 0;
         *valor = estatico(atual, 0, prof, alfa, beta); //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
