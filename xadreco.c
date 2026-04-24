@@ -229,26 +229,31 @@ typedef struct sbusca
     int melhorvalor;     // melhor valor encontrado
 } busca;
 
+// entrada de dados em threads
+typedef struct sentra
+{
+    char barbante[BIGBUFF]; // string de entrada
+    int ocupada; // flag de consumo
+} filenta;
+
 // identidade das pecas (mesma para brancas e pretas)
 enum piece_identity
 {
     VAZIA = 0, PEAO = 1, CAVALO = 2, BISPO = 3, TORRE = 4, DAMA = 5, REI = 6, NULA = 7
 };
 
-int val[] = {0, 100, 300, 325, 500, 900, 10000}; // centipawn lookup by TIPO index
+static int val[] = {0, 100, 300, 325, 500, 900, 10000}; // centipawn lookup by TIPO index
 
 /* ---------------------------------------------------------------------- */
 /* globals */
 
 // listas em arenas ----------------------------------
-lista *pltab = NULL; // ponteiro para lista de tabuleiros
-lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas (antiga succ_geral)
-// array triangular de PV: mel[prof] = melhor linha na profundidade prof
-resultado mel[MAX_PROF];
-// melhor linha salva entre iteracoes (o pote de mel)
-resultado melhor;
+static lista *pltab = NULL; // ponteiro para lista de tabuleiros
+static lista *plmov = NULL; // ponteiro para a primeira lista de movimentos de uma sequencia de niveis a ser analisadas (antiga succ_geral)
+static resultado mel[MAX_PROF]; // array triangular de PV: mel[prof] = melhor linha na profundidade prof
+static resultado melhor; // melhor linha salva entre iteracoes (o pote de mel)
 // posicao inicial do tabuleiro (constante unica, evita duplicacao)
-const tabuleiro TAB_INICIO =
+static const tabuleiro TAB_INICIO =
 {
     {   /* tab[64]: SQ(col,row)=col+row*8, rank by rank a-h */
         DACOR(TORRE,BRANCO), DACOR(CAVALO,BRANCO), DACOR(BISPO,BRANCO), DACOR(DAMA,BRANCO), DACOR(REI,BRANCO), DACOR(BISPO,BRANCO), DACOR(CAVALO,BRANCO), DACOR(TORRE,BRANCO), /* rank 1: a1-h1 */
@@ -1927,7 +1932,6 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
 
 int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
 {
-    char input;
 
     //limite absoluto de profundidade: protege mel[prof] de overflow
     if(prof >= MAX_PROF)
