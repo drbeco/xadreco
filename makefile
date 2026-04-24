@@ -2,8 +2,6 @@
 # (C) 2015-2016, Ruben Carlo Benante
 # GNU License v2
 #
-# Compilar para lichess
-# 	make XDEBUG=1 DEBUG=1
 #
 # TODO:
 #   random just for first move
@@ -12,20 +10,19 @@
 .PRECIOUS: %.o
 SHELL=/bin/bash -o pipefail
 
-MAJOR ?= 8
-MINOR ?= 1
+MAJOR ?= 9
+MINOR ?= 0
 DEBUG ?= 0
 BUILD = $(shell date +"%g%m%d.%H%M%S")
 DEFSYM = $(subst .,_,$(BUILD))
 VERSION = $(MAJOR).$(MINOR)
 CC = gcc
+CCW = i686-w64-mingw32-gcc
 CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99
 # -Wno-unused-variable -Wno-unused-function
 #CFLAGS = -Ofast -ansi -pedantic-errors
-#XDEBUG==0: command line. XDEBUG>0, fixed value
-XDEBUG ?= 0
-CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG) -DXDEBUG=$(XDEBUG)
-LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm
+CPPFLAGS = -DVERSION="\"$(VERSION)\"" -DBUILD="\"$(BUILD)\"" -DDEBUG=$(DEBUG)
+LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm -lpthread
 #LDLIBS += -lgmp
 #OBJ = libeco-ux64.o
 LIBECO_BUILD = $(shell date +"%g%m%d.%H%M%S")
@@ -39,10 +36,18 @@ o = xadreco
 %.o : %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $^ -o $@ |& tee errors.err
 
+#object (Windows)
+%.obj : %.c
+	$(CCW) $(CFLAGS) $(CPPFLAGS) $^ -o $@ |& tee errors.err
+
 #binary ELF (Linux)
 $(o) : % : %.o $(OBJ)
 	$(CC) $(LDLIBS) $^ -o $@ |& tee errors.err
 	echo $(o) version \"$(VERSION).$(BUILD)\" > VERSION
+
+#binary EXE (Windows)
+%.exe : %.obj
+	$(CCW) $(LDLIBS) $(CPPFLAGS) $^ -o $@ |& tee errors.err
 
 #library
 libeco-ux64.o : libeco.c

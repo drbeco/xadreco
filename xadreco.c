@@ -40,19 +40,29 @@
 
 /* ---------------------------------------------------------------------- */
 /* includes */
-#include <sys/select.h>
-#include <sys/time.h>
-#include <unistd.h>
+#ifdef __linux /* funcoes do SO sleep e getpid */
+    #include <unistd.h>
+#else
+    #include <windows.h>
+#endif
 
-#include <time.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <getopt.h> /* get options from system argc/argv */
-#include <stdarg.h> /* function with multiple arguments */
+#include <time.h> /* hora do sistema */
+#include <string.h> /* comparacoes de strings */
+#include <stdio.h> /* entrada e saida padrao */
+#include <stdlib.h> /* macros da biblioteca padrao */
+#include <getopt.h> /* opcoes e flags vindas da funcao main argc/argv */
+#include <stdarg.h> /* funcoes com lista de argumentos variaveis */
+
+#include <pthread.h> /* programacao paralela */
 
 /* ---------------------------------------------------------------------- */
 /* definitions */
+
+#ifdef __linux /* dormir um pouco */
+    #define waitms(ms) usleep((ms)*1000)
+#else
+    #define waitms(ms) Sleep((ms))
+#endif
 
 #define SQ(c, r)  ((c) + (r) * 8)
 #define COL(sq)   ((sq) & 7)
@@ -328,8 +338,6 @@ void testajogo(char *movinito, int mnum);
 void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
-// retorna verdadeiro se existe algum caracter no buffer para ser lido
-int pollinput(void);
 //calcula diferenca de tempo em segundo do lance atual
 double difclocks(void);
 // joga aleatorio!
@@ -358,6 +366,9 @@ int cumprimento(char *line);
 void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time);
 int  xadreco_continua(busca *ctx); // retorna 1=continuar, 0=terminou
 void xadreco_para(busca *ctx);     // cleanup (sem output de lance)
+
+// entrada de dados nao-bloqueante para Linux e Windows
+void *tem_entrada(void *);
 
 // apoio xadrez -----------------------------------------------------
 //retorna 1 se "cor" ataca casa(col,lin) no tabuleiro tabu
@@ -422,32 +433,40 @@ void copitab(tabuleiro *dest, tabuleiro *font);
 /* codigo principal - main code */
 int main(int argc, char *argv[])
 {
+    // variaveis locais base do jogo
+    tabuleiro tabu;
+    char linha[BIGBUFF]; // bug: linha as a string line for input or as a chess moves line for a variant
     int ligado; // jogo ligado, rodando
     int buscando; // procurando lances
+    busca ctx; // contexto para xadreco_inicia(), xadreco_continua() e xadreco_para()
+    pthread_t penta;
+
     // gerenciamento de memoria com arenas
     arena atab; // historico de posicoes de tabuleiro do jogo
     arena_inicia(&atab, ARENA_TAB);
     arena_destrutor(&atab, lst_limpa); // callback para limpar pltab
-    if(lst_cria(&atab, &pltab))
-        msgsai("# Erro arena cheia em main lst_cria atab", 39);
-
     arena amov; // movimentos gerados para analise
     arena_inicia(&amov, ARENA_MOV);
     arena_destrutor(&amov, lst_limpa); // callback para limpar plmov
-    if(lst_cria(&amov, &plmov))
-        msgsai("# Erro arena cheia em main lst_cria amov", 39);
 
-    tabuleiro tabu;
-    char linha[BIGBUFF];
-    busca ctx;
+    // listas duplamente ligadas em arenas
+    if(lst_cria(&atab, &pltab)) msgsai("# Erro arena cheia em main lst_cria atab", 39);
+    if(lst_cria(&amov, &plmov)) msgsai("# Erro arena cheia em main lst_cria amov", 39);
 
-    opcoes(argc, argv);
+    opcoes(argc, argv); // laco do getopt
+
+    //------------------------------------------------------------------------------
+    // inicializando o leitor paralelo de entrada
+    entra.ocupada=0; // pede entrada
+    pthread_create(&penta, NULL, tem_entrada, NULL);
+    while(!entra.ocupada) // aguarda entrada em entra.barbante
+        waitms(10);
 
     // handshake do protocolo
-    fgets(linha, sizeof(linha), stdin);
-    printdbg(debug, "# GUI: %s", linha);
-    if(!cumprimento(linha))
-        sai(0);
+    /* fgets(linha, sizeof(linha), stdin); */
+    printdbg(debug, "# GUI: %s", entra.barbante);
+    if(!cumprimento(entra.barbante)) msgsai("# Ciao", 0);
+    entra.ocupada=0; // comeu entrada, pede nova
 
     //------------------------------------------------------------------------------
     // novo jogo
@@ -464,12 +483,11 @@ int main(int argc, char *argv[])
 
     while(ligado)
     {
-        // --- input: processa comando ou lance ---
-        if(pollinput())
+        if(entra.ocupada) // confere se tem entrada disponivel
         {
-            fgets(linha, sizeof(linha), stdin);
-            printdbg(debug, "# GUI: %s", linha);
-            ligado = comando_proto(linha, &tabu, &buscando, &ctx);
+            printdbg(debug, "# GUI: %s", entra.barbante);
+            ligado = comando_proto(entra.barbante, &tabu, &buscando, &ctx);
+            entra.ocupada=0; // comeu entrada
         }
 
         // --- busca: uma iteracao do aprofundamento iterativo ---
@@ -482,16 +500,16 @@ int main(int argc, char *argv[])
                 if(melhor.tamanho > 0)
                 {
                     joga_em(&tabu, melhor.linha[0], 1);
-                    lance2movi(linha, tabu.de, tabu.pa, tabu.especial);
+                    lance2movi(linha, tabu.de, tabu.pa, tabu.especial); // linha ou barbante?
                     printf2("bestmove %s\n", linha);
                     if(debug >= 2) mostra_tabu(tabu);
                 }
             }
         }
 
-        // --- idle ---
-        if(!buscando && !pollinput())
-            usleep(1000);
+        // --- idle: confere entrada uma vez cada 10 milisegundos ---
+        if(!buscando && !entra.ocupada)
+            waitms(10);
 
     } //while (ligado)
 
