@@ -1245,7 +1245,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     return (lmov ? lmov->qtd > 0 : 0);
 } //fim de   ----------- int geramov(tabuleiro tabu, lista *lmov, int geramodo)
 
-// confere se uma cor ataca uma casa 
+// confere se uma cor ataca uma casa
 int ataca(int cor, int col, int lin, tabuleiro tabu)
 {
     //retorna verdadeiro (1) ou falso (0)
@@ -1253,8 +1253,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
     //cor==pretas    => pretas  atacam casa(col,lin)
     int icol, ilin, casacol, casalin;
     //torre ou dama atacam a casa...
-    for(icol = col - 1; icol >= 0; icol--)
-        //desce coluna
+    for(icol = col - 1; icol >= 0; icol--) //desce coluna
     {
         if(tabu.tab[SQ(icol, lin)] == VAZIA)
             continue;
@@ -1262,8 +1261,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
             return (1);
         break;
     }
-    for(icol = col + 1; icol < 8; icol++)
-        //sobe coluna
+    for(icol = col + 1; icol < 8; icol++) //sobe coluna
     {
         if(tabu.tab[SQ(icol, lin)] == VAZIA)
             continue;
@@ -1271,8 +1269,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
             return (1);
         break;
     }
-    for(ilin = lin + 1; ilin < 8; ilin++)
-        // direita na linha
+    for(ilin = lin + 1; ilin < 8; ilin++) // direita na linha
     {
         if(tabu.tab[SQ(col, ilin)] == VAZIA)
             continue;
@@ -1280,8 +1277,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
             return (1);
         break;
     }
-    for(ilin = lin - 1; ilin >= 0; ilin--)
-        // esquerda na linha
+    for(ilin = lin - 1; ilin >= 0; ilin--) // esquerda na linha
     {
         if(tabu.tab[SQ(col, ilin)] == VAZIA)
             continue;
@@ -1334,8 +1330,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
             if(tabu.tab[SQ(icol, ilin)] == DACOR(REI, cor))
                 return (1);
         }
-    if(cor == BRANCO)
-        // ataque de peao branco: peao branco ataca para baixo (lin-1)
+    if(cor == BRANCO) // ataque de peao branco: peao branco ataca para baixo (lin-1)
     {
         if(lin > 1)
         {
@@ -1348,8 +1343,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
                     return (1);
         }
     }
-    else
-        //ataque de peao preto: peao preto ataca para cima (lin+1)
+    else //ataque de peao preto: peao preto ataca para cima (lin+1)
     {
         if(lin < 6)
         {
@@ -1365,7 +1359,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
     return (0);
 }
 
-// confere se um rei de dada cor esta em xeque 
+// confere se um rei de dada cor esta em xeque
 int xeque_rei_das(int cor, tabuleiro tabu)
 {
     int sq = tabu.rei_pos[ICOR(cor)];
