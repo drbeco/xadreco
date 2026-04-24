@@ -93,12 +93,6 @@
 #define IFDEBUG(M) if(DEBUG) fprintf(stderr, "# [DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
 
 /* Command line defaults */
-#ifndef XDEBUG
-#define XDEBUG 0
-#endif
-#ifndef XDEBUGFOUT
-#define XDEBUGFOUT stderr
-#endif
 
 //estimativa da duracao do jogo
 #define TOTAL_MOVIMENTOS 50
@@ -458,7 +452,6 @@ int main(int argc, char *argv[])
     buscando = 0;
 
     inicia(&tabu);
-    assert(tabu.vez == BRANCO && "board not initialized");
     tab_insere(tabu);
     assert(pltab != NULL && pltab->cabeca != NULL && "board history null");
 
@@ -551,10 +544,6 @@ void opcoes(int argc, char *argv[])
     }
     if(verflag == 1)
         copyr();
-
-#if XDEBUG > 0
-    debug = XDEBUG;
-#endif
 
     printdbg(debug, "# xadreco: DEBUG MACRO compiled value: %d\n", DEBUG);
     printdbg(debug, "# xadreco: verbose level set at: %d\n", debug);
@@ -3353,7 +3342,7 @@ void printf2(char *fmt, ...)
     {
         va_start(args, fmt);
         sprintf(sdbg, "# %s", fmt);
-        vfprintf(XDEBUGFOUT, sdbg, args);
+        vfprintf(stderr, sdbg, args);
         va_end(args);
     }
 
@@ -3374,7 +3363,7 @@ void printdbg(int dbg, ...)
     fmt = va_arg(args, char *);
     /* if(dbg>DEBUG) */
     if(dbg)
-        vfprintf(XDEBUGFOUT, fmt, args);
+        vfprintf(stderr, fmt, args);
     va_end(args);
 }
 
