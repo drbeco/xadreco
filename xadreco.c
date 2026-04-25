@@ -1838,10 +1838,8 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
         tabull.peao_pulou = -1;
         valull = minimax(tabull, prof + 1, alfax, betin, niv - 2);
         pula_vez = 0;
-        if(atual.vez == BRANCO && valull >= betin)
+        if(valull >= betin)
             return betin;
-        if(atual.vez == PRETO && valull <= alfax)
-            return alfax;
     }
 
     if(debug == 2)
