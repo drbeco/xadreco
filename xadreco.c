@@ -380,11 +380,11 @@ int igual_strlances_strlinha(char *strlances, char *strlinha);
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
 //retorna (int) valor. Escreve mel[prof] com a melhor linha.
-int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv);
+int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv);
 //retorna verdadeiro se (prof>=niv) ou (prof>=MAX_PROF) ou (tempo estourou)
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor);
+int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor);
 //retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
-int estatico(tabuleiro tabu, int cod, int niv, int alfa, int beta);
+int estatico(tabuleiro tabu, int cod, int niv, int alfax, int betin);
 //joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
 char joga_em(tabuleiro *tabu, movimento movi, int cod);
 
@@ -1749,7 +1749,7 @@ int xadreco_continua(busca *ctx)
     if(debug == 2)
     {
         fprintf(fmini, "#\n#\n# *************************************************************");
-        fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfa=%d, beta=%d, nv=%d)", -LIMITE, LIMITE, ctx->nv);
+        fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfax=%d, betin=%d, nv=%d)", -LIMITE, LIMITE, ctx->nv);
     }
     ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv);
     if(mel[0].tamanho == 0)
@@ -1803,12 +1803,12 @@ void xadreco_para(busca *ctx)
 }
 
 //--------------------------------------------------------------------------
-//tabuleiro atual, profundidade zero, limite maximo de estatico (beta ou uso), limite minimo de estatico (alfa ou passo), nivel da busca
-//Finding the rotten fish in the second bag was like exceeding beta.
+//tabuleiro atual, profundidade zero, limite maximo de estatico (betin ou uso), limite minimo de estatico (alfax ou passo), nivel da busca
+//Finding the rotten fish in the second bag was like exceeding betin.
 //If there had been no fish in the bag, determining that the six-pack of pop
 //bag was better than the sandwich bag would have been like exceeding alpha (one ply back).
-//source: http://www.seanet.com/~brucemo/topics/alphabeta.htm
-int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
+// alfax = lower bound (maximizer's guarantee), betin = upper bound (minimizer's guarantee)
+int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
 {
     movimento *succ;
     int novo_valor, child_val, contamov = 0;
@@ -1818,10 +1818,10 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     lista *llmov = NULL;
     size_t saved;
 
-    assert(prof >= 0 && alfa <= beta && "Invalid minimax parameters");
+    assert(prof >= 0 && alfax <= betin && "Invalid minimax parameters");
     mel[prof].tamanho = 0; // inicializa PV vazio (evita dados stale de iteracao anterior)
 
-    if(profsuf(atual, prof, alfa, beta, niv, &child_val))
+    if(profsuf(atual, prof, alfax, betin, niv, &child_val))
     {
         //profsuf preencheu mel[prof] e child_val
         return child_val;
@@ -1829,7 +1829,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     if(debug == 2)
     {
         fprintf(fmini, "#\n#----------------------------------------------Minimax prof: %d", prof);
-        //fprintf(fmini, "\nalfa= %d     beta= %d", alfa, beta);
+        //fprintf(fmini, "\nalfax= %d     betin= %d", alfax, betin);
     }
     if(prof == 0)
         n = plmov->cabeca; // lista de lances do tabuleiro real
@@ -1846,7 +1846,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     {
         //entao o estatico refletira isso: afogamento
         mel[prof].tamanho = 0;
-        child_val = estatico(atual, 0, prof, alfa, beta);
+        child_val = estatico(atual, 0, prof, alfax, betin);
         if(debug == 2)
             fprintf(fmini, "#NULL ");
         if(prof != 0)
@@ -1854,7 +1854,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
         return child_val;
     }
     // minimax classico: brancas maximizam, pretas minimizam
-    // alfa = lower bound (melhor para brancas), beta = upper bound (melhor para pretas)
+    // alfax = lower bound (melhor para brancas), betin = upper bound (melhor para pretas)
     // valores absolutos: positivo = bom para brancas
     novo_valor = (atual.vez == BRANCO) ? -LIMITE : +LIMITE; // best inicial
     while(n)
@@ -1883,7 +1883,7 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
             lance2movi(m, succ->de, succ->pa, succ->especial);
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, busca_totalnodonivel, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
         }
-        child_val = minimax(tab, prof + 1, alfa, beta, niv); // sem inversao de janela
+        child_val = minimax(tab, prof + 1, alfax, betin, niv); // sem inversao de janela
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         if(atual.vez == BRANCO) // MAXIMIZA
         {
@@ -1894,8 +1894,8 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
                 memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
                 mel[prof].tamanho = mel[prof + 1].tamanho + 1;
             }
-            if(novo_valor > alfa)
-                alfa = novo_valor;
+            if(novo_valor > alfax)
+                alfax = novo_valor;
         }
         else // MINIMIZA
         {
@@ -1906,16 +1906,16 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
                 memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
                 mel[prof].tamanho = mel[prof + 1].tamanho + 1;
             }
-            if(novo_valor < beta)
-                beta = novo_valor;
+            if(novo_valor < betin)
+                betin = novo_valor;
         }
-        // corte alfa-beta (comum a ambos)
-        if(alfa >= beta)
+        // corte alfax-betin (comum a ambos)
+        if(alfax >= betin)
         {
             if(debug == 2)
             {
                 lance2movi(m, succ->de, succ->pa, succ->especial);
-                fprintf(fmini, "#\n# succ: alfa>=beta (%+.2f>=%+.2f) %s Corte!", alfa / 100.0, beta / 100.0, m);
+                fprintf(fmini, "#\n# succ: alfax>=betin (%+.2f>=%+.2f) %s Corte!", alfax / 100.0, betin / 100.0, m);
             }
             break;
         }
@@ -1933,14 +1933,14 @@ int minimax(tabuleiro atual, int prof, int alfa, int beta, int niv)
     return novo_valor;
 }
 
-int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
+int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor)
 {
 
     //limite absoluto de profundidade: protege mel[prof] de overflow
     if(prof >= MAX_PROF)
     {
         mel[prof - 1].tamanho = 0;
-        *valor = estatico(atual, 0, prof, alfa, beta);
+        *valor = estatico(atual, 0, prof, alfax, betin);
         return 1;
     }
     //se tem captura ou xeque... liberou
@@ -1948,15 +1948,14 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
     if(prof >= niv)
     {
         mel[prof].tamanho = 0;
-        *valor = estatico(atual, 0, prof, alfa, beta);
-        //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
+        *valor = estatico(atual, 0, prof, alfax, betin); //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: nivel analisando?)
         return 1;
     }
     //retorna sem analisar... Deve desconsiderar o lance
     if(difclocks() >= busca_tempo_move && debug != 2)
     {
         mel[prof].tamanho = 0;
-        *valor = estatico(atual, 1, prof, alfa, beta);	//-FIMTEMPO;//
+        *valor = estatico(atual, 1, prof, alfax, betin); //-FIMTEMPO;
         return 1;
     }
 
@@ -1965,7 +1964,7 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
         if(!strncmp(entra.barbante, "stop", 4))
         {
             mel[prof].tamanho = 0;
-            *valor = estatico(atual, 1, prof, alfa, beta);
+            *valor = estatico(atual, 1, prof, alfax, betin);
             return 1;
         }
     }
@@ -1973,7 +1972,7 @@ int profsuf(tabuleiro atual, int prof, int alfa, int beta, int niv, int *valor)
     if(!busca_profflag) //nao liberou busca_profflag==0 retorna
     {
         mel[prof].tamanho = 0;
-        *valor = estatico(atual, 0, prof, alfa, beta); //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
+        *valor = estatico(atual, 0, prof, alfax, betin); //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
         return 1; //a profundidade ja eh sufuciente
     }
     return 0; //se OU Nem-Chegou-no-Nivel OU Liberou, pode ir fundo
