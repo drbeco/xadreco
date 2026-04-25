@@ -281,6 +281,7 @@ static int randomchess = 0; //0: pensa para jogar. 1: joga ao acaso
 static int setboard = 0; //0: posicao normal. 1: posicao FEN carregada
 // busca: estado compartilhado entre minimax/profsuf/difclocks/xadreco_continua
 static int busca_profflag = 1; //flag de captura ou xeque para liberar mais um nivel em profsuf
+static int pula_vez = 0; //flag para evitar null-move recursivo
 static int busca_totalnodo = 0; //total de nodos analisados para fazer um lance
 static int busca_totalnodonivel = 0; //total de nodos analisados em um nivel da arvore
 static time_t busca_tinimov; //tempo de inicio do lance
@@ -1812,7 +1813,8 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
 {
     movimento *succ;
     int novo_valor, child_val, contamov = 0;
-    tabuleiro tab;
+    int valull;
+    tabuleiro tab, tabull;
     char m[TINYBUFF];
     no *n;
     lista *llmov = NULL;
@@ -1826,6 +1828,22 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
         //profsuf preencheu mel[prof] e child_val
         return child_val;
     }
+
+    // null-move pruning: passo a vez; se ainda assim excede betin/alfax, corta
+    if(prof > 0 && !pula_vez && !xeque_rei_das(atual.vez, atual))
+    {
+        pula_vez = 1;
+        copitab(&tabull, &atual);
+        tabull.vez = ADV(tabull.vez);
+        tabull.peao_pulou = -1;
+        valull = minimax(tabull, prof + 1, alfax, betin, niv - 2);
+        pula_vez = 0;
+        if(atual.vez == BRANCO && valull >= betin)
+            return betin;
+        if(atual.vez == PRETO && valull <= alfax)
+            return alfax;
+    }
+
     if(debug == 2)
     {
         fprintf(fmini, "#\n#----------------------------------------------Minimax prof: %d", prof);
