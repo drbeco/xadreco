@@ -386,13 +386,13 @@ int igual_strlances_strlinha(char *strlances, char *strlinha);
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
 //retorna (int) valor. Escreve mel[prof] com a melhor linha.
-int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv);
+int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_quieta);
 //retorna verdadeiro se (prof>=niv) ou (prof>=MAX_PROF) ou (tempo estourou)
-int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor);
-//retorna um valor estatico que avalia uma posicao do tabuleiro, fixa. Cod==1: tempo estourou no meio da busca. Niv: o nivel de distancia do tabuleiro real para a copia examinada
-int estatico(tabuleiro tabu, int cod, int niv, int alfax, int betin);
-//joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab *plfinal se cod==1
-char joga_em(tabuleiro *tabu, movimento movi, int cod);
+int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor, int busca_quieta);
+//retorna um valor estatico que avalia uma posicao do tabuleiro. Niv: o nivel de distancia do tabuleiro real para a copia examinada
+int estatico(tabuleiro tabu, int niv, int alfax, int betin);
+//joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab se flag_hist==1
+char joga_em(tabuleiro *tabu, movimento movi, int flag_hist);
 
 // listas dinamicas com arena ------------------------------------------------------------
 void arena_inicia(arena *a, size_t capa); // inicializa uma arena de alocacao de memoria
@@ -1774,19 +1774,20 @@ int xadreco_continua(busca *ctx)
 {
     int i;
     char movinito[SMALLBUFF];
+    const int busca_quieta = 0; //quiescencia, libera profundidade de profsuf() ate acalmar
+    //busca_profflag = 1; //antiga quiescencia
 
     // livro ou randomchess ja encontrou lance
     if(melhor.tamanho > 0 && ctx->nv == 1)
         return 0;
 
     busca_totalnodonivel = 0;
-    busca_profflag = 1;
     if(debug == 2)
     {
         fprintf(fmini, "#\n#\n# *************************************************************");
         fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfax=%d, betin=%d, nv=%d)", -LIMITE, LIMITE, ctx->nv);
     }
-    ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv);
+    ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv, busca_quieta);
     if(mel[0].tamanho == 0)
         return 0;
     if(difclocks() < busca_tempo_move)
@@ -1841,7 +1842,7 @@ void xadreco_para(busca *ctx)
 //tabuleiro atual, profundidade zero, limite maximo de estatico (betin ou uso), limite minimo de estatico (alfax ou passo), nivel da busca
 // Max quer mais, e tem piso alfa garantido. Nao aceita menos. Se o presente < alfa, corta.
 // Min quer menos, e tem teto beta garantido. Nao aceita mais. Se o presente > beta, corta.
-int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
+int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_quieta)
 {
     movimento *succ;
     int novo_valor, child_val, contamov = 0;
@@ -1851,21 +1852,26 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
     no *n;
     lista *llmov = NULL;
     size_t saved;
+    int quieta; // busca_quieta para as criancas
 
     assert(prof >= 0 && alfax <= betin && "Invalid minimax parameters");
     mel[prof].tamanho = 0; // inicializa PV vazio (evita dados stale de iteracao anterior)
 
-    if(profsuf(atual, prof, alfax, betin, niv, &child_val))
+    if(prof <= 2) printdbg(debug, "# QUIETA: minimax enter prof=%d niv=%d busca_quieta=%d\n", prof, niv, busca_quieta); // DEBUG-QUIETA
+    if(profsuf(atual, prof, alfax, betin, niv, &child_val, busca_quieta))
+    {
+        if(prof <= 2) printdbg(debug, "# QUIETA: profsuf stopped prof=%d niv=%d quieta=%d val=%d\n", prof, niv, busca_quieta, child_val); // DEBUG-QUIETA
         return child_val;
+    }
 
     // null-move pruning: passo a vez; se ainda assim excede betin/alfax, corta
-    if(prof > 0 && !pula_vez && !xeque_rei_das(atual.vez, atual))
+    if(prof > 0 && !pula_vez && !xeque_rei_das(atual.vez, atual) && !busca_quieta)
     {
         pula_vez = 1;
         copitab(&tabull, &atual);
         tabull.vez = ADV(tabull.vez);
         tabull.peao_pulou = -1;
-        valull = minimax(tabull, prof + 1, alfax, betin, niv - 2);
+        valull = minimax(tabull, prof + 1, alfax, betin, niv - 2, busca_quieta); //nao faz null-move em busca_quieta
         pula_vez = 0;
         if(prof <= 3) // DEBUG-NULL
             printdbg(debug, "# null-move: prof=%d vez=%s alfax=%d betin=%d valull=%d %s\n", // DEBUG-NULL
@@ -1895,7 +1901,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
     {
         //entao o estatico refletira isso: afogamento
         mel[prof].tamanho = 0;
-        child_val = estatico(atual, 0, prof, alfax, betin);
+        child_val = estatico(atual, prof, alfax, betin);
         if(debug == 2)
             fprintf(fmini, "#NULL ");
         if(prof != 0)
@@ -1909,30 +1915,35 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
     while(n)
     {
         succ = (movimento *)n->info;
+        if(busca_quieta && succ->especial != 9)
+        {
+            if(prof <= 2) printdbg(debug, "# QUIETA: skip quiet move prof=%d especial=%d\n", prof, succ->especial); // DEBUG-QUIETA
+            n = n->prox;
+            continue;
+        }
         copitab(&tab, &atual);
         (void) joga_em(&tab, *succ, 1);
         //joga o lance atual, a funcao joga_em deve inserir no listab
         busca_totalnodonivel++;
-        busca_profflag = succ->flag_50 + 1;	//se for zero, fim da busca.
+        /* busca_profflag = succ->flag_50 + 1; //se for zero, fim da busca. */
         //flag_50:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu;
         //flag_50== 2 ou 3 : houve captura :Liberou
         //tab.situa:0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: sem resultado
-        switch(tab.situa)
-        {
-            case 0:  //0:nada... Quem decide eh flag_50;
-                break;
-            case 2:  //2:Xeque!  Liberou
-                busca_profflag = 4;
-                break;
-            default: //situa: 1=Empate, 3,4=Mate, 5,6=Tempo. 7=sem resultado. Nao passar o nivel
-                busca_profflag = 0;
-        }
+        //switch(tab.situa)
+        //{
+        //    case 0: break; //0:nada... Quem decide eh flag_50;
+        //    case 2: busca_profflag = 4; break; //2:Xeque!  Liberou
+        //    default: busca_profflag = 0; //situa: 1=Empate, 3,4=Mate, 5,6=Tempo. 7=sem resultado. Nao passar o nivel
+        //}
+        quieta = (prof + 1 >= niv) && (succ->especial == 9); //captura: filho entra em quiescencia
+        if(prof <= 2) printdbg(debug, "# QUIETA: move prof=%d especial=%d quieta_child=%d\n", prof, succ->especial, quieta); // DEBUG-QUIETA
         if(debug == 2)
         {
             lance2movi(m, succ->de, succ->pa, succ->especial);
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, busca_totalnodonivel, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
         }
-        child_val = minimax(tab, prof + 1, alfax, betin, niv); // sem inversao de janela
+        child_val = minimax(tab, prof + 1, alfax, betin, niv, quieta); // busca_quieta local com quieta para criancas
+        if(prof <= 2) printdbg(debug, "# QUIETA: child_val=%d prof=%d especial=%d alfax=%d betin=%d\n", child_val, prof, succ->especial, alfax, betin); // DEBUG-QUIETA
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         if(atual.vez == BRANCO) // MAXIMIZA
         {
@@ -1982,29 +1993,22 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
     return novo_valor;
 }
 
-int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor)
+int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor, int busca_quieta)
 {
+    if(prof > busca_seldepth) busca_seldepth = prof; // maior quando busca_quieta
 
     //limite absoluto de profundidade: protege mel[prof] de overflow
     if(prof >= MAX_PROF)
     {
         mel[prof - 1].tamanho = 0;
-        *valor = estatico(atual, 0, prof, alfax, betin);
-        return 1;
-    }
-    //se tem captura ou xeque... liberou
-    //se ja passou do nivel estipulado, pare a busca incondicionalmente
-    if(prof >= niv)
-    {
-        mel[prof].tamanho = 0;
-        *valor = estatico(atual, 0, prof, alfax, betin); //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: nivel analisando?)
+        *valor = estatico(atual, prof, alfax, betin);
         return 1;
     }
     //retorna sem analisar... Deve desconsiderar o lance
     if(difclocks() >= busca_tempo_move && debug != 2)
     {
         mel[prof].tamanho = 0;
-        *valor = estatico(atual, 1, prof, alfax, betin); //-FIMTEMPO;
+        *valor = estatico(atual, prof, alfax, betin); //-FIMTEMPO;
         return 1;
     }
 
@@ -3113,6 +3117,7 @@ void usa_livro(tabuleiro tabu)
     int ncands, i, j, pool, sorteio, ll, lli, dup, de, pa;
     tabuleiro temp;
     movimento mval;
+    const int busca_quieta = 0; // busca da quiescencia
     typedef struct { char move[TINYBUFF]; char linha[BIGBUFF]; int score; } candidato;
     candidato cands[SMALLBUFF];
     candidato tmp;
@@ -3186,7 +3191,7 @@ void usa_livro(tabuleiro tabu)
             joga_em(&temp, mval, 0);
             lst_recria(&plmov);
             geramov(temp, plmov, GERA_TODOS);
-            cands[i].score = minimax(temp, 0, -LIMITE, LIMITE, 2);
+            cands[i].score = minimax(temp, 0, -LIMITE, LIMITE, 2, busca_quieta);
         }
         if(debug >= 2)
             printdbg(debug, "# xadreco livro: cand[%d] = %s score=%d linha: %s\n",
