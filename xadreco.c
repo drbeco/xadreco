@@ -118,6 +118,52 @@
 #define TABSIZE   64
 #define SQINFO    7
 
+/* estatico() bonificacoes e penalidades em centipawns */
+#define EST_XEQUE        5   /* bonus por dar xeque */
+#define EST_ATK_MAIOR   10   /* multiplicador de ataques em rei/dama/torre */
+#define EST_ATK_MENOR   10   /* multiplicador de ataques em bispo/cavalo */
+#define EST_ATK_PEAO     5   /* multiplicador de ataques em peao */
+#define EST_TERRITORIO  50   /* dama/torre em territorio inimigo */
+#define EST_PENDURADA    7   /* divisor da penalidade de peca pendurada */
+#define EST_MOB_BORDA    2   /* mobilidade em casa vazia na borda */
+#define EST_MOB_CENTRO   3   /* mobilidade em casa vazia no centro */
+#define EST_CENTRO_EXT   1   /* controle do centro externo (c3-f6) */
+#define EST_CENTRO_INT   2   /* controle do centro interno (d4/d5/e4/e5) */
+#define EST_REI_VIZIM    3   /* ataque em casa vizinha ao rei inimigo (dist<=1) */
+#define EST_REI_PERTIM   2   /* ataque perto do rei inimigo (dist<=2) */
+#define EST_ATK_SALDO    7   /* multiplicador de saldo de ataques vs defesas */
+#define EST_ATK_BAIXO   30   /* bonus por atacante menor que peca atacada */
+#define EST_CRAVADA      7   /* divisor da penalidade de peca cravada */
+#define EST_PEAO_R4      5   /* bonus peao avancado rank 4 */
+#define EST_PEAO_R5     15   /* bonus peao avancado rank 5 */
+#define EST_PEAO_R6     25   /* bonus peao avancado rank 6 */
+#define EST_PEAO_R7     35   /* bonus peao avancado rank 7 */
+#define EST_TORRE_DUP   40   /* torres dobradas na mesma coluna */
+#define EST_TORRE_ABRT  30   /* torre em coluna aberta */
+#define EST_TORRE_SEMI  15   /* torre em coluna semi-aberta */
+#define EST_PEAO_DUP    30   /* penalidade por peao dobrado (por extra) */
+#define EST_PEAO_ISOL   40   /* penalidade por peao isolado */
+#define EST_PEAO_PASS  160   /* bonus de peao passado */
+#define EST_PASS_PROT   20   /* bonus peao passado protegido */
+#define EST_PASS_TORRE  50   /* torre amiga atras de peao passado */
+#define EST_PASS_INIM   50   /* torre inimiga na coluna do peao passado */
+#define EST_PEAO_ATRAS  60   /* penalidade peao atrasado */
+#define EST_GAP         10   /* penalidade por diferenca de gaps (ilhas) */
+#define EST_PAR_BISPO   20   /* bonus par de bispos (maximo, escalado por peoes) */
+#define EST_BISPO_VANT   5   /* bonus por vantagem de bispos */
+#define EST_PAR_CAVAL   20   /* penalidade par de cavalos (maximo, escalado) */
+#define EST_OUTPOST     60   /* bonus cavalo em posto avancado */
+#define EST_DAMA_CASA   40   /* bonus dama na casa inicial (abertura) */
+#define EST_ROQUE_PQN   60   /* bonus roque pequeno */
+#define EST_ROQUE_GRD   40   /* bonus roque grande */
+#define EST_ESCUDO_PQN  60   /* bonus escudo de peoes roque pequeno */
+#define EST_ESCUDO_GRD  50   /* bonus escudo de peoes roque grande */
+#define EST_ESC_BISPO   30   /* penalidade escudo: peao do bispo/cavalo faltando */
+#define EST_ESC_TORRE   20   /* penalidade escudo: peao da torre faltando */
+#define EST_REI_FIM     30   /* bonus rei no centro no final de jogo */
+#define EST_DEV_CAVAL   15   /* penalidade cavalo nao desenvolvido */
+#define EST_DEV_BISPO   10   /* penalidade bispo nao desenvolvido */
+
 // Cores: brancas=0, pretas=bit3. Pecas: brancas 1-6, pretas 9-14, vazia 0.
 #define SQ(c, r)  ((c) + (r) * 8)            // dados i,j, calcula sq (0-63)
 #define COL(sq)   ((sq) & 7)                 // dado sq, calcula coluna i
@@ -2215,11 +2261,11 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         case 1: //Empatou
             return 0;
         //valor de uma posicao empatada.
-        case 2: //A posicao eh de XEQUE! ganha 10cp
+        case 2: //A posicao eh de XEQUE!
             if(tabu.vez == BRANCO)
-                totp += 10;
+                totp += EST_XEQUE;
             else
-                totb += 10;
+                totb += EST_XEQUE;
     }
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c situacao: totb=%d totp=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp); // DEBUG-EVAL
@@ -2237,10 +2283,10 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         ordem[k][2] = DACOR(REI, k * PRETO);
         ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
         ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
-        if(!k) //caso REI branco, 5 pontos por ataque
-            totp += ordem[k][5] * 15; // pecab+=peca; //nao soma mais o REI!
-        else //pretas ganham 5 pontos por ataque ao REI
-            totb += ordem[k][3] * 15; // pecap+=peca; //nao soma mais o REI!
+        if(!k) //caso REI branco
+            totp += ordem[k][5] * EST_ATK_MAIOR;
+        else //pretas ganham pontos por ataque ao REI
+            totb += ordem[k][3] * EST_ATK_MAIOR;
     }
 
     //acha damas.
@@ -2259,17 +2305,17 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             {
                 //caso peca branca
                 //pretas ganham 5 pontos por ataque nela
-                totp += ordem[k][5] * 15;
+                totp += ordem[k][5] * EST_ATK_MAIOR;
                 //dama branca no ataque ganha bonus
                 if(j > 4 && tabu.meionum > 30)
-                    totb += 50;
+                    totb += EST_TERRITORIO;
                 pecab += val[TIPO(peca)];
             }
             else
             {
-                totb += ordem[k][3] * 15;
+                totb += ordem[k][3] * EST_ATK_MAIOR;
                 if(j < 3 && tabu.meionum > 30)
-                    totp += 50;
+                    totp += EST_TERRITORIO;
                 pecap += val[TIPO(peca)];
             }
             k++;
@@ -2291,17 +2337,17 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             {
                 //caso peca branca
                 //pretas ganham 5 pontos por ataque nela
-                totp += ordem[k][5] * 15;
+                totp += ordem[k][5] * EST_ATK_MAIOR;
                 //torre branca no ataque ganha bonus
                 if(j > 4)
-                    totb += 50;
+                    totb += EST_TERRITORIO;
                 pecab += val[TIPO(peca)];
             }
             else
             {
-                totb += ordem[k][3] * 15;
+                totb += ordem[k][3] * EST_ATK_MAIOR;
                 if(j < 3)
-                    totp += 50;
+                    totp += EST_TERRITORIO;
                 pecap += val[TIPO(peca)];
             }
             k++;
@@ -2322,14 +2368,14 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             if(EHBRANCA(peca))
             {
                 //caso peca branca
-                totp += ordem[k][5] * 10;
+                totp += ordem[k][5] * EST_ATK_MENOR;
                 pecab += val[TIPO(peca)];
                 par_bispob++;
             }
             //pretas ganham pontos por ataque nela
             else
             {
-                totb += ordem[k][3] * 10;
+                totb += ordem[k][3] * EST_ATK_MENOR;
                 pecap += val[TIPO(peca)];
                 par_bispop++;
             }
@@ -2350,15 +2396,13 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
             if(EHBRANCA(peca))
             {
-                //caso peca branca
-                totp += ordem[k][5] * 10;
+                totp += ordem[k][5] * EST_ATK_MENOR; //caso peca branca, pretas ganham pontos ao atacar ela
                 pecab += val[TIPO(peca)];
                 par_cavalob++;
             }
-            //pretas ganham 5 pontos por ataque nela
             else
             {
-                totb += ordem[k][3] * 10;
+                totb += ordem[k][3] * EST_ATK_MENOR; //caso peca preta, brancas ganham pontos ao atacar ela
                 pecap += val[TIPO(peca)];
                 par_cavalop++;
             }
@@ -2380,13 +2424,12 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             if(EHBRANCA(peca))
             {
                 //caso peca branca
-                totp += ordem[k][5] * 5;
+                totp += ordem[k][5] * EST_ATK_PEAO;
                 pecab += val[TIPO(peca)];
             }
-            //pretas ganham 5 pontos por ataque nela
             else
             {
-                totb += ordem[k][3] * 5;
+                totb += ordem[k][3] * EST_ATK_PEAO;
                 pecap += val[TIPO(peca)];
             }
             k++;
@@ -2407,9 +2450,9 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     {
         // peca pendurada: quem moveu perde valor. Absoluto: positivo = bom para brancas.
         if(EHBRANCA(tabu.tab[tabu.pa]))
-            pecab -= val[peca_movida]/7; // peca branca pendurada, ruim para brancas
+            pecab -= val[peca_movida]/EST_PENDURADA; // ruim para brancas
         else
-            pecap -= val[peca_movida]/7; // peca preta pendurada, bom para brancas
+            pecap -= val[peca_movida]/EST_PENDURADA; // ruim para pretas
     }
 
     //-------------------------------------------------------------------------------------------------------
@@ -2451,17 +2494,17 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
 
             if(ataca(BRANCO, i, j, tabu))
             {
-                if(vazia) totb += centrao? 3 : 2;
-                if(centrao) totb += centrim ? 2 : 1;
-                if(pertim_reip) totb += 2; // ataque perto do rei inimigo
-                if(vizim_reip) totb += 4; // ataque casa vizinha ou direto ao rei inimigo
+                if(vazia) totb += centrao ? EST_MOB_CENTRO : EST_MOB_BORDA;
+                if(centrao) totb += centrim ? EST_CENTRO_INT : EST_CENTRO_EXT;
+                if(pertim_reip) totb += EST_REI_PERTIM; // ataque perto do rei inimigo
+                if(vizim_reip) totb += EST_REI_VIZIM; // ataque casa vizinha ou direto ao rei inimigo
             }
             if(ataca(PRETO, i, j, tabu))
             {
-                if(vazia) totp += centrao? 3 : 2;
-                if(centrao) totp += centrim ? 2 : 1;
-                if(pertim_reib) totp += 2; // ataque perto do rei inimigo
-                if(vizim_reib) totp += 4; // ataque casa vizinha ou direto ao rei inimigo
+                if(vazia) totp += centrao ? EST_MOB_CENTRO : EST_MOB_BORDA;
+                if(centrao) totp += centrim ? EST_CENTRO_INT : EST_CENTRO_EXT;
+                if(pertim_reib) totp += EST_REI_PERTIM; // ataque perto do rei inimigo
+                if(vizim_reib) totp += EST_REI_VIZIM; // ataque casa vizinha ou direto ao rei inimigo
             }
         }
 
@@ -2486,11 +2529,11 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             //qtdb = qataca(BRANCO, i, j, tabu, &menorb);
             //defesas
             if(ordem[k][5] > ordem[k][3])
-                totp += (ordem[k][5] - ordem[k][3]) * 10;
+                totp += (ordem[k][5] - ordem[k][3]) * EST_ATK_SALDO;
             else
-                totb += (ordem[k][3] - ordem[k][5] + 1) * 10;
+                totb += (ordem[k][3] - ordem[k][5] + 1) * EST_ATK_SALDO;
             if(ordem[k][6] < val[TIPO(peca)])
-                totp += 30;
+                totp += EST_ATK_BAIXO;
         }
         else
         {
@@ -2501,11 +2544,11 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
                 continue;
             //qtdp = qataca(PRETO, i, j, tabu, &menorp);
             if(ordem[k][3] > ordem[k][5])
-                totb += (ordem[k][3] - ordem[k][5]) * 10;
+                totb += (ordem[k][3] - ordem[k][5]) * EST_ATK_SALDO;
             else
-                totp += (ordem[k][5] - ordem[k][3] + 1) * 10;
+                totp += (ordem[k][5] - ordem[k][3] + 1) * EST_ATK_SALDO;
             if(ordem[k][4] < val[TIPO(peca)])
-                totb += 30;
+                totb += EST_ATK_BAIXO;
         }
     }
 
@@ -2529,13 +2572,13 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         {
             qtdp = qataca(PRETO, i, j, tabu, &menorp);
             if(qtdp > ordem[k][5] && menorp < val[TIPO(peca)])
-                totb -= (val[TIPO(peca)] / 7); //perde uma fracao do valor da peca cravada;
+                totb -= (val[TIPO(peca)] / EST_CRAVADA);
         }
         else
         {
             qtdb = qataca(BRANCO, i, j, tabu, &menorb);
             if(qtdb > ordem[k][3] && menorb < val[TIPO(peca)])
-                totp -= (val[TIPO(peca)] / 7); //perde uma fracao do valor da peca cravada;
+                totp -= (val[TIPO(peca)] / EST_CRAVADA);
         }
         tabu.tab[SQ(i, j)] = peca; //recoloca a peca no lugar.
     }
@@ -2550,17 +2593,17 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         j = ordem[k][1];
         if(ordem[k][2] == DACOR(PEAO, BRANCO))  //Peao branco
         {
-            if(j > 2) totb += 5; //faltando 4 casas ou menos para promover ganha +1
-            if(j > 3) totb += 15; //faltando 3 casas ou menos para promover ganha +1+1
-            if(j > 4) totb += 25; //faltando 2 casas ou menos para promover ganha +1+1+3
-            if(j > 5) totb += 35; //faltando 1 casas ou menos para promover ganha +1+1+3+3
+            if(j > 2) totb += EST_PEAO_R4; //faltando 4 casas ou menos para promover ganha +1
+            if(j > 3) totb += EST_PEAO_R5; //faltando 4 casas ou menos para promover ganha +1+1
+            if(j > 4) totb += EST_PEAO_R6; //faltando 4 casas ou menos para promover ganha +1+1+3
+            if(j > 5) totb += EST_PEAO_R7; //faltando 4 casas ou menos para promover ganha +1+1+3+3
         }
         else //Peao preto
         {
-            if(j < 5) totp += 5; //faltando 4 casas ou menos para promover ganha +1
-            if(j < 4) totp += 15; //faltando 3 casas ou menos para promover ganha +1+1
-            if(j < 3) totp += 25; //faltando 2 casas ou menos para promover ganha +1+1+3
-            if(j < 2) totp += 35; //faltando 1 casas ou menos para promover ganha +1+1+3+3
+            if(j < 5) totp += EST_PEAO_R4; //faltando 4 casas ou menos para promover ganha +1
+            if(j < 4) totp += EST_PEAO_R5; //faltando 4 casas ou menos para promover ganha +1+1
+            if(j < 3) totp += EST_PEAO_R6; //faltando 4 casas ou menos para promover ganha +1+1+3
+            if(j < 2) totp += EST_PEAO_R7; //faltando 4 casas ou menos para promover ganha +1+1+3+3
         }
     }
 
@@ -2609,83 +2652,83 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         }
 
         // torres dobradas e em colunas abertas e semi-abertas
-        if(qtd_torreb >= 2) totb += 40;  // torres dobradas brancas na mesma coluna
-        if(qtd_torrep >= 2) totp += 40;  // torres dobradas pretas na mesma coluna
+        if(qtd_torreb >= 2) totb += EST_TORRE_DUP; // torres dobradas brancas na mesma coluna
+        if(qtd_torrep >= 2) totp += EST_TORRE_DUP; // torres dobradas pretas na mesma coluna
 
         // torres e ilhas de peoes -------------------------------------
         if(!qtd_peaob && !qtd_peaop) // gap ambos - coluna totalmente aberta
         {
             gap_aberto++;
             if(qtd_torreb)
-                totb += 30;  // torre branca em coluna aberta
+                totb += EST_TORRE_ABRT; // torre branca em coluna aberta
             if(qtd_torrep)
-                totp += 30;  // torre preta em coluna aberta
+                totp += EST_TORRE_ABRT; // torre preta em coluna aberta
         }
         if(!qtd_peaob && qtd_peaop) // gap branco - coluna semi-aberta com peao preto
         {
             if(qtd_torreb)
-                totb += 15;  // torre branca em coluna semi-aberta
+                totb += EST_TORRE_SEMI; // torre branca em coluna semi-aberta
             gap_semib++;
         }
         if(!qtd_peaop && qtd_peaob) // gap preto - coluna semi-aberta com peao branco
         {
             if(qtd_torrep)
-                totp += 15;  // torre preta em coluna semi-aberta
+                totp += EST_TORRE_SEMI; // torre preta em coluna semi-aberta
             gap_semip++;
         }
 
         if(qtd_peaob) //se achou branco nesta coluna i
         {
-            totb -= ((qtd_peaob - 1) * 30); // penalidade peao dobrado: um so=0, para dobrado=-30, trip=-60!
-            if(!isob) totb -= 40; //penalidade para peao isolado //e ele nao tem vizinhos amigos, PEAO ISOLADO
+            totb -= ((qtd_peaob - 1) * EST_PEAO_DUP); // penalidade peao dobrado
+            if(!isob) totb -= EST_PEAO_ISOL;
             // PEAO PASSADO --------------------------------------------------------------------------------------
-            if((!isop || j_peaob >= isop) && (!qtd_peaop || invertido)) //sem inimigos vizinhos ou na mesma coluna
+            if((!isop || j_peaob >= isop) && (!qtd_peaop || invertido))
             {
-                totb += 160; // bonus de peao passado
-                if(isob) totb += 20; //bonus peao passado protegido
-                if(qtd_torreb) totb += 50; //torre amiga na coluna do peao passado
-                if(qtd_torrep) totb -= 50; //torre inimiga na coluna do peao passado
+                totb += EST_PEAO_PASS; // bonus peao passado
+                if(isob) totb += EST_PASS_PROT; // bonus peao passado protegido
+                if(qtd_torreb) totb += EST_PASS_TORRE; //torre amiga na coluna do peao passado
+                if(qtd_torrep) totb -= EST_PASS_INIM; //torre inimiga na coluna do peao passado
             }
             // PEAO ATRASADO ---------------------------------
             if(isob > j_peaob && ataca(PRETO, i, j_peaob+1, tabu))
-                totb -= 60; // penalidade peao atrasado
+                totb -= EST_PEAO_ATRAS; // penalidade peao atrasado
         }
         if(qtd_peaop) //se achou preto nesta coluna i
         {
-            totp -= ((qtd_peaop - 1) * 30); // penalidade peao dobrado: um so=0, para dobrado=-30, trip=-60!
-            if(!isop) totp -= 40; //ele nao tem vizinhos amigos, PEAO ISOLADO, penalidade
+            totp -= ((qtd_peaop - 1) * EST_PEAO_DUP); //penalidade peao dobrado
+            if(!isop) totp -= EST_PEAO_ISOL; //penalidade peao isolado
             // PEAO PASSADO --------------------------------------------------------------------------------------
-            if((!isob || j_peaop <= isob) && (!qtd_peaob || invertido)) //sem inimigos vizinhos ou na mesma coluna
+            if((!isob || j_peaop <= isob) && (!qtd_peaob || invertido))
             {
-                totp += 160; // bonus de peao passado
-                if(isop) totp += 20; //bonus peao passado protegido
-                if(qtd_torrep) totp += 50; //torre amiga na coluna do peao passado
-                if(qtd_torreb) totp -= 50; //torre inimiga na coluna do peao passado
+                totp += EST_PEAO_PASS; //bonus peao passado
+                if(isop) totp += EST_PASS_PROT; //bonus peao passado protegido
+                if(qtd_torrep) totp += EST_PASS_TORRE; //torre amiga na coluna do peao passado
+                if(qtd_torreb) totp -= EST_PASS_INIM; //torre inimiga na coluna do peao passado
             }
             // PEAO ATRASADO ---------------------------------
             if(isop < j_peaop && ataca(BRANCO, i, j_peaop-1, tabu))
-                totp -= 60; // penalidade peao atrasado
+                totp -= EST_PEAO_ATRAS; //penalidade peao atrasado
         }
     } // maquina de estados de peoes
 
-    gapb = gap_aberto + gap_semib;  // white's structural gaps
-    gapp = gap_aberto + gap_semip;  // black's structural gaps
-    totb -= (gapb - gapp) * 10;  // penalize side with more gaps
-    totp -= (gapp - gapb) * 10;
+    gapb = gap_aberto + gap_semib; //conta colunas abertas e semi-abertas para brancas
+    gapp = gap_aberto + gap_semip; //conta colunas abertas e semi-abertas para pretas
+    totb -= (gapb - gapp) * EST_GAP; //penalidade de ilhas de peoes brancos
+    totp -= (gapp - gapb) * EST_GAP; //penalidade de ilhas de peoes pretos
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c peoes estrutura+torres+gaps: totb=%d totp=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp); // DEBUG-EVAL
 
     // par de bispos mais forte que cavalos em posicoes abertas
     if(par_bispob>1)
-        totb += 20 / (total_peao/5 + 1); // de max 4 a 1
+        totb += EST_PAR_BISPO / (total_peao/5 + 1);
     if(par_bispop>1)
-        totp += 20 / (total_peao/5 + 1); // de max 4 a 1
-    totb += (par_bispob - par_bispop) * 5;
-    totp += (par_bispop - par_bispob) * 5;
+        totp += EST_PAR_BISPO / (total_peao/5 + 1);
+    totb += (par_bispob - par_bispop) * EST_BISPO_VANT;
+    totp += (par_bispop - par_bispob) * EST_BISPO_VANT;
     if(par_cavalob>1)
-        totb -= 20 / (total_peao/5 + 1); // de max 4 a 1
+        totb -= EST_PAR_CAVAL / (total_peao/5 + 1);
     if(par_cavalop>1)
-        totp -= 20 / (total_peao/5 + 1); // de max 4 a 1
+        totp -= EST_PAR_CAVAL / (total_peao/5 + 1);
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c par bispos/cavalos: totb=%d totp=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp); // DEBUG-EVAL
 
@@ -2708,7 +2751,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
                     if(i < 7 && tabu.tab[SQ(i+1, jj)] == DACOR(PEAO, PRETO)) outpost = 0;
                 }
                 if(outpost)
-                    totb += 60;
+                    totb += EST_OUTPOST;
             }
         }
         else
@@ -2723,7 +2766,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
                     if(i < 7 && tabu.tab[SQ(i+1, jj)] == DACOR(PEAO, BRANCO)) outpost = 0;
                 }
                 if(outpost)
-                    totp += 60;
+                    totp += EST_OUTPOST;
             }
         }
     }
@@ -2736,22 +2779,22 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     if(tabu.meionum < 32 && setboard != 1)
     {
         if(tabu.tab[SQ(3, 0)] == DACOR(DAMA, BRANCO))
-            totb += 40;
+            totb += EST_DAMA_CASA;
         if(tabu.tab[SQ(3, 7)] == DACOR(DAMA, PRETO))
-            totp += 40;
+            totp += EST_DAMA_CASA;
     }
     //bonificacao para quem fez roque na abertura
     //TODO usar flag para saber se fez roque mesmo
     if(tabu.meionum < 32 && setboard != 1)
     {
-        if(tabu.tab[SQ(6, 0)] == DACOR(REI, BRANCO) && tabu.tab[SQ(5, 0)] == DACOR(TORRE, BRANCO)) //brancas com roque pequeno
-            totb += 60;
-        if(tabu.tab[SQ(2, 0)] == DACOR(REI, BRANCO) && tabu.tab[SQ(3, 0)] == DACOR(TORRE, BRANCO)) //brancas com roque grande
-            totb += 40;
-        if(tabu.tab[SQ(6, 7)] == DACOR(REI, PRETO) && tabu.tab[SQ(5, 7)] == DACOR(TORRE, PRETO)) //pretas com roque pequeno
-            totp += 60;
-        if(tabu.tab[SQ(2, 7)] == DACOR(REI, PRETO) && tabu.tab[SQ(3, 7)] == DACOR(TORRE, PRETO)) //pretas com roque grande
-            totp += 40;
+        if(tabu.tab[SQ(6, 0)] == DACOR(REI, BRANCO) && tabu.tab[SQ(5, 0)] == DACOR(TORRE, BRANCO))
+            totb += EST_ROQUE_PQN;
+        if(tabu.tab[SQ(2, 0)] == DACOR(REI, BRANCO) && tabu.tab[SQ(3, 0)] == DACOR(TORRE, BRANCO))
+            totb += EST_ROQUE_GRD;
+        if(tabu.tab[SQ(6, 7)] == DACOR(REI, PRETO) && tabu.tab[SQ(5, 7)] == DACOR(TORRE, PRETO))
+            totp += EST_ROQUE_PQN;
+        if(tabu.tab[SQ(2, 7)] == DACOR(REI, PRETO) && tabu.tab[SQ(3, 7)] == DACOR(TORRE, PRETO))
+            totp += EST_ROQUE_GRD;
     }
 
     //bonificacao para rei protegido na abertura com os peoes do Escudo Real
@@ -2761,30 +2804,23 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
                 //brancas com roque pequeno
                 tabu.tab[SQ(6, 1)] == DACOR(PEAO, BRANCO) &&
                 tabu.tab[SQ(7, 1)] == DACOR(PEAO, BRANCO) && tabu.tab[SQ(7, 0)] == VAZIA)
-            //apenas peoes g e h
-            totb += 60;
+            totb += EST_ESCUDO_PQN; //peoes gh
         if(tabu.tab[SQ(2, 0)] == DACOR(REI, BRANCO) &&
-                //brancas com roque grande
                 tabu.tab[SQ(0, 1)] == DACOR(PEAO, BRANCO) &&
                 tabu.tab[SQ(1, 1)] == DACOR(PEAO, BRANCO) &&
                 tabu.tab[SQ(2, 1)] == DACOR(PEAO, BRANCO) &&
                 tabu.tab[SQ(0, 0)] == VAZIA && tabu.tab[SQ(1, 0)] == VAZIA)
-            //peoes a, b e c
-            totb += 50;
+            totb += EST_ESCUDO_GRD; //peoes abc
         if(tabu.tab[SQ(6, 7)] == DACOR(REI, PRETO) &&
-                //pretas com roque pequeno
                 tabu.tab[SQ(6, 6)] == DACOR(PEAO, PRETO) &&
                 tabu.tab[SQ(7, 6)] == DACOR(PEAO, PRETO) && tabu.tab[SQ(7, 7)] == VAZIA)
-            //apenas peoes g e h
-            totp += 60;
+            totp += EST_ESCUDO_PQN; //peoes gh
         if(tabu.tab[SQ(2, 7)] == DACOR(REI, PRETO) &&
-                //pretas com roque grande
                 tabu.tab[SQ(0, 6)] == DACOR(PEAO, PRETO) &&
                 tabu.tab[SQ(1, 6)] == DACOR(PEAO, PRETO) &&
                 tabu.tab[SQ(2, 6)] == DACOR(PEAO, PRETO) &&
                 tabu.tab[SQ(0, 7)] == VAZIA && tabu.tab[SQ(1, 7)] == VAZIA)
-            //peoes a, b e c
-            totp += 50;
+            totp += EST_ESCUDO_GRD; //peoes abc
     }
 
     // bonus rei ataca no fim de jogo
@@ -2798,9 +2834,9 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             if(centrao)
             {
                 if(!k)
-                    totb += 30;
+                    totb += EST_REI_FIM;
                 else
-                    totp += 30;
+                    totp += EST_REI_FIM;
             }
         }
     }
@@ -2809,15 +2845,14 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     if(tabu.meionum < 32 && setboard != 1)
     {
         // knights on starting squares
-        if(tabu.tab[SQ(1, 0)] == DACOR(CAVALO, BRANCO)) totb -= 15;
-        if(tabu.tab[SQ(6, 0)] == DACOR(CAVALO, BRANCO)) totb -= 15;
-        if(tabu.tab[SQ(1, 7)] == DACOR(CAVALO, PRETO))  totp -= 15;
-        if(tabu.tab[SQ(6, 7)] == DACOR(CAVALO, PRETO))  totp -= 15;
-        // bishops on starting squares
-        if(tabu.tab[SQ(2, 0)] == DACOR(BISPO, BRANCO))  totb -= 10;
-        if(tabu.tab[SQ(5, 0)] == DACOR(BISPO, BRANCO))  totb -= 10;
-        if(tabu.tab[SQ(2, 7)] == DACOR(BISPO, PRETO))   totp -= 10;
-        if(tabu.tab[SQ(5, 7)] == DACOR(BISPO, PRETO))   totp -= 10;
+        if(tabu.tab[SQ(1, 0)] == DACOR(CAVALO, BRANCO)) totb -= EST_DEV_CAVAL;
+        if(tabu.tab[SQ(6, 0)] == DACOR(CAVALO, BRANCO)) totb -= EST_DEV_CAVAL;
+        if(tabu.tab[SQ(1, 7)] == DACOR(CAVALO, PRETO))  totp -= EST_DEV_CAVAL;
+        if(tabu.tab[SQ(6, 7)] == DACOR(CAVALO, PRETO))  totp -= EST_DEV_CAVAL;
+        if(tabu.tab[SQ(2, 0)] == DACOR(BISPO, BRANCO))  totb -= EST_DEV_BISPO;
+        if(tabu.tab[SQ(5, 0)] == DACOR(BISPO, BRANCO))  totb -= EST_DEV_BISPO;
+        if(tabu.tab[SQ(2, 7)] == DACOR(BISPO, PRETO))   totp -= EST_DEV_BISPO;
+        if(tabu.tab[SQ(5, 7)] == DACOR(BISPO, PRETO))   totp -= EST_DEV_BISPO;
     }
 
     // escudo real: penalidade se mexer o peao do bispo, cavalo ou da torre no comeco da abertura!
@@ -2832,15 +2867,15 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             r = (k * 5) + 1;
             if(i > 3 && j == k*7) // REI na ala do rei
             {
-                if(tabu.tab[SQ(7, r)] != DACOR(PEAO, cor)) pena -= 20; //PTR
-                if(tabu.tab[SQ(6, r)] != DACOR(PEAO, cor)) pena -= 30; //PCR
-                if(tabu.tab[SQ(5, r)] != DACOR(PEAO, cor)) pena -= 30; //PBR
+                if(tabu.tab[SQ(7, r)] != DACOR(PEAO, cor)) pena -= EST_ESC_TORRE; //PTR
+                if(tabu.tab[SQ(6, r)] != DACOR(PEAO, cor)) pena -= EST_ESC_BISPO; //PCR
+                if(tabu.tab[SQ(5, r)] != DACOR(PEAO, cor)) pena -= EST_ESC_BISPO; //PBR
             }
             if(i < 5 && j == k*7) // REI na ala da dama
             {
-                if(tabu.tab[SQ(0, r)] != DACOR(PEAO, cor)) pena -= 20; //PTD
-                if(tabu.tab[SQ(1, r)] != DACOR(PEAO, cor)) pena -= 30; //PCD
-                if(tabu.tab[SQ(2, r)] != DACOR(PEAO, cor)) pena -= 30; //PBD
+                if(tabu.tab[SQ(0, r)] != DACOR(PEAO, cor)) pena -= EST_ESC_TORRE; //PTD
+                if(tabu.tab[SQ(1, r)] != DACOR(PEAO, cor)) pena -= EST_ESC_BISPO; //PCD
+                if(tabu.tab[SQ(2, r)] != DACOR(PEAO, cor)) pena -= EST_ESC_BISPO; //PBD
             }
             if(!k)
                 totb += pena; //caso branco
