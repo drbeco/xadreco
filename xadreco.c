@@ -2196,9 +2196,9 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfax, int betin)
         //valor de uma posicao empatada.
         case 2: //A posicao eh de XEQUE! ganha 10cp
             if(tabu.vez == BRANCO)
-                totp += 20;
+                totp += 10;
             else
-                totb += 20;
+                totb += 10;
     }
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c situacao: totb=%d totp=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp); // DEBUG-EVAL
