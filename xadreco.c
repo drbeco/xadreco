@@ -109,9 +109,9 @@
 #define GERA_UNICO -2 /* acha um unico lance valido, indicativo de empate por afogamento */
 #define GERA_CAPTU -3 /* gera apenas lances de captura ou xeque */
 // GERA_DESTE variavel geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
-
 // profundidade maxima de busca (limita mel[] e melhor)
 #define MAX_PROF  64
+#define QUIETA_MAX MAX_PROF // profundidade maxima da busca da quiescencia alem do niv
 #define BIGBUFF   4096
 #define SMALLBUFF 256
 #define TINYBUFF  32
@@ -285,12 +285,12 @@ static int usando_livro; //1:consulta o livro de aberturas livro.txt. 0:nao cons
 static int randomchess = 0; //0: pensa para jogar. 1: joga ao acaso
 static int setboard = 0; //0: posicao normal. 1: posicao FEN carregada
 // busca: estado compartilhado entre minimax/profsuf/difclocks/xadreco_continua
-static int busca_profflag = 1; //flag de captura ou xeque para liberar mais um nivel em profsuf
 static int pula_vez = 0; //flag para evitar null-move recursivo
 static int busca_totalnodo = 0; //total de nodos analisados para fazer um lance
 static int busca_totalnodonivel = 0; //total de nodos analisados em um nivel da arvore
 static time_t busca_tinimov; //tempo de inicio do lance
 static double busca_tempo_move; //tempo por lance em segundos
+static int busca_seldepth = 0; //profundidade maxima atingida (incluindo quiescencia)
 
 static char bookfname[SMALLBUFF] = "livro.txt"; //nome do arquivo de aberturas
 static int debug = 0; //0:sem debug, 1:-v debug, 2:-vv debug minimax
@@ -1707,6 +1707,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
     busca_tempo_move = max_time;
     busca_tinimov = time(NULL);
 
+    busca_seldepth = 0;
     ctx->tabu = tabu;
     ctx->nv = 1;
     ctx->val = 0;
@@ -1803,10 +1804,11 @@ int xadreco_continua(busca *ctx)
             return 0;
     busca_totalnodo += busca_totalnodonivel;
     lst_ordem(plmov);  //ordena lista de movimentos
-    if(abs(ctx->val) != FIMTEMPO && abs(ctx->val) != LIMITE)
+    /* if(abs(ctx->val) != FIMTEMPO && abs(ctx->val) != LIMITE) */
+    if(mel[0].tamanho > 0)
     {
-        printf("info depth %d score cp %d time %d nodes %d pv ",
-               ctx->nv, (ctx->tabu->vez == BRANCO) ? ctx->val : -ctx->val,
+        printf("info depth %d seldepth %d score cp %d time %d nodes %d pv ",
+               ctx->nv, busca_seldepth, (ctx->tabu->vez == BRANCO) ? ctx->val : -ctx->val,
                (int)(difclocks() * 1000), busca_totalnodo);
         for(i = 0; i < mel[0].tamanho; i++)
         {
@@ -1815,10 +1817,13 @@ int xadreco_continua(busca *ctx)
         }
         printf("\n");
     }
+    else
+        printdbg(debug, "# xadreco: PV vazio nesta iteracao\n");
+
     if((difclocks() > busca_tempo_move && debug != 2) || (debug == 2 && ctx->nv == 5))
     {
         if(mel[0].tamanho == 0)
-            printdbg(debug, "# xadreco: sem lances; tempo estourado\n");
+            printdbg(debug, "# xadreco: tempo estourado, sem PV\n");
         else
             return 0;
     }
@@ -1884,7 +1889,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     if(debug == 2)
     {
         fprintf(fmini, "#\n#----------------------------------------------Minimax prof: %d", prof);
-        //fprintf(fmini, "\nalfax= %d     betin= %d", alfax, betin);
+        fprintf(fmini, "\nalfax= %d     betin= %d", alfax, betin);
     }
     if(prof == 0)
         n = plmov->cabeca; // lista de lances do tabuleiro real
@@ -1986,6 +1991,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)
             break;
     } //while(n)
+    if(prof <= 2) printdbg(debug, "# QUIETA: end loop prof=%d contamov=%d mel[%d].tam=%d novo_valor=%d\n", prof, contamov, prof, mel[prof].tamanho, novo_valor); // DEBUG-QUIETA
     if(prof != 0)
         plmov->a->usado = saved;  //rewind arena
     if(debug == 2)
