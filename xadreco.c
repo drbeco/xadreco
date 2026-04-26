@@ -1918,7 +1918,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     }
 
     // null-move pruning: passo a vez; se ainda assim excede betin/alfax, corta
-    if(prof > 0 && !pula_vez && !xeque_rei_das(atual.vez, atual) && !busca_quieta)
+    if(niv - prof >= 3 && !pula_vez && !xeque_rei_das(atual.vez, atual) && !busca_quieta)
     {
         pula_vez = 1;
         copitab(&tabull, &atual);
