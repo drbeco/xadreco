@@ -1862,6 +1862,7 @@ int xadreco_continua(busca *ctx)
             printf("%s ", movinito);
         }
         printf("\n");
+        fflush(stdout);
     }
     else
         printdbg(debug, "# xadreco: PV vazio nesta iteracao\n");
@@ -3287,6 +3288,8 @@ void usa_livro(tabuleiro tabu)
 
     printdbg(debug, "# xadreco livro: pool=%d, sorteado=%d, move=%s, score=%d\n",
              pool, sorteio, cands[sorteio].move, cands[sorteio].score);
+    printf2("info string book: %s (%d candidates, pool=%d, score=%d)\n",
+            cands[sorteio].move, ncands, pool, cands[sorteio].score);
 
     livro_linha(tabu.meionum, cands[sorteio].linha);
     melhor.valor = cands[sorteio].score;
