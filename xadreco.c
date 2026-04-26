@@ -1899,6 +1899,8 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     int novo_valor, child_val, contamov = 0;
     int valull;
     tabuleiro tab, tabull;
+    static const char *dbg_move_filter = "f8b4"; // DEBUG-TRACE: mude para o lance suspeito
+    static int dbg_trace = 0; // DEBUG-TRACE: ativo dentro da subarvore do lance
     char m[TINYBUFF];
     no *lsucc; // lista de movimentos sucessores
     lista *llmov = NULL;
@@ -1908,10 +1910,10 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     assert(prof >= 0 && alfax <= betin && "Invalid minimax parameters");
     mel[prof].tamanho = 0; // inicializa PV vazio (evita dados stale de iteracao anterior)
 
-    if(prof <= 2) printdbg(debug, "# QUIETA: minimax enter prof=%d niv=%d busca_quieta=%d\n", prof, niv, busca_quieta); // DEBUG-QUIETA
+    if(prof == 0) printdbg(debug, "# QUIETA: minimax enter prof=%d niv=%d busca_quieta=%d\n", prof, niv, busca_quieta); // DEBUG-QUIETA
     if(profsuf(atual, prof, alfax, betin, niv, &child_val, busca_quieta))
     {
-        if(prof <= 2) printdbg(debug, "# QUIETA: profsuf stopped prof=%d niv=%d quieta=%d val=%d\n", prof, niv, busca_quieta, child_val); // DEBUG-QUIETA
+        if(prof == 0) printdbg(debug, "# QUIETA: profsuf stopped prof=%d niv=%d quieta=%d val=%d\n", prof, niv, busca_quieta, child_val); // DEBUG-QUIETA
         return child_val;
     }
 
@@ -1924,7 +1926,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         tabull.peao_pulou = -1;
         valull = minimax(tabull, prof + 1, alfax, betin, niv - 2, busca_quieta); //nao faz null-move em busca_quieta
         pula_vez = 0;
-        if(prof <= 3) // DEBUG-NULL
+        if(prof == 0) // DEBUG-NULL
             printdbg(debug, "# null-move: prof=%d vez=%s alfax=%d betin=%d valull=%d %s\n", // DEBUG-NULL
                      prof, atual.vez == BRANCO ? "B" : "P", alfax, betin, valull, // DEBUG-NULL
                      valull >= betin ? "CUT" : "no-cut"); // DEBUG-NULL
@@ -1948,6 +1950,20 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         lsucc = llmov->cabeca;
     }
 
+    // DEBUG-BOARD: mostra tabuleiro e lista de lances em quiescencia
+    if(busca_quieta && prof == 0 && debug) // DEBUG-BOARD
+    {
+        char dbgm[TINYBUFF]; // DEBUG-BOARD
+        no *dbgn; // DEBUG-BOARD
+        movimento *dbgs; // DEBUG-BOARD
+        printdbg(debug, "# BOARD prof=%d vez=%s busca_quieta=%d\n", prof, atual.vez == BRANCO ? "BRANCAS" : "PRETAS", busca_quieta); // DEBUG-BOARD
+        mostra_tabu(atual); // DEBUG-BOARD
+        dbgn = lsucc; // DEBUG-BOARD
+        printdbg(debug, "# MOVES prof=%d: ", prof); // DEBUG-BOARD
+        while(dbgn) { dbgs = (movimento *)dbgn->info; lance2movi(dbgm, dbgs->de, dbgs->pa, dbgs->especial); fprintf(stderr, "%s(e%d) ", dbgm, dbgs->especial); dbgn = dbgn->prox; } // DEBUG-BOARD
+        fprintf(stderr, "\n"); // DEBUG-BOARD
+    } // DEBUG-BOARD
+
     if(!lsucc)
     {
         //entao o estatico refletira isso: afogamento
@@ -1965,7 +1981,10 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     // alfax = lower bound (melhor para brancas), betin = upper bound (melhor para pretas)
     // valores absolutos: positivo = bom para brancas
     if(busca_quieta)
+    {
         novo_valor = estatico(atual, prof, alfax, betin);
+        if(prof == 0) printdbg(debug, "# QUIETA: stand_pat prof=%d niv=%d vez=%s val=%d alfax=%d betin=%d\n", prof, niv, atual.vez == BRANCO ? "B" : "P", novo_valor, alfax, betin); // DEBUG-QUIETA
+    }
     else
         novo_valor = (atual.vez == BRANCO) ? -LIMITE : +LIMITE; // best inicial
     while(lsucc) // ----------------------------------------------------------------------------------------------------- laco de sucessores
@@ -1973,12 +1992,17 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         msucc = (movimento *)lsucc->info;
         if(busca_quieta && msucc->especial != 9)
         {
-            if(prof <= 2) printdbg(debug, "# QUIETA: skip quiet move prof=%d especial=%d\n", prof, msucc->especial); // DEBUG-QUIETA
+            if(prof == 0) printdbg(debug, "# QUIETA: skip quiet move prof=%d especial=%d\n", prof, msucc->especial); // DEBUG-QUIETA
             lsucc = lsucc->prox;
             continue;
         }
+        if(busca_quieta && prof == 0) { char dbgm[TINYBUFF]; lance2movi(dbgm, msucc->de, msucc->pa, msucc->especial); printdbg(debug, "# QUIETA: capture prof=%d move=%s especial=%d\n", prof, dbgm, msucc->especial); } // DEBUG-QUIETA
+        // DEBUG-TRACE: ativa rastreamento para lance especifico
+        if(prof == 0 && debug) { char dbgm[TINYBUFF]; lance2movi(dbgm, msucc->de, msucc->pa, msucc->especial); if(!strcmp(dbgm, dbg_move_filter)) { dbg_trace = 1; printdbg(debug, "# TRACE: >>> rastreando %s\n", dbgm); } }
+        if(dbg_trace && debug) { char dbgm[TINYBUFF]; lance2movi(dbgm, msucc->de, msucc->pa, msucc->especial); printdbg(debug, "# TRACE prof=%d: jogando %s (e%d) vez=%s quieta=%d\n", prof, dbgm, msucc->especial, atual.vez == BRANCO ? "B" : "P", busca_quieta); }
         copitab(&tab, &atual);
         (void) joga_em(&tab, *msucc, 1);
+        if(dbg_trace && debug) mostra_tabu(tab); // DEBUG-TRACE
         //joga o lance atual, a funcao joga_em deve inserir no listab
         busca_totalnodonivel++;
         /* busca_profflag = msucc->flag_50 + 1; //se for zero, fim da busca. */
@@ -1992,14 +2016,16 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         //    default: busca_profflag = 0; //situa: 1=Empate, 3,4=Mate, 5,6=Tempo. 7=sem resultado. Nao passar o nivel
         //}
         quieta = (prof + 1 >= niv) && (msucc->especial == 9); //captura: filho entra em quiescencia
-        if(prof <= 2) printdbg(debug, "# QUIETA: move prof=%d especial=%d quieta_child=%d\n", prof, msucc->especial, quieta); // DEBUG-QUIETA
+        if(prof == 0) printdbg(debug, "# QUIETA: move prof=%d especial=%d quieta_child=%d\n", prof, msucc->especial, quieta); // DEBUG-QUIETA
         if(debug == 2)
         {
             lance2movi(m, msucc->de, msucc->pa, msucc->especial);
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, busca_totalnodonivel, m, COL(msucc->de), ROW(msucc->de), COL(msucc->pa), ROW(msucc->pa));
         }
         child_val = minimax(tab, prof + 1, alfax, betin, niv, quieta); // busca_quieta local com quieta para criancas
-        if(prof <= 2) printdbg(debug, "# QUIETA: child_val=%d prof=%d especial=%d alfax=%d betin=%d\n", child_val, prof, msucc->especial, alfax, betin); // DEBUG-QUIETA
+        if(dbg_trace && debug) printdbg(debug, "# TRACE prof=%d: child_val=%d alfax=%d betin=%d\n", prof, child_val, alfax, betin); // DEBUG-TRACE
+        if(prof == 0 && dbg_trace) { dbg_trace = 0; printdbg(debug, "# TRACE: <<< fim rastreamento\n"); } // DEBUG-TRACE
+        if(prof == 0) printdbg(debug, "# QUIETA: child_val=%d prof=%d especial=%d alfax=%d betin=%d\n", child_val, prof, msucc->especial, alfax, betin); // DEBUG-QUIETA
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         if(atual.vez == BRANCO) // MAXIMIZA
         {
@@ -2043,7 +2069,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
             break;
     } // while(lsucc) fim do laco de sucessores -----------------------------------------------------------------------------------------------------
 
-    if(prof <= 2) printdbg(debug, "# QUIETA: end loop prof=%d contamov=%d mel[%d].tam=%d novo_valor=%d\n", prof, contamov, prof, mel[prof].tamanho, novo_valor); // DEBUG-QUIETA
+    if(prof == 0) printdbg(debug, "# QUIETA: end loop prof=%d contamov=%d mel[%d].tam=%d novo_valor=%d\n", prof, contamov, prof, mel[prof].tamanho, novo_valor); // DEBUG-QUIETA
     if(prof != 0)
         plmov->a->usado = saved;  //rewind arena
     if(debug == 2)
