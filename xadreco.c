@@ -56,7 +56,7 @@
 #include <pthread.h> /* programacao paralela */
 
 /* ---------------------------------------------------------------------- */
-/* definitions */
+/* definicoes de compilacao e debug */
 
 #ifdef __linux /* dormir um pouco */
     #define waitms(ms) usleep((ms)*1000)
@@ -88,7 +88,8 @@
 /** @brief Debug message if DEBUG on */
 #define IFDEBUG(M) if(DEBUG) fprintf(stderr, "# [DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
 
-/* Command line defaults */
+/* ---------------------------------------------------------------------- */
+/* definicoes de jogo */
 
 //estimativa da duracao do jogo
 #define TOTAL_MOVIMENTOS 50
@@ -102,12 +103,15 @@
 #define LIMITE 105000
 //define o valor do xequemate
 #define XEQUEMATE 100000
-// geramodo de geramov: gera todos, gera unico (confere afogado), gera deste (0-63)
-#define GERA_TUDO  -1
-#define GERA_UNICO -2
-// geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
+
+// Funcao geramov(..., geramodo): gera todos, gera unico (confere afogado), gera deste (0-63)
+#define GERA_TODOS  -1 /* laco normal, gera lista de todos os lances validos */
+#define GERA_UNICO -2 /* acha um unico lance valido, indicativo de empate por afogamento */
+#define GERA_CAPTU -3 /* gera apenas lances de captura ou xeque */
+// GERA_DESTE variavel geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
+
 // profundidade maxima de busca (limita mel[] e melhor)
-#define MAX_PROF 64
+#define MAX_PROF  64
 #define BIGBUFF   4096
 #define SMALLBUFF 256
 #define TINYBUFF  32
@@ -115,20 +119,21 @@
 #define SQINFO    7
 
 // Cores: brancas=0, pretas=bit3. Pecas: brancas 1-6, pretas 9-14, vazia 0.
-#define SQ(c, r)  ((c) + (r) * 8)
-#define COL(sq)   ((sq) & 7)
-#define ROW(sq)   ((sq) >> 3)
-#define BRANCO 0                         // cor branca
-#define PRETO  8                         // cor preta (bit 3)
+#define SQ(c, r)  ((c) + (r) * 8)            // dados i,j, calcula sq (0-63)
+#define COL(sq)   ((sq) & 7)                 // dado sq, calcula coluna i
+#define ROW(sq)   ((sq) >> 3)                // dado sq, calcula linha j
+#define BRANCO 0                             // cor branca
+#define PRETO  8                             // cor preta (bit 3)
 #define EHBRANCA(p) ((p) != 0 && !((p) & 8)) // peca eh branca? (1-6)
-#define EHPRETA(p)  ((p) & 8)            // peca eh preta? (9-14)
-#define EHVAZIA(p)  ((p) == 0)           // casa vazia?
-#define TIPO(p)     ((p) & 7)            // tipo da peca: PEAO=1..REI=6
-#define COR(p)      ((p) & 8)            // cor da peca: 0=branca, 8=preta
-#define DACOR(p, c) ((p) | (c))          // monta peca com tipo p e cor c
-#define ICOR(c)     ((c) >> 3)           // indice da cor: 0=branca, 1=preta
-#define CORI(k)     ((k) << 3)           // cor do indice: 0=BRANCO, 1=PRETO
-#define ADV(v)      ((v) ^ 8)            // adversario: troca branco/preto
+#define EHPRETA(p)  ((p) & 8)                // peca eh preta? (9-14)
+#define EHVAZIA(p)  ((p) == 0)               // casa vazia?
+#define TIPO(p)     ((p) & 7)                // tipo da peca: PEAO=1..REI=6
+#define COR(p)      ((p) & 8)                // cor da peca: 0=branca, 8=preta
+#define DACOR(p, c) ((p) | (c))              // monta peca com tipo p e cor c
+#define ICOR(c)     ((c) >> 3)               // indice da cor: 0=branca, 1=preta
+#define CORI(k)     ((k) << 3)               // cor do indice: 0=BRANCO, 1=PRETO
+#define ADV(v)      ((v) ^ 8)                // adversario: troca branco/preto
+
 // tamanho das arenas em bytes
 #define ARENA_TAB  (2 * 1024 * 1024)
 #define ARENA_MOV  (2 * 1024 * 1024)
@@ -656,7 +661,11 @@ void copitab(tabuleiro *dest, tabuleiro *font)
 }
 
 // gera lista de movimentos legais na lista lmov
-// geramodo: GERA_TUDO=todos, GERA_UNICO=para no primeiro, GERA_ESTE=confere legalidade de um movimento
+// geramodo:
+//           -1   GERA_TODOS: todos lances validos
+//           -2   GERA_UNICO: acha o primeiro e para (confere empate por afogamento)
+//           -3   GERA_CAPTU: gera apenas capturas e xeques
+//        0..63   GERA_DESTE: confere legalidade de um movimento
 // retorna 1 se ha movimentos, 0 se nao ha
 int geramov(tabuleiro tabu, lista *lmov, int geramodo)
 {
@@ -717,8 +726,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     ff = 2; //Rei capturou peca adversaria
                                     if(ee == 0) ee = 9; // captura
                                 }
-                                enche_lmovi(lmov, /*de*/SQ(i,j), /*pa*/SQ(col,lin), /*peao*/pp, /*roque*/rr, /*especial*/ee, /*flag50*/ff);
-                                if(geramodo == GERA_UNICO)
+                                if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                    enche_lmovi(lmov, /*de*/SQ(i,j), /*pa*/SQ(col,lin), /*peao*/pp, /*roque*/rr, /*especial*/ee, /*flag50*/ff);
+                                if(geramodo == GERA_UNICO) // 1 - rei anda
                                     return 1;
                             }
                         }
@@ -750,8 +760,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
                                         //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque 9=captura
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        enche_lmovi(lmov, SQ(4,0), SQ(6,0), /*pp*/ -1, /*rr*/0, /*ee*/1, /*ff*/0); //BUG flag50 zera no roque? consultar FIDE
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        ee = 1;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(4,0), SQ(6,0), /*pp*/ -1, /*rr*/0, /*ee*/ee, /*ff*/0); //BUG flag50 zera no roque? consultar FIDE
+                                        if(geramodo == GERA_UNICO) // 2 - roque pequeno branco
                                             return 1;
 
                                     }
@@ -772,8 +784,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     {
                                         //nao pode mais fazer roque. Mexeu Rei
                                         //Rei rocou grd, espec=2. flag=0
-                                        enche_lmovi(lmov, SQ(4,0), SQ(2,0), /*peao*/ -1, /*roque*/0, /*especial*/2, /*flag50*/0);
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        ee = 2;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(4,0), SQ(2,0), /*peao*/ -1, /*roque*/0, /*ee*/ee, /*flag50*/0);
+                                        if(geramodo == GERA_UNICO) // 3 - roque grande branco
                                             return 1;
                                     }
                                 }
@@ -800,8 +814,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     {
                                         //nao pode mais fazer roque. Mexeu Rei
                                         //Rei rocou pqn, espec=1. flag=0.
-                                        enche_lmovi(lmov, SQ(4,7), SQ(6,7), /*peao*/ -1, /*roque*/0, /*especial*/1, /*flag50*/0);
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        ee = 1;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(4,7), SQ(6,7), /*peao*/ -1, /*roque*/0, /*ee*/ee, /*flag50*/0);
+                                        if(geramodo == GERA_UNICO) // 4 - roque pequeno preto
                                             return 1;
                                     }
                                 } // roque grande.
@@ -821,8 +837,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     {
                                         //nao pode mais fazer roque. Mexeu Rei
                                         //Rei rocou grd, espec=2. flag=0.
-                                        enche_lmovi(lmov, SQ(4,7), SQ(2,7), /*peao*/ -1, /*roque*/0, /*especial*/2, /*flag50*/0);
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        ee = 2;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(4,7), SQ(2,7), /*peao*/ -1, /*roque*/0, /*ee*/ee, /*flag50*/0);
+                                        if(geramodo == GERA_UNICO) // 5 - roque grande preto
                                             return 1;
                                     }
                                 }
@@ -845,8 +863,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     tabaux.tab[SQ(i, 4)] = VAZIA;
                                     if(!xeque_rei_das(BRANCO, tabaux))   //nao deixa rei branco em xeque
                                     {
-                                        enche_lmovi(lmov, SQ(i,j), SQ(tabu.peao_pulou,5), /*peao*/ -1, /*roque*/1, /*especial*/3, /*flag50*/3);
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        ee = 3;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(tabu.peao_pulou,5), /*peao*/ -1, /*roque*/1, /*ee*/ee, /*flag50*/3);
+                                        if(geramodo == GERA_UNICO) // 6 - peao branco comeu en passant
                                             return 1;
                                     }
                                 }
@@ -860,8 +880,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     tabaux.tab[SQ(i, 3)] = VAZIA;
                                     if(!xeque_rei_das(PRETO, tabaux))
                                     {
-                                        enche_lmovi(lmov, SQ(i,j), SQ(tabu.peao_pulou,2), /*peao*/ -1, /*roque*/1, /*especial*/3, /*flag50*/3);
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        ee = 3;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(tabu.peao_pulou,2), /*peao*/ -1, /*roque*/1, /*ee*/ee, /*flag50*/3);
+                                        if(geramodo == GERA_UNICO) // 7 - peao preto comeu enpassant
                                             return 1;
                                     } //deixa rei em xeque
                                 } //nao esta na fila correta
@@ -882,16 +904,17 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 {
                                     if(j + 1 == 7)  //se promoveu
                                     {
-                                        //TODO inverter laco e=4, e<8, ee++
-                                        for(ee = 4; ee < 8; ee++) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
+                                        for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
+                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
                                     }
                                     else //nao promoveu
                                     {
                                         ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
                                     }
-                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                    if(geramodo == GERA_UNICO) // 8 - peao branco andou uma casa
                                         return 1;
                                 } //deixa rei em xeque
                             } //casa ocupada
@@ -910,14 +933,16 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(j - 1 == 0)  //se promoveu
                                     {
                                         for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
+                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
                                     }
                                     else //nao promoveu
                                     {
                                         ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
                                     }
-                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                    if(geramodo == GERA_UNICO) // 9 - peao preto andou uma casa
                                         return 1;
                                 } //deixa rei em xeque
                             } //casa ocupada
@@ -936,8 +961,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 if(!xeque_rei_das(BRANCO, tabaux))
                                 {
                                     ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                    enche_lmovi(lmov, SQ(i,1), SQ(i,3), /*peao*/i, /*roque*/1, /*especial*/ee, /*flag50*/1);
-                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                    if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                        enche_lmovi(lmov, SQ(i,1), SQ(i,3), /*peao*/i, /*roque*/1, /*especial*/ee, /*flag50*/1);
+                                    if(geramodo == GERA_UNICO) // 10 - peao branco andou duas casas
                                         return 1;
                                 } //deixa rei em xeque
                             } //alguma das casas esta ocupada
@@ -954,8 +980,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 if(!xeque_rei_das(PRETO, tabaux))
                                 {
                                     ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                    enche_lmovi(lmov, SQ(i,6), SQ(i,4), /*peao*/i, /*roque*/1, /*especial*/ee, /*flag50*/1);
-                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                    if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                        enche_lmovi(lmov, SQ(i,6), SQ(i,4), /*peao*/i, /*roque*/1, /*especial*/ee, /*flag50*/1);
+                                    if(geramodo == GERA_UNICO) // 11 - peao preto andou duas casas
                                         return 1;
                                 } //deixa rei em xeque
                             } //alguma das casas esta ocupada
@@ -980,15 +1007,17 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(j + 1 == 7)  //se promoveu comendo
                                     {
                                         for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
+                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
                                     }
                                     else //comeu sem promover
                                     {
                                         ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0) ee = 9; // captura (ff=3)
-                                        enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ee, /*flag50*/3);
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ee, /*flag50*/3);
                                     }
-                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                    if(geramodo == GERA_UNICO) // 12 - peao branco comeu normalmente
                                         return 1;
                                 } //deixa rei em xeque
                             } //nao tem peca preta para comer
@@ -1015,15 +1044,17 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(j - 1 == 0)  //se promoveu comendo
                                     {
                                         for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
+                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
                                     }
                                     else //comeu sem promover
                                     {
                                         ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0) ee = 9; // captura (ff=3)
-                                        enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
                                     }
-                                    if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                    if(geramodo == GERA_UNICO) // 13 - peao preto comeu normalmente
                                         return 1;
                                 } //rei em xeque
                             } //nao tem peao branco para comer
@@ -1053,8 +1084,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     ff = 2; // Cavalo capturou peca adversaria.
                                 ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                 if(ee == 0 && ff > 1) ee = 9; // captura
-                                enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/ff);
-                                if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                    enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/ff);
+                                if(geramodo == GERA_UNICO) // 14 - cavalo anda ou captura
                                     return 1;
                             }
                         }
@@ -1102,7 +1134,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ff = 0; // nao muda flag50 (nao capturou) pmovi->flag_50=0;
                                         if(tabu.tab[SQ(col, j)] != VAZIA)
                                         {
-                                            ff = 2; //Dama ou Torre capturou peca adversaria.
+                                            ff = 2; //dama ou torre capturou peca adversaria.
                                             l = 1;
                                         }
                                         //pp contem -1 ou coluna do peao que andou duas neste lance
@@ -1111,8 +1143,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
                                         ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0 && ff > 1) ee = 9; // captura
-                                        enche_lmovi(lmov, SQ(i,j), SQ(col,j), /*peao*/ -1, /*roque*/rr, /*especial*/ ee, /*flag50*/ff);
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(col,j), /*peao*/ -1, /*roque*/rr, /*especial*/ ee, /*flag50*/ff);
+                                        if(geramodo == GERA_UNICO) // 15 - dama ou torre andou ou capturou na linha
                                             return 1;
                                     }
                                     else //deixa rei em xeque
@@ -1152,7 +1185,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ff = 0;
                                         if(tabu.tab[SQ(i, lin)] != VAZIA)
                                         {
-                                            ff = 2; //Dama ou Torre capturou peca adversaria.
+                                            ff = 2; //dama ou torre capturou peca adversaria.
                                             m = 1;
                                         }
                                         //pp contem -1 ou coluna do peao que andou duas neste lance
@@ -1161,8 +1194,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
                                         ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0 && ff > 1) ee = 9; // captura
-                                        enche_lmovi(lmov, SQ(i,j), SQ(i,lin), /*peao*/ -1, /*roque*/rr, /*especial*/ ee, /*flag50*/ff);
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,lin), /*peao*/ -1, /*roque*/rr, /*especial*/ ee, /*flag50*/ff);
+                                        if(geramodo == GERA_UNICO) // 16 - dama ou torre andou ou capturou na coluna
                                             return 1;
                                     }
                                     else //deixa rei em xeque
@@ -1202,7 +1236,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ff = 0; //flag50 nao altera
                                         if(tabu.tab[SQ(col, lin)] != VAZIA)
                                         {
-                                            ff = 2; //Dama ou Bispo capturou peca adversaria.
+                                            ff = 2; //dama ou bispo capturou peca adversaria.
                                             flag = 1;
                                         }
                                         //pp contem -1 ou coluna do peao que andou duas neste lance
@@ -1211,8 +1245,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
                                         ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
                                         if(ee == 0 && ff > 1) ee = 9; // captura
-                                        enche_lmovi(lmov, SQ(i,j), SQ(col,lin), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/ff);
-                                        if(geramodo == GERA_UNICO) //se nao afogou retorna
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
+                                            enche_lmovi(lmov, SQ(i,j), SQ(col,lin), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/ff);
+                                        if(geramodo == GERA_UNICO) // 17 - dama ou bispo andou ou capturou
                                             return 1;
                                     }
                                     else //deixa rei em xeque
@@ -1234,7 +1269,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
             } // switch(peca)
         } //loop das pecas todas do tabuleiro
 
-    if(geramodo == GERA_UNICO) //GERA_UNICO: nao achou nenhum lance
+    if(geramodo == GERA_UNICO) // 18 - se chegou ate aqui no GERA_UNICO, entao nao gerou nada
         return 0;
     if(lmov && lmov->qtd > 1)
         lst_parte(lmov); //particiona: capturas e especiais primeiro
@@ -1287,8 +1322,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
         {
             if(abs(icol) == abs(ilin) || icol == 0 || ilin == 0)
                 continue;
-            if(col + icol < 0 || col + icol > 7 || lin + ilin < 0
-                    || lin + ilin > 7)
+            if(col + icol < 0 || col + icol > 7 || lin + ilin < 0 || lin + ilin > 7)
                 continue;
             if(tabu.tab[SQ(col + icol, lin + ilin)] == DACOR(CAVALO, cor))
                 return (1);
@@ -1310,8 +1344,7 @@ int ataca(int cor, int col, int lin, tabuleiro tabu)
             while(tabu.tab[SQ(casacol, casalin)] == VAZIA);
 
             if(casacol >= 0 && casacol <= 7 && casalin >= 0 && casalin <= 7)
-                if(tabu.tab[SQ(casacol, casalin)] == DACOR(BISPO, cor)
-                        || tabu.tab[SQ(casacol, casalin)] == DACOR(DAMA, cor))
+                if(tabu.tab[SQ(casacol, casalin)] == DACOR(BISPO, cor) || tabu.tab[SQ(casacol, casalin)] == DACOR(DAMA, cor))
                     return 1;
         }
     // proxima diagonal
@@ -1571,11 +1604,12 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result)
     lista *llval = NULL;
     no *n;
     movimento *m;
+    const int GERA_DESTE = de;
 
     arena_inicia(&aval, 64 * 1024);
     if(lst_cria(&aval, &llval))
         msgsai("# Erro arena cheia em valido() lst_cria", 39);
-    geramov(tabu, llval, de); // de (0-63) como geramodo: gera apenas desta casa
+    geramov(tabu, llval, GERA_DESTE); // de (0-63) como geramodo: gera apenas desta casa
 
     n = llval->cabeca;
     while(n)
@@ -1702,7 +1736,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
     if(melhor.tamanho == 0)
     {
         lst_recria(&plmov);
-        geramov(*tabu, plmov, GERA_TUDO);
+        geramov(*tabu, plmov, GERA_TODOS);
         busca_totalnodo = 0;
 
         // primeiro lance: joga rapido, metade do tempo, maximo 10s
@@ -1805,10 +1839,8 @@ void xadreco_para(busca *ctx)
 
 //--------------------------------------------------------------------------
 //tabuleiro atual, profundidade zero, limite maximo de estatico (betin ou uso), limite minimo de estatico (alfax ou passo), nivel da busca
-//Finding the rotten fish in the second bag was like exceeding betin.
-//If there had been no fish in the bag, determining that the six-pack of pop
-//bag was better than the sandwich bag would have been like exceeding alpha (one ply back).
-// alfax = lower bound (maximizer's guarantee), betin = upper bound (minimizer's guarantee)
+// Max quer mais, e tem piso alfa garantido. Nao aceita menos. Se o presente < alfa, corta.
+// Min quer menos, e tem teto beta garantido. Nao aceita mais. Se o presente > beta, corta.
 int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
 {
     movimento *succ;
@@ -1824,13 +1856,10 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
     mel[prof].tamanho = 0; // inicializa PV vazio (evita dados stale de iteracao anterior)
 
     if(profsuf(atual, prof, alfax, betin, niv, &child_val))
-    {
-        //profsuf preencheu mel[prof] e child_val
         return child_val;
-    }
 
     // null-move pruning: passo a vez; se ainda assim excede betin/alfax, corta
-    if(0 && prof > 0 && !pula_vez && !xeque_rei_das(atual.vez, atual)) // DEBUG-NULL disabled
+    if(prof > 0 && !pula_vez && !xeque_rei_das(atual.vez, atual))
     {
         pula_vez = 1;
         copitab(&tabull, &atual);
@@ -1858,7 +1887,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv)
         saved = plmov->a->usado;  //bookmark
         if(lst_cria(plmov->a, &llmov))
             msgsai("# Erro arena cheia em minimax lst_cria", 39);
-        geramov(atual, llmov, GERA_TUDO); // gerar lista de lances para tabuleiro imaginario
+        geramov(atual, llmov, GERA_TODOS); // gerar lista de lances para tabuleiro imaginario
         n = llmov->cabeca;
     }
 
@@ -2167,9 +2196,9 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfax, int betin)
         //valor de uma posicao empatada.
         case 2: //A posicao eh de XEQUE! ganha 10cp
             if(tabu.vez == BRANCO)
-                totp += 10;
+                totp += 20;
             else
-                totb += 10;
+                totb += 20;
     }
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c situacao: totb=%d totp=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp); // DEBUG-EVAL
@@ -2353,7 +2382,7 @@ int estatico(tabuleiro tabu, int cod, int niv, int alfax, int betin)
     //hanging piece: se a peca que acabou de mover esta atacada, penaliza
     peca_movida = TIPO(tabu.tab[tabu.pa]);
     assert(COR(tabu.tab[tabu.pa]) == ADV(tabu.vez) && "peca no destino deve ser de quem moveu");
-    if(peca_movida != REI && peca_movida != 0 && ataca(tabu.vez, COL(tabu.pa), ROW(tabu.pa), tabu)) // DEBUG-HANG disabled
+    if(peca_movida != REI && peca_movida != 0 && ataca(tabu.vez, COL(tabu.pa), ROW(tabu.pa), tabu))
     {
         // peca pendurada: quem moveu perde valor. Absoluto: positivo = bom para brancas.
         if(EHBRANCA(tabu.tab[tabu.pa]))
@@ -3148,7 +3177,7 @@ void usa_livro(tabuleiro tabu)
         {
             joga_em(&temp, mval, 0);
             lst_recria(&plmov);
-            geramov(temp, plmov, GERA_TUDO);
+            geramov(temp, plmov, GERA_TODOS);
             cands[i].score = minimax(temp, 0, -LIMITE, LIMITE, 2);
         }
         if(debug >= 2)
@@ -3365,7 +3394,7 @@ char randommove(tabuleiro *tabu)
 
     melhor = (resultado){0};
     lst_recria(&plmov);
-    geramov(*tabu, plmov, GERA_TUDO);  //gera os sucessores
+    geramov(*tabu, plmov, GERA_TODOS);  //gera os sucessores
     if(plmov->qtd == 0)
     {
         printdbg(debug, "# xadreco: empty randommove - geramov() gave 0 moves back\n");
