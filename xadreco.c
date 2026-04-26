@@ -1602,8 +1602,8 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result)
 
     arena aval;
     lista *llval = NULL;
-    no *n;
-    movimento *m;
+    no *lsucc ;
+    movimento *msucc;
     const int GERA_DESTE = de;
 
     arena_inicia(&aval, 64 * 1024);
@@ -1611,17 +1611,17 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result)
         msgsai("# Erro arena cheia em valido() lst_cria", 39);
     geramov(tabu, llval, GERA_DESTE); // de (0-63) como geramodo: gera apenas desta casa
 
-    n = llval->cabeca;
-    while(n)
+    lsucc = llval->cabeca;
+    while(lsucc)
     {
-        m = (movimento *)n->info;
-        if(m->de == de && m->pa == pa)
+        msucc = (movimento *)lsucc->info;
+        if(msucc->de == de && msucc->pa == pa)
         {
-            *result = *m;
+            *result = *msucc;
             arena_destroi(&aval);
             return 1;
         }
-        n = n->prox;
+        lsucc = lsucc->prox;
     }
     arena_destroi(&aval);
     return 0;
@@ -1700,8 +1700,8 @@ char situacao(tabuleiro tabu)
 void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
 {
     int i, moveto;
-    movimento *succ;
-    no *n;
+    movimento *msucc;
+    no *lsucc;
 
     melhor = (resultado){0};
     busca_tempo_move = max_time;
@@ -1751,17 +1751,17 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
         // randomchess: sorteia um lance da lista
         if(randomchess)
         {
-            n = plmov->cabeca;
+            lsucc = plmov->cabeca;
             moveto = (int)(rand() % plmov->qtd);  //sorteia um lance possivel da lista de lances
             for(i = 0; i < moveto; ++i)
-                if(n != NULL)
-                    n = n->prox;
-            if(n != NULL)
+                if(lsucc != NULL)
+                    lsucc = lsucc->prox;
+            if(lsucc != NULL)
             {
-                succ = (movimento *)n->info;
-                melhor.linha[0] = *succ;
+                msucc = (movimento *)lsucc->info;
+                melhor.linha[0] = *msucc;
                 melhor.tamanho = 1;
-                succ->valor_estatico = 0;
+                msucc->valor_estatico = 0;
                 ctx->val = 0;
                 ctx->melhorvalor = 0;
             }
@@ -1849,12 +1849,12 @@ void xadreco_para(busca *ctx)
 // Min quer menos, e tem teto beta garantido. Nao aceita mais. Se o presente > beta, corta.
 int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_quieta)
 {
-    movimento *succ;
+    movimento *msucc; // n->info, movimento considerado
     int novo_valor, child_val, contamov = 0;
     int valull;
     tabuleiro tab, tabull;
     char m[TINYBUFF];
-    no *n;
+    no *lsucc; // lista de movimentos sucessores
     lista *llmov = NULL;
     size_t saved;
     int quieta; // busca_quieta para as criancas
@@ -1892,17 +1892,17 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         fprintf(fmini, "\nalfax= %d     betin= %d", alfax, betin);
     }
     if(prof == 0)
-        n = plmov->cabeca; // lista de lances do tabuleiro real
+        lsucc = plmov->cabeca; // lista de lances do tabuleiro real
     else
     {
         saved = plmov->a->usado;  //bookmark
         if(lst_cria(plmov->a, &llmov))
             msgsai("# Erro arena cheia em minimax lst_cria", 39);
         geramov(atual, llmov, GERA_TODOS); // gerar lista de lances para tabuleiro imaginario
-        n = llmov->cabeca;
+        lsucc = llmov->cabeca;
     }
 
-    if(!n)
+    if(!lsucc)
     {
         //entao o estatico refletira isso: afogamento
         mel[prof].tamanho = 0;
@@ -1913,24 +1913,29 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
             plmov->a->usado = saved;  //rewind arena
         return child_val;
     }
+
+
     // minimax classico: brancas maximizam, pretas minimizam
     // alfax = lower bound (melhor para brancas), betin = upper bound (melhor para pretas)
     // valores absolutos: positivo = bom para brancas
-    novo_valor = (atual.vez == BRANCO) ? -LIMITE : +LIMITE; // best inicial
-    while(n)
+    if(busca_quieta)
+        novo_valor = estatico(atual, prof, alfax, betin);
+    else
+        novo_valor = (atual.vez == BRANCO) ? -LIMITE : +LIMITE; // best inicial
+    while(lsucc) // ----------------------------------------------------------------------------------------------------- laco de sucessores
     {
-        succ = (movimento *)n->info;
-        if(busca_quieta && succ->especial != 9)
+        msucc = (movimento *)lsucc->info;
+        if(busca_quieta && msucc->especial != 9)
         {
-            if(prof <= 2) printdbg(debug, "# QUIETA: skip quiet move prof=%d especial=%d\n", prof, succ->especial); // DEBUG-QUIETA
-            n = n->prox;
+            if(prof <= 2) printdbg(debug, "# QUIETA: skip quiet move prof=%d especial=%d\n", prof, msucc->especial); // DEBUG-QUIETA
+            lsucc = lsucc->prox;
             continue;
         }
         copitab(&tab, &atual);
-        (void) joga_em(&tab, *succ, 1);
+        (void) joga_em(&tab, *msucc, 1);
         //joga o lance atual, a funcao joga_em deve inserir no listab
         busca_totalnodonivel++;
-        /* busca_profflag = succ->flag_50 + 1; //se for zero, fim da busca. */
+        /* busca_profflag = msucc->flag_50 + 1; //se for zero, fim da busca. */
         //flag_50:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu;
         //flag_50== 2 ou 3 : houve captura :Liberou
         //tab.situa:0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: sem resultado
@@ -1940,22 +1945,22 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         //    case 2: busca_profflag = 4; break; //2:Xeque!  Liberou
         //    default: busca_profflag = 0; //situa: 1=Empate, 3,4=Mate, 5,6=Tempo. 7=sem resultado. Nao passar o nivel
         //}
-        quieta = (prof + 1 >= niv) && (succ->especial == 9); //captura: filho entra em quiescencia
-        if(prof <= 2) printdbg(debug, "# QUIETA: move prof=%d especial=%d quieta_child=%d\n", prof, succ->especial, quieta); // DEBUG-QUIETA
+        quieta = (prof + 1 >= niv) && (msucc->especial == 9); //captura: filho entra em quiescencia
+        if(prof <= 2) printdbg(debug, "# QUIETA: move prof=%d especial=%d quieta_child=%d\n", prof, msucc->especial, quieta); // DEBUG-QUIETA
         if(debug == 2)
         {
-            lance2movi(m, succ->de, succ->pa, succ->especial);
-            fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, busca_totalnodonivel, m, COL(succ->de), ROW(succ->de), COL(succ->pa), ROW(succ->pa));
+            lance2movi(m, msucc->de, msucc->pa, msucc->especial);
+            fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, busca_totalnodonivel, m, COL(msucc->de), ROW(msucc->de), COL(msucc->pa), ROW(msucc->pa));
         }
         child_val = minimax(tab, prof + 1, alfax, betin, niv, quieta); // busca_quieta local com quieta para criancas
-        if(prof <= 2) printdbg(debug, "# QUIETA: child_val=%d prof=%d especial=%d alfax=%d betin=%d\n", child_val, prof, succ->especial, alfax, betin); // DEBUG-QUIETA
+        if(prof <= 2) printdbg(debug, "# QUIETA: child_val=%d prof=%d especial=%d alfax=%d betin=%d\n", child_val, prof, msucc->especial, alfax, betin); // DEBUG-QUIETA
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         if(atual.vez == BRANCO) // MAXIMIZA
         {
             if(child_val > novo_valor)
             {
                 novo_valor = child_val;
-                mel[prof].linha[0] = *succ;
+                mel[prof].linha[0] = *msucc;
                 memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
                 mel[prof].tamanho = mel[prof + 1].tamanho + 1;
             }
@@ -1967,7 +1972,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
             if(child_val < novo_valor)
             {
                 novo_valor = child_val;
-                mel[prof].linha[0] = *succ;
+                mel[prof].linha[0] = *msucc;
                 memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
                 mel[prof].tamanho = mel[prof + 1].tamanho + 1;
             }
@@ -1979,18 +1984,19 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         {
             if(debug == 2)
             {
-                lance2movi(m, succ->de, succ->pa, succ->especial);
-                fprintf(fmini, "#\n# succ: alfax>=betin (%+.2f>=%+.2f) %s Corte!", alfax / 100.0, betin / 100.0, m);
+                lance2movi(m, msucc->de, msucc->pa, msucc->especial);
+                fprintf(fmini, "#\n# msucc: alfax>=betin (%+.2f>=%+.2f) %s Corte!", alfax / 100.0, betin / 100.0, m);
             }
             break;
         }
         if(prof == 0)
-            succ->valor_estatico = (atual.vez == BRANCO) ? child_val : -child_val; // para lst_ordem (descending)
-        n = n->prox;
+            msucc->valor_estatico = (atual.vez == BRANCO) ? child_val : -child_val; // para lst_ordem (descending)
+        lsucc = lsucc->prox;
         contamov++;
         if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)
             break;
-    } //while(n)
+    } // while(lsucc) fim do laco de sucessores -----------------------------------------------------------------------------------------------------
+
     if(prof <= 2) printdbg(debug, "# QUIETA: end loop prof=%d contamov=%d mel[%d].tam=%d novo_valor=%d\n", prof, contamov, prof, mel[prof].tamanho, novo_valor); // DEBUG-QUIETA
     if(prof != 0)
         plmov->a->usado = saved;  //rewind arena
@@ -3405,7 +3411,7 @@ char randommove(tabuleiro *tabu)
 {
     IFDEBUG("randommove()");
     int moveto;
-    movimento *succ;
+    movimento *msucc;
     no *n;
 
     melhor = (resultado){0};
@@ -3423,9 +3429,9 @@ char randommove(tabuleiro *tabu)
 
     if(n != NULL)
     {
-        succ = (movimento *)n->info;
-        succ->valor_estatico = 0;
-        melhor.linha[0] = *succ;
+        msucc = (movimento *)n->info;
+        msucc->valor_estatico = 0;
+        melhor.linha[0] = *msucc;
         melhor.tamanho = 1;
         melhor.valor = 0;
         return '-'; //ok
