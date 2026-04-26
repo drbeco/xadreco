@@ -2171,12 +2171,9 @@ char joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
 } //fim da joga_em
 
 //retorna o valor tatico e estrategico de um tabuleiro. Absoluto: positivo = bom para brancas
-//cod: 1: acabou o tempo, 0: ou eh avaliacao normal?
 //niv: qual a distancia do tabuleiro real para a copia tabu avaliada?
-int estatico(tabuleiro tabu, int cod, int niv, int alfax, int betin)
+int estatico(tabuleiro tabu, int niv, int alfax, int betin)
 {
-    if(cod) //time expired: skip evaluation, abandon this branch
-        return alfax;
 
     int i, j, k, peca; // indices e peca atualmente analisada
     int pecab = 0, pecap = 0, material;
