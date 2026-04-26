@@ -2013,21 +2013,29 @@ int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor
         if(!strncmp(entra.barbante, "stop", 4))
         {
             mel[prof].tamanho = 0;
-            *valor = estatico(atual, 1, prof, alfax, betin);
+            *valor = estatico(atual, prof, alfax, betin);
             return 1;
         }
     }
-
-    if(!busca_profflag) //nao liberou busca_profflag==0 retorna
+    //quiescencia: limite de profundidade extra para busca de capturas
+    if(prof >= niv + QUIETA_MAX)
     {
         mel[prof].tamanho = 0;
-        *valor = estatico(atual, 0, prof, alfax, betin); //estatico(tabuleiro, 1: acabou o tempo, 0: nao acabou. Prof: qual nivel estao analisando?)
-        return 1; //a profundidade ja eh sufuciente
+        *valor = estatico(atual, prof, alfax, betin);
+        return 1;
+    }
+    //se tem captura ou xeque... liberou
+    //se ja passou do nivel estipulado, pare a busca incondicionalmente
+    if(prof >= niv && !busca_quieta)
+    {
+        mel[prof].tamanho = 0;
+        *valor = estatico(atual, prof, alfax, betin);
+        return 1;
     }
     return 0; //se OU Nem-Chegou-no-Nivel OU Liberou, pode ir fundo
 }
 
-char joga_em(tabuleiro *tabu, movimento movi, int cod)
+char joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
 {
     char res;
     int repete;
@@ -2109,7 +2117,7 @@ char joga_em(tabuleiro *tabu, movimento movi, int cod)
     //conta os movimentos de cada peao (e chamado de dentro de funcao recursiva!)
     tabu->vez = ADV(tabu->vez);
     tabu->especial = movi.especial;
-    if(cod)
+    if(flag_hist)
     {
         repete = tab_insere(*tabu);
         if(repete >= 3)
