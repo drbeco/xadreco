@@ -735,6 +735,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     int peca;
     int ee; //especial bitfield
     int enp_col; //coluna do peao que pulou (en passant)
+    int promo[] = {ESP_MOV_PROMO_Q, ESP_MOV_PROMO_N, ESP_MOV_PROMO_R, ESP_MOV_PROMO_B};
     int i0, i1, j0, j1; //limites do loop
 
     assert(tabu.vez == BRANCO || (tabu.vez == PRETO && "Invalid turn in geramov"));
@@ -928,7 +929,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         }
                     }
                     //peao andando uma casa
-                    tabaux = tabu; // copia tabuleiro  //tabaux = tabu;
+                    tabaux = tabu; // copia tabuleiro
                     if(tabu.vez == BRANCO)
                     {
                         if(j + 1 < 8)
@@ -941,21 +942,26 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 {
                                     if(j + 1 == 7)  //se promoveu
                                     {
-                                        for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
+                                        for(k = 0; k < 4; k++)
+                                        {
+                                            ee = ESP_MOV_PEAO | promo[k];
+                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee);
+                                        }
                                     }
                                     else //nao promoveu
                                     {
-                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
+                                        ee = ESP_MOV_PEAO;
+                                        if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                            ee |= ESP_AMB_XEQUE_PR;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee);
                                     }
                                     if(geramodo == GERA_UNICO) // 8 - peao branco andou uma casa
                                         return 1;
-                                } //deixa rei em xeque
-                            } //casa ocupada
-                        } //passou da casa de promocao e caiu do tabuleiro!
+                                }
+                            }
+                        }
                     }
                     else //vez das pretas andar com peao uma casa
                     {
@@ -969,21 +975,26 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 {
                                     if(j - 1 == 0)  //se promoveu
                                     {
-                                        for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
+                                        for(k = 0; k < 4; k++)
+                                        {
+                                            ee = ESP_MOV_PEAO | promo[k];
+                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee);
+                                        }
                                     }
                                     else //nao promoveu
                                     {
-                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/1);
+                                        ee = ESP_MOV_PEAO;
+                                        if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                            ee |= ESP_AMB_XEQUE_BR;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee);
                                     }
                                     if(geramodo == GERA_UNICO) // 9 - peao preto andou uma casa
                                         return 1;
-                                } //deixa rei em xeque
-                            } //casa ocupada
-                        } //passou da casa de promocao e caiu do tabuleiro!
+                                }
+                            }
+                        }
                     }
                     //peao anda duas casas -----------
                     tabaux = tabu; // copia tabuleiro
