@@ -1414,8 +1414,10 @@ int cumprimento(char *line)
     {
         printf2("id name Xadreco %s\n", VERSION);
         printf2("id author Dr. Beco\n");
-        printf2("option name Book type check default false\n");
-        printf2("option name BookFile type string default livro.txt\n");
+        printf2("option name Book type check default %s\n", ulivro ? "true" : "false");
+        printf2("option name BookFile type string default %s\n", bookfname);
+        printf2("option name NullMove type check default %s\n", usa_nullmove ? "true" : "false");
+        printf2("option name Quiescence type check default %s\n", usa_quieta ? "true" : "false");
         printf2("uciok\n");
         printdbg(debug, "# xadreco: handshake done\n");
         return 1;
