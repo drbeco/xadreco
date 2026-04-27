@@ -458,7 +458,7 @@ int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor
 //retorna um valor estatico que avalia uma posicao do tabuleiro. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 int estatico(tabuleiro tabu, int niv, int alfax, int betin);
 //joga o movimento movi em tabuleiro tabu. Atualiza especial com bits ESP_TAB. Insere no listab se flag_hist==1
-int joga_em(tabuleiro *tabu, movimento movi, int flag_hist);
+void joga_em(tabuleiro *tabu, movimento movi, int flag_hist);
 
 // listas dinamicas com arena ------------------------------------------------------------
 void arena_inicia(arena *a, size_t capa); // inicializa uma arena de alocacao de memoria
@@ -689,17 +689,10 @@ void lance2movi(char *m, int de, int pa, int espec)
     m[3] = ROW(pa) + '1';
     m[pro] = '\0'; // promocao
     m[5] = '\0';
-    switch(espec) //promocao para 4,5,6,7 == D,C,T,B
-    {
-        case 4: //promoveu a Dama
-            m[pro] = 'q'; break;
-        case 5: //promoveu a Cavalo
-            m[pro] = 'n'; break;
-        case 6: //promoveu a Torre
-            m[pro] = 'r'; break;
-        case 7: //promoveu a Bispo
-            m[pro] = 'b'; break;
-    }
+    if(espec & ESP_MOV_PROMO_Q) m[pro] = 'q';
+    else if(espec & ESP_MOV_PROMO_N) m[pro] = 'n';
+    else if(espec & ESP_MOV_PROMO_R) m[pro] = 'r';
+    else if(espec & ESP_MOV_PROMO_B) m[pro] = 'b';
 }
 
 //transforma char de entrada em int de/pa (0-63)
@@ -1963,7 +1956,7 @@ int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor
     return 0; //se OU Nem-Chegou-no-Nivel OU Liberou, pode ir fundo
 }
 
-int joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
+void joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
 {
     int repete;
     int dir_roque;
@@ -2025,14 +2018,14 @@ int joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
         if(repete >= 3)
         {
             tabu->especial |= ESP_TAB_PATA_REPETE;
-            return 0;
+            return;
         }
     }
     // situacao (inline): 50 lances, insuficiencia, mate/afogamento, xeque
     if(tabu->meioconta >= 100)
     {
         tabu->especial |= ESP_TAB_PATA_PROGRESSO;
-        return 0;
+        return;
     }
     insuf_branca = 0;
     insuf_preta = 0;
@@ -2059,35 +2052,17 @@ int joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
     if(insuf_branca < 3 && insuf_preta < 3)
     {
         tabu->especial |= ESP_TAB_PATA_MATERIAL;
-        return 0;
+        return;
     }
     if(!geramov(*tabu, NULL, GERA_UNICO))
     {
         if(!xeque_rei_das(tabu->vez, *tabu))
-        {
             tabu->especial |= ESP_TAB_PATA_AFOGA;
-            return 0;
-        }
+        else if(tabu->vez == BRANCO)
+            tabu->especial |= ESP_TAB_MATE_BR;
         else
-        {
-            if(tabu->vez == BRANCO)
-                tabu->especial |= ESP_TAB_MATE_BR;
-            else
-                tabu->especial |= ESP_TAB_MATE_PR;
-            return 0;
-        }
+            tabu->especial |= ESP_TAB_MATE_PR;
     }
-    else
-    {
-        if(xeque_rei_das(tabu->vez, *tabu))
-        {
-            if(tabu->vez == BRANCO)
-                tabu->especial |= ESP_AMB_XEQUE_BR;
-            else
-                tabu->especial |= ESP_AMB_XEQUE_PR;
-        }
-    }
-    return 0;
 } //fim da joga_em
 
 //retorna o valor tatico e estrategico de um tabuleiro. Absoluto: positivo = bom para brancas
