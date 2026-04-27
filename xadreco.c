@@ -356,6 +356,8 @@ static FILE *fmini; //minimax log file for debug==2
 static int ulivro = 0; //0: sem livro. 1: usa livro de aberturas (opcao -b)
 static int usando_livro; //1:consulta o livro de aberturas livro.txt. 0:nao consulta
 static int randomchess = 0; //0: pensa para jogar. 1: joga ao acaso
+static int usa_nullmove = 0; //0: null-move desabilitado. 1: habilitado com -n
+static int usa_quieta = 0; //0: quiescencia desabilitada. 1: habilitada com -q
 static int setboard = 0; //0: posicao normal. 1: posicao FEN carregada
 // busca: estado compartilhado entre minimax/profsuf/difclocks/xadreco_continua
 static int pula_vez = 0; //flag para evitar null-move recursivo
@@ -592,9 +594,9 @@ void opcoes(int argc, char *argv[])
 
     srand(time(NULL) + getpid());
 
-    /* Usage: xadreco [-h|-v] [-V|-VV] [-r seed] [-b bookfile] */
+    /* Usage: xadreco [-h|-v] [-V|-VV] [-r seed] [-b bookfile] [-n] [-q] */
     opterr = 0;
-    while((opt = getopt(argc, argv, "vhVr:b:")) != EOF)
+    while((opt = getopt(argc, argv, "vhVr:b:nq")) != EOF)
         switch(opt)
         {
             case 'h':
@@ -616,6 +618,12 @@ void opcoes(int argc, char *argv[])
                 strcpy(bookfname, optarg);
                 ulivro = 1;
                 break;
+            case 'n':
+                usa_nullmove = 1;
+                break;
+            case 'q':
+                usa_quieta = 1;
+                break;
             case '?':
             default:
                 printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
@@ -634,6 +642,8 @@ void opcoes(int argc, char *argv[])
     printdbg(debug, "# xadreco: verbose level set at: %d\n", debug);
     printdbg(debug, "# xadreco: random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
     printdbg(debug, "# xadreco: book: -b %s\n", bookfname);
+    printdbg(debug, "# xadreco: null-move: %s (-n)\n", usa_nullmove ? "on" : "off");
+    printdbg(debug, "# xadreco: quiescencia: %s (-q)\n", usa_quieta ? "on" : "off");
     if(ulivro && (f = fopen(bookfname, "r")))
         fclose(f);
     else if(ulivro)
@@ -1939,10 +1949,10 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     }
 
     // null-move pruning: passo a vez; se ainda assim excede betin/alfax, corta
-    if(niv - prof >= 3 && !pula_vez && !xeque_rei_das(atual.vez, atual) && !busca_quieta)
+    if(usa_nullmove && niv - prof >= 3 && !pula_vez && !xeque_rei_das(atual.vez, atual) && !busca_quieta)
     {
         pula_vez = 1;
-        copitab(&tabull, &atual);
+        tabull = atual; // copia tabuleiro
         tabull.vez = ADV(tabull.vez);
         tabull.peao_pulou = -1;
         valull = minimax(tabull, prof + 1, alfax, betin, niv - 2, busca_quieta); //nao faz null-move em busca_quieta
@@ -2011,7 +2021,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         //    case 2: busca_profflag = 4; break; //2:Xeque!  Liberou
         //    default: busca_profflag = 0; //situa: 1=Empate, 3,4=Mate, 5,6=Tempo. 7=sem resultado. Nao passar o nivel
         //}
-        quieta = (prof + 1 >= niv) && (msucc->especial == 9); //captura: filho entra em quiescencia
+        quieta = usa_quieta && (prof + 1 >= niv) && (msucc->especial == 9); //captura: filho entra em quiescencia
         if(debug == 2)
         {
             lance2movi(m, msucc->de, msucc->pa, msucc->especial);
