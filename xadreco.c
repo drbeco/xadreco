@@ -1128,20 +1128,19 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(i + col < 0 || i + col > 7 || j + lin < 0 || j + lin > 7)
                                 continue;
                             if(!EHVAZIA(tabu.tab[SQ(i + col, j + lin)]) && COR(tabu.tab[SQ(i + col, j + lin)]) == tabu.vez)
-                                continue; //casa possui peca da mesma cor.
+                                continue;
                             tabaux = tabu; // copia tabuleiro
                             tabaux.tab[SQ(i, j)] = VAZIA;
                             tabaux.tab[SQ(i + col, j + lin)] = DACOR(CAVALO, tabu.vez);
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
-                                if(tabu.tab[SQ(col + i, lin + j)] == VAZIA)
-                                    ff = 0; //Cavalo nao capturou
-                                else
-                                    ff = 2; // Cavalo capturou peca adversaria.
-                                ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                if(ee == 0 && ff > 1) ee = 9; // captura
-                                if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                    enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/ff);
+                                ee = 0;
+                                if(tabu.tab[SQ(col + i, lin + j)] != VAZIA)
+                                    ee |= ESP_AMB_CAPTURA;
+                                if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                    ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                    enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), ee);
                                 if(geramodo == GERA_UNICO) // 14 - cavalo anda ou captura
                                     return 1;
                             }
