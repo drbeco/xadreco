@@ -397,10 +397,8 @@ void testajogo(char *movinito, int mnum);
 //Argumentos:
 //   c0c1-c2c3: lance
 //   pp peao_pulou: nao -1 ou coluna do peao que andou duas neste lance
-//   rr roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-//   ee especial: 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque 9=captura
-//   ff flag_50: 0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff);
+//   ee especial: bitfield 26 bits ESP_AMB/ESP_MOV/ESP_TAB
+void enche_lmovi(lista *lmov, int de, int pa, int ee);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
 //calcula diferenca de tempo em segundo do lance atual
@@ -3353,7 +3351,7 @@ void zera_pecas(tabuleiro *tabu)
 
 
 //preenche a estrutura movimento usando arena e lst_insere
-void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff)
+void enche_lmovi(lista *lmov, int de, int pa, int ee)
 {
     if(!lmov)
         return;
@@ -3362,11 +3360,7 @@ void enche_lmovi(lista *lmov, int de, int pa, int pp, int rr, int ee, int ff)
         msgsai("# Erro arena cheia em enche_lmovi", 37);
     m->de = de;
     m->pa = pa;
-    m->peao_pulou = pp;
-    m->roque = rr;
     m->especial = ee;
-    m->flag_50 = ff;
-
     m->valor_estatico = 0;
     if(lst_insere(lmov, m, sizeof(movimento)))
         msgsai("# Erro arena cheia em enche_lmovi lst_insere", 40);
