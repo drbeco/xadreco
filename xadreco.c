@@ -1567,7 +1567,6 @@ int joga_movinito(char *movinito, tabuleiro *tabu)
 {
     int de, pa;
     movimento mval;
-    char sit;
 
     if(!movi2lance(&de, &pa, movinito))
         return 0;
@@ -1577,26 +1576,22 @@ int joga_movinito(char *movinito, tabuleiro *tabu)
     // promocao: sufixo do lance
     switch(movinito[4])
     {
-        case 'q': mval.especial = 4; break;
-        case 'n': mval.especial = 5; break;
-        case 'r': mval.especial = 6; break;
-        case 'b': mval.especial = 7; break;
+        case 'q': mval.especial = ESP_MOV_PEAO | ESP_MOV_PROMO_Q; break;
+        case 'n': mval.especial = ESP_MOV_PEAO | ESP_MOV_PROMO_N; break;
+        case 'r': mval.especial = ESP_MOV_PEAO | ESP_MOV_PROMO_R; break;
+        case 'b': mval.especial = ESP_MOV_PEAO | ESP_MOV_PROMO_B; break;
         default: break;
     }
 
-    sit = joga_em(tabu, mval, 1);
+    joga_em(tabu, mval, 1);
 
-    // verifica mate/empate apos o lance (joga_em retorna situacao)
-    switch(sit)
-    {
-        case 'M': printf2("0-1 {Black mates}\n"); break;
-        case 'm': printf2("1-0 {White mates}\n"); break;
-        case 'a': printf2("1/2-1/2 {Stalemate}\n"); break;
-        case 'i': printf2("1/2-1/2 {Draw by insufficient mating material}\n"); break;
-        case '5': printf2("1/2-1/2 {Draw by fifty moves rule}\n"); break;
-        case 'r': printf2("1/2-1/2 {Draw by triple repetition}\n"); break;
-        default: break;
-    }
+    // verifica mate/empate apos o lance (bits ESP_TAB)
+    if(tabu->especial & ESP_TAB_MATE_BR) printf2("0-1 {Black mates}\n");
+    else if(tabu->especial & ESP_TAB_MATE_PR) printf2("1-0 {White mates}\n");
+    else if(tabu->especial & ESP_TAB_PATA_AFOGA) printf2("1/2-1/2 {Stalemate}\n");
+    else if(tabu->especial & ESP_TAB_PATA_MATERIAL) printf2("1/2-1/2 {Draw by insufficient mating material}\n");
+    else if(tabu->especial & ESP_TAB_PATA_PROGRESSO) printf2("1/2-1/2 {Draw by fifty moves rule}\n");
+    else if(tabu->especial & ESP_TAB_PATA_REPETE) printf2("1/2-1/2 {Draw by triple repetition}\n");
 
     return 1;
 }
