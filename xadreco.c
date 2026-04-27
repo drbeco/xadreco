@@ -343,9 +343,10 @@ static const tabuleiro TAB_INICIO =
         DACOR(PEAO,PRETO),  DACOR(PEAO,PRETO),   DACOR(PEAO,PRETO),  DACOR(PEAO,PRETO), DACOR(PEAO,PRETO), DACOR(PEAO,PRETO), DACOR(PEAO,PRETO),   DACOR(PEAO,PRETO), /* rank 7: a7-h7 */
         DACOR(TORRE,PRETO), DACOR(CAVALO,PRETO), DACOR(BISPO,PRETO), DACOR(DAMA,PRETO), DACOR(REI,PRETO), DACOR(BISPO,PRETO), DACOR(CAVALO,PRETO), DACOR(TORRE,PRETO)  /* rank 8: a8-h8 */
     },
-    BRANCO, -1, 1, 1, 0, 0, // vez=BRANCO, peao_pulou=-1, roqueb=1, roquep=1, empate_50=0, situa=0
+    BRANCO,            // vez=BRANCO
     0, 0,              // de=0, pa=0
-    0, 0,              // especial=0, meionum=0
+    ESP_TAB_ROQUE_BRP | ESP_TAB_ROQUE_BRG | ESP_TAB_ROQUE_PRP | ESP_TAB_ROQUE_PRG, // especial: todos podem rocar
+    0, 0,              // meioconta=0, meionum=0
     {SQ(4, 0), SQ(4, 7)} // rei_pos: white e1, black e8
 };
 
