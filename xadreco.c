@@ -735,7 +735,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     int peca;
     int ee; //especial bitfield
     int enp_col; //coluna do peao que pulou (en passant)
-    int promo[] = {ESP_MOV_PROMO_Q, ESP_MOV_PROMO_N, ESP_MOV_PROMO_R, ESP_MOV_PROMO_B};
+    const int promo[] = {ESP_MOV_PROMO_Q, ESP_MOV_PROMO_N, ESP_MOV_PROMO_R, ESP_MOV_PROMO_B};
     int i0, i1, j0, j1; //limites do loop
 
     assert(tabu.vez == BRANCO || (tabu.vez == PRETO && "Invalid turn in geramov"));
@@ -1008,14 +1008,16 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 tabaux.tab[SQ(i, 3)] = DACOR(PEAO, BRANCO);
                                 if(!xeque_rei_das(BRANCO, tabaux))
                                 {
-                                    ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                    if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                        enche_lmovi(lmov, SQ(i,1), SQ(i,3), /*peao*/i, /*roque*/1, /*especial*/ee, /*flag50*/1);
+                                    ee = ESP_MOV_PEAO | ESP_AMB_ENP_PULOU | (i & ESP_AMB_ENP_COL);
+                                    if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        ee |= ESP_AMB_XEQUE_PR;
+                                    if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                        enche_lmovi(lmov, SQ(i,1), SQ(i,3), ee);
                                     if(geramodo == GERA_UNICO) // 10 - peao branco andou duas casas
                                         return 1;
-                                } //deixa rei em xeque
-                            } //alguma das casas esta ocupada
-                        } //este peao ja mexeu antes
+                                }
+                            }
+                        }
                     }
                     else //vez das pretas andar com peao 2 casas
                     {
@@ -1027,14 +1029,16 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 tabaux.tab[SQ(i, 4)] = DACOR(PEAO, PRETO);
                                 if(!xeque_rei_das(PRETO, tabaux))
                                 {
-                                    ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                    if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                        enche_lmovi(lmov, SQ(i,6), SQ(i,4), /*peao*/i, /*roque*/1, /*especial*/ee, /*flag50*/1);
+                                    ee = ESP_MOV_PEAO | ESP_AMB_ENP_PULOU | (i & ESP_AMB_ENP_COL);
+                                    if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        ee |= ESP_AMB_XEQUE_BR;
+                                    if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                        enche_lmovi(lmov, SQ(i,6), SQ(i,4), ee);
                                     if(geramodo == GERA_UNICO) // 11 - peao preto andou duas casas
                                         return 1;
-                                } //deixa rei em xeque
-                            } //alguma das casas esta ocupada
-                        } //este peao ja mexeu antes
+                                }
+                            }
+                        }
                     }
                     // peao comeu normalmente (i.e., nao eh en passant) -------------
                     tabaux = tabu; // copia tabuleiro
@@ -1045,7 +1049,6 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             k = i + 1;
                         do //diagonal esquerda e direita do peao.
                         {
-                            //peca preta
                             if(EHPRETA(tabu.tab[SQ(k, j + 1)]))
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
@@ -1054,58 +1057,63 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 {
                                     if(j + 1 == 7)  //se promoveu comendo
                                     {
-                                        for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
+                                        for(m = 0; m < 4; m++)
+                                        {
+                                            ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | promo[m];
+                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee);
+                                        }
                                     }
                                     else //comeu sem promover
                                     {
-                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        if(ee == 0) ee = 9; // captura (ff=3)
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), /*peao*/ -1, /*roque*/1, /*especial*/ee, /*flag50*/3);
+                                        ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA;
+                                        if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                            ee |= ESP_AMB_XEQUE_PR;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee);
                                     }
                                     if(geramodo == GERA_UNICO) // 12 - peao branco comeu normalmente
                                         return 1;
-                                } //deixa rei em xeque
-                            } //nao tem peca preta para comer
-                            k += 2; //proxima diagonal do peao
+                                }
+                            }
+                            k += 2;
                         }
                         while(k <= i + 1 && k < 8);
-                    } // vez das pretas comer normalmente (i.e., nao eh en passant)
+                    }
                     else
                     {
                         k = i - 1;
                         if(k < 0)
                             k = i + 1;
-                        do //diagonal esquerda e direita do peao.
+                        do
                         {
-                            if(EHBRANCA(tabu.tab[SQ(k, j - 1)])) //peca branca
+                            if(EHBRANCA(tabu.tab[SQ(k, j - 1)]))
                             {
                                 tabaux.tab[SQ(i, j)] = VAZIA;
                                 tabaux.tab[SQ(k, j - 1)] = DACOR(PEAO, PRETO);
                                 if(!xeque_rei_das(PRETO, tabaux))
                                 {
-                                    //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                    //peao preto promove comendo
-                                    //                                 (*nmovi)++;
                                     if(j - 1 == 0)  //se promoveu comendo
                                     {
-                                        for(ee = 7; ee >= 4; ee--) //4:dama, 5:cavalo, 6:torre, 7:bispo
-                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
+                                        for(m = 0; m < 4; m++)
+                                        {
+                                            ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | promo[m];
+                                            if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee);
+                                        }
                                     }
                                     else //comeu sem promover
                                     {
-                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        if(ee == 0) ee = 9; // captura (ff=3)
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/3);
+                                        ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA;
+                                        if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                            ee |= ESP_AMB_XEQUE_BR;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee);
                                     }
                                     if(geramodo == GERA_UNICO) // 13 - peao preto comeu normalmente
                                         return 1;
-                                } //rei em xeque
-                            } //nao tem peao branco para comer
+                                }
+                            }
                             k += 2;
                         }
                         while(k <= i + 1 && k < 8);
