@@ -771,99 +771,79 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             tabaux.rei_pos[ICOR(tabu.vez)] = SQ(col, lin);
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
-                                //pp contem -1 ou coluna do peao que andou duas neste lance
-                                pp = -1; // nao foi peao capturando enpassant
-                                //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-                                rr = 0; //nao pode mais fazer roque. Mexeu Rei
-                                //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=deu xeque
-                                ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                if(tabu.tab[SQ(col, lin)] == VAZIA)
-                                    ff = 0; //nao capturou
-                                else
-                                {
-                                    ff = 2; //Rei capturou peca adversaria
-                                    if(ee == 0) ee = 9; // captura
-                                }
-                                if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                    enche_lmovi(lmov, /*de*/SQ(i,j), /*pa*/SQ(col,lin), /*peao*/pp, /*roque*/rr, /*especial*/ee, /*flag50*/ff);
+                                ee = ESP_MOV_REI;
+                                if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                    ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                if(tabu.tab[SQ(col, lin)] != VAZIA)
+                                    ee |= ESP_AMB_CAPTURA;
+                                if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                    enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee);
                                 if(geramodo == GERA_UNICO) // 1 - rei anda
                                     return 1;
                             }
                         }
                     //----------------------------- Roque de Brancas e Pretas
                     if(tabu.vez == BRANCO)
-                        if(tabu.roqueb == 0)  //Se nao pode mais rocar: break!
+                        if(!(tabu.especial & ESP_TAB_ROQUE_BR))  //Se nao pode mais rocar: break!
                             break;
                         else
                         {
-                            //roque de brancas
-                            if(tabu.roqueb != 2 && tabu.tab[SQ(7, 0)] == DACOR(TORRE, BRANCO))
+                            if((tabu.especial & ESP_TAB_ROQUE_BRP) && tabu.tab[SQ(7, 0)] == DACOR(TORRE, BRANCO))
                             {
-                                //Nao mexeu TR (e ela esta la Adv poderia ter comido antes de mexer)
                                 // roque pequeno
                                 if(tabu.tab[SQ(5, 0)] == VAZIA && tabu.tab[SQ(6, 0)] == VAZIA) //f1,g1
                                 {
                                     flag = 0;
-                                    for(k = 4; k < 7; k++)  //colunas e,f,g
+                                    for(k = 4; k < 7; k++)
                                         if(ataca(PRETO, k, 0, tabu))
                                         {
-                                            flag = 1; //casas do roque atacadas
+                                            flag = 1;
                                             break;
                                         }
                                     if(flag == 0)
                                     {
-                                        //nao pode mais fazer roque. Mexeu Rei
-                                        //Rei rocou pqn, espec=1. flag=0
-                                        //pp contem -1 ou coluna do peao que andou duas
-                                        //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-                                        //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque 9=captura
-                                        //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        ee = 1;
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(4,0), SQ(6,0), /*pp*/ -1, /*rr*/0, /*ee*/ee, /*ff*/0); //BUG flag50 zera no roque? consultar FIDE
+                                        ee = ESP_MOV_REI | ESP_MOV_TORRE_R;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(4,0), SQ(6,0), ee);
                                         if(geramodo == GERA_UNICO) // 2 - roque pequeno branco
                                             return 1;
-
                                     }
-                                } // roque grande
-                            } //mexeu TR
-                            if(tabu.roqueb != 3 && tabu.tab[SQ(0, 0)] == DACOR(TORRE, BRANCO)) //Nao mexeu TD (e a torre existe!)
+                                }
+                            }
+                            if((tabu.especial & ESP_TAB_ROQUE_BRG) && tabu.tab[SQ(0, 0)] == DACOR(TORRE, BRANCO))
                             {
-                                if(tabu.tab[SQ(1, 0)] == VAZIA && tabu.tab[SQ(2, 0)] == VAZIA && tabu.tab[SQ(3, 0)] == VAZIA) //b1,c1,d1
+                                if(tabu.tab[SQ(1, 0)] == VAZIA && tabu.tab[SQ(2, 0)] == VAZIA && tabu.tab[SQ(3, 0)] == VAZIA)
                                 {
                                     flag = 0;
-                                    for(k = 2; k < 5; k++)  //colunas c,d,e
+                                    for(k = 2; k < 5; k++)
                                         if(ataca(PRETO, k, 0, tabu))
                                         {
-                                            flag = 1; //casas do roque atacadas
+                                            flag = 1;
                                             break;
                                         }
                                     if(flag == 0)
                                     {
-                                        //nao pode mais fazer roque. Mexeu Rei
-                                        //Rei rocou grd, espec=2. flag=0
-                                        ee = 2;
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(4,0), SQ(2,0), /*peao*/ -1, /*roque*/0, /*ee*/ee, /*flag50*/0);
+                                        ee = ESP_MOV_REI | ESP_MOV_TORRE_D;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(4,0), SQ(2,0), ee);
                                         if(geramodo == GERA_UNICO) // 3 - roque grande branco
                                             return 1;
                                     }
                                 }
-                            } //mexeu TD
+                            }
                         }
                     else // vez das pretas jogarem
-                        if(tabu.roquep == 0)  //Se nao pode rocar: break!
+                        if(!(tabu.especial & ESP_TAB_ROQUE_PR))  //Se nao pode rocar: break!
                             break;
-                        else //roque de pretas
+                        else
                         {
-                            if(tabu.roquep != 2 && tabu.tab[SQ(7, 7)] == DACOR(TORRE, PRETO)) //Nao mexeu TR (e a torre nao foi capturada)
+                            if((tabu.especial & ESP_TAB_ROQUE_PRP) && tabu.tab[SQ(7, 7)] == DACOR(TORRE, PRETO))
                             {
                                 // roque pequeno
-                                if(tabu.tab[SQ(5, 7)] == VAZIA && tabu.tab[SQ(6, 7)] == VAZIA) //f8,g8
+                                if(tabu.tab[SQ(5, 7)] == VAZIA && tabu.tab[SQ(6, 7)] == VAZIA)
                                 {
                                     flag = 0;
-                                    for(k = 4; k < 7; k++)  //colunas e,f,g
+                                    for(k = 4; k < 7; k++)
                                         if(ataca(BRANCO, k, 7, tabu))
                                         {
                                             flag = 1;
@@ -871,22 +851,20 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         }
                                     if(flag == 0)
                                     {
-                                        //nao pode mais fazer roque. Mexeu Rei
-                                        //Rei rocou pqn, espec=1. flag=0.
-                                        ee = 1;
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(4,7), SQ(6,7), /*peao*/ -1, /*roque*/0, /*ee*/ee, /*flag50*/0);
+                                        ee = ESP_MOV_REI | ESP_MOV_TORRE_R;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(4,7), SQ(6,7), ee);
                                         if(geramodo == GERA_UNICO) // 4 - roque pequeno preto
                                             return 1;
                                     }
-                                } // roque grande.
-                            } //mexeu TR
-                            if(tabu.roquep != 3 && tabu.tab[SQ(0, 7)] == DACOR(TORRE, PRETO)) //Nao mexeu TD (e a torre esta la)
+                                }
+                            }
+                            if((tabu.especial & ESP_TAB_ROQUE_PRG) && tabu.tab[SQ(0, 7)] == DACOR(TORRE, PRETO))
                             {
-                                if(tabu.tab[SQ(1, 7)] == VAZIA && tabu.tab[SQ(2, 7)] == VAZIA && tabu.tab[SQ(3, 7)] == VAZIA) //b8,c8,d8
+                                if(tabu.tab[SQ(1, 7)] == VAZIA && tabu.tab[SQ(2, 7)] == VAZIA && tabu.tab[SQ(3, 7)] == VAZIA)
                                 {
                                     flag = 0;
-                                    for(k = 2; k < 5; k++)  //colunas c,d,e
+                                    for(k = 2; k < 5; k++)
                                         if(ataca(BRANCO, k, 7, tabu))
                                         {
                                             flag = 1;
@@ -894,16 +872,14 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         }
                                     if(flag == 0)
                                     {
-                                        //nao pode mais fazer roque. Mexeu Rei
-                                        //Rei rocou grd, espec=2. flag=0.
-                                        ee = 2;
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(4,7), SQ(2,7), /*peao*/ -1, /*roque*/0, /*ee*/ee, /*flag50*/0);
+                                        ee = ESP_MOV_REI | ESP_MOV_TORRE_D;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(4,7), SQ(2,7), ee);
                                         if(geramodo == GERA_UNICO) // 5 - roque grande preto
                                             return 1;
                                     }
                                 }
-                            } //mexeu TD
+                            }
                         }
                     break;
                 case PEAO:
