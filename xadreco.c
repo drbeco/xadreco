@@ -464,7 +464,7 @@ int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor
 //retorna um valor estatico que avalia uma posicao do tabuleiro. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 int estatico(tabuleiro tabu, int niv, int alfax, int betin);
 //joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab se flag_hist==1
-char joga_em(tabuleiro *tabu, movimento movi, int flag_hist);
+int joga_em(tabuleiro *tabu, movimento movi, int flag_hist);
 
 // listas dinamicas com arena ------------------------------------------------------------
 void arena_inicia(arena *a, size_t capa); // inicializa uma arena de alocacao de memoria
@@ -2049,129 +2049,131 @@ int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor
     return 0; //se OU Nem-Chegou-no-Nivel OU Liberou, pode ir fundo
 }
 
-char joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
+int joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
 {
-    char res;
     int repete;
+    int dir_roque;
+    int insuf_branca, insuf_preta, casa;
 
-    if(movi.especial == 7)  //promocao do peao: BISPO
+    // promocao do peao
+    if(movi.especial & ESP_MOV_PROMO_B)
         tabu->tab[movi.de] = DACOR(BISPO, tabu->vez);
-    if(movi.especial == 6)  //promocao do peao: TORRE
+    if(movi.especial & ESP_MOV_PROMO_R)
         tabu->tab[movi.de] = DACOR(TORRE, tabu->vez);
-    if(movi.especial == 5)  //promocao do peao: CAVALO
+    if(movi.especial & ESP_MOV_PROMO_N)
         tabu->tab[movi.de] = DACOR(CAVALO, tabu->vez);
-    if(movi.especial == 4)  //promocao do peao: DAMA
+    if(movi.especial & ESP_MOV_PROMO_Q)
         tabu->tab[movi.de] = DACOR(DAMA, tabu->vez);
-    if(movi.especial == 3)  //comeu en passant
-        tabu->tab[SQ(tabu->peao_pulou, ROW(movi.de))] = VAZIA;
-    if(movi.especial == 2)  //roque grande
+    // en passant: remove peao capturado
+    if(movi.especial & ESP_MOV_ENP_COMEU)
+        tabu->tab[SQ(tabu->especial & ESP_AMB_ENP_COL, ROW(movi.de))] = VAZIA;
+    // roque: move a torre
+    if((movi.especial & ESP_MOV_ROQUE) > ESP_MOV_REI)
     {
-        tabu->tab[SQ(0, ROW(movi.de))] = VAZIA;
-        tabu->tab[SQ(3, ROW(movi.de))] = DACOR(TORRE, tabu->vez);
+        if(movi.especial & ESP_MOV_TORRE_R) // O-O
+        {
+            tabu->tab[SQ(7, ROW(movi.de))] = VAZIA;
+            tabu->tab[SQ(5, ROW(movi.de))] = DACOR(TORRE, tabu->vez);
+        }
+        else // O-O-O
+        {
+            tabu->tab[SQ(0, ROW(movi.de))] = VAZIA;
+            tabu->tab[SQ(3, ROW(movi.de))] = DACOR(TORRE, tabu->vez);
+        }
     }
-    if(movi.especial == 1)  //roque pequeno
-    {
-        tabu->tab[SQ(7, ROW(movi.de))] = VAZIA;
-        tabu->tab[SQ(5, ROW(movi.de))] = DACOR(TORRE, tabu->vez);
-    }
-    if(movi.flag_50)  //empate de 50 lances sem mover peao ou capturar
-        tabu->empate_50 = 0;
+    // meioconta: 50/75 lances
+    if(movi.especial & ESP_MOV_ZERACONTA)
+        tabu->meioconta = 0;
     else
-        tabu->empate_50 += .5;
-    if(tabu->vez == BRANCO)
-        switch(movi.roque)  //avalia o que este lance causa para futuros roques
-        {
-            case 0: //mexeu o rei
-                tabu->roqueb = 0;
-                break;
-            case 1: //nao fez lance que interfere o roque
-                break;
-            case 2: //mexeu torre do rei
-                if(tabu->roqueb == 1 || tabu->roqueb == 2)
-                    tabu->roqueb = 2;
-                else
-                    tabu->roqueb = 0;
-                break;
-            case 3: //mexeu torre da dama
-                if(tabu->roqueb == 1 || tabu->roqueb == 3)
-                    tabu->roqueb = 3;
-                else
-                    tabu->roqueb = 0;
-                break;
-        }
-    else //vez das pretas
-        switch(movi.roque)  //avalia o que este lance causa para futuros roques
-        {
-            case 0: //mexeu o rei
-                tabu->roquep = 0;
-                break;
-            case 1: //nao fez lance que interfere o roque
-                break;
-            case 2: //mexeu torre do rei
-                if(tabu->roquep == 1 || tabu->roquep == 2)
-                    tabu->roquep = 2;
-                else
-                    tabu->roquep = 0;
-                break;
-            case 3: //mexeu torre da dama
-                if(tabu->roquep == 1 || tabu->roquep == 3)
-                    tabu->roquep = 3;
-                else
-                    tabu->roquep = 0;
-                break;
-        }
-    tabu->peao_pulou = movi.peao_pulou;
+        tabu->meioconta++;
+    // castling rights: save, copy move, restore, update
+    dir_roque = tabu->especial & ESP_TAB_ROQUE;
+    tabu->especial = movi.especial | dir_roque;
+    if(movi.especial & ESP_MOV_REI)
+        tabu->especial &= ~((tabu->vez == BRANCO) ? ESP_TAB_ROQUE_BR : ESP_TAB_ROQUE_PR);
+    if(movi.especial & ESP_MOV_TORRE_R)
+        tabu->especial &= ~((tabu->vez == BRANCO) ? ESP_TAB_ROQUE_BRP : ESP_TAB_ROQUE_PRP);
+    if(movi.especial & ESP_MOV_TORRE_D)
+        tabu->especial &= ~((tabu->vez == BRANCO) ? ESP_TAB_ROQUE_BRG : ESP_TAB_ROQUE_PRG);
+    // move a peca
     tabu->tab[movi.pa] = tabu->tab[movi.de];
     tabu->tab[movi.de] = VAZIA;
     if(TIPO(tabu->tab[movi.pa]) == REI)
-        tabu->rei_pos[ICOR(tabu->vez)] = movi.pa; // vez ainda nao inverteu
+        tabu->rei_pos[ICOR(tabu->vez)] = movi.pa;
     tabu->de = movi.de;
     tabu->pa = movi.pa;
     tabu->meionum++;
-    //conta os movimentos de cada peao (e chamado de dentro de funcao recursiva!)
     tabu->vez = ADV(tabu->vez);
-    tabu->especial = movi.especial;
+    // repeticao
     if(flag_hist)
     {
         repete = tab_insere(*tabu);
         if(repete >= 3)
         {
-            tabu->situa = 1;
-            return 'r';
+            tabu->especial |= ESP_TAB_PATA_REPETE;
+            return 0;
         }
     }
-    res = situacao(*tabu);
-    switch(res)
+    // situacao (inline): 50 lances, insuficiencia, mate/afogamento, xeque
+    if(tabu->meioconta >= 100)
     {
-        case 'a': //afogado
-        case 'p': //perpetuo
-        case 'i': //insuficiencia
-        case '5': //50 lances
-        case 'r': //repeticao
-            tabu->situa = 1;
-            break;
-        case 'x': //xeque
-            tabu->situa = 2;
-            break;
-        case 'M': //Brancas perderam por Mate
-            tabu->situa = 3;
-            break;
-        case 'm': //Pretas perderam por mate
-            tabu->situa = 4;
-            break;
-        case 'T': //Brancas perderam por Tempo
-            tabu->situa = 5;
-            break;
-        case 't': //Pretas perderam  por tempo
-            tabu->situa = 6;
-            break;
-        case '*': //sem resultado * {Game was unfinished}
-            tabu->situa = 7;
-            break;
-        default: //'-' nada...
-            tabu->situa = 0;
+        tabu->especial |= ESP_TAB_PATA_PROGRESSO;
+        return 0;
     }
-    return (res);
+    insuf_branca = 0;
+    insuf_preta = 0;
+    for(casa = 0; casa < TABSIZE; casa++)
+    {
+        switch(TIPO(tabu->tab[casa]))
+        {
+            case DAMA: case TORRE: case PEAO:
+                if(EHBRANCA(tabu->tab[casa])) insuf_branca += 3;
+                else insuf_preta += 3;
+                break;
+            case BISPO:
+                if(EHBRANCA(tabu->tab[casa])) insuf_branca += 2;
+                else insuf_preta += 2;
+                break;
+            case CAVALO:
+                if(EHBRANCA(tabu->tab[casa])) insuf_branca++;
+                else insuf_preta++;
+                break;
+        }
+        if(insuf_branca > 2 || insuf_preta > 2)
+            break;
+    }
+    if(insuf_branca < 3 && insuf_preta < 3)
+    {
+        tabu->especial |= ESP_TAB_PATA_MATERIAL;
+        return 0;
+    }
+    if(!geramov(*tabu, NULL, GERA_UNICO))
+    {
+        if(!xeque_rei_das(tabu->vez, *tabu))
+        {
+            tabu->especial |= ESP_TAB_PATA_AFOGA;
+            return 0;
+        }
+        else
+        {
+            if(tabu->vez == BRANCO)
+                tabu->especial |= ESP_TAB_MATE_BR;
+            else
+                tabu->especial |= ESP_TAB_MATE_PR;
+            return 0;
+        }
+    }
+    else
+    {
+        if(xeque_rei_das(tabu->vez, *tabu))
+        {
+            if(tabu->vez == BRANCO)
+                tabu->especial |= ESP_AMB_XEQUE_BR;
+            else
+                tabu->especial |= ESP_AMB_XEQUE_PR;
+        }
+    }
+    return 0;
 } //fim da joga_em
 
 //retorna o valor tatico e estrategico de um tabuleiro. Absoluto: positivo = bom para brancas
