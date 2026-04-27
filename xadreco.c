@@ -444,8 +444,7 @@ int xeque_rei_das(int cor, tabuleiro tabu);
 void volta_lance(tabuleiro *tabu);
 //procura nos movimentos de geramov se o lance em questao eh valido. Retorna o *movimento preenchido. Se nao, retorna NULL.
 int valido(tabuleiro tabu, int de, int pa, movimento *result);
-//retorna char que indica a situacao do tabuleiro, como mate, empate, etc...
-char situacao(tabuleiro tabu);
+
 // livro --------------------------------------------------------------
 //preenche melhor com uma variante do livro, baseado na posicao do tabuleiro tabu
 void usa_livro(tabuleiro tabu);
@@ -489,8 +488,6 @@ void lst_ordem(lista *l); // ordena por valor_estatico decrescente
 // prototipos listas dinamicas -----------------------------------------------------------
 //insere tabuleiro na arena pltab. Retorna contagem de repeticao (>=3 empate)
 int tab_insere(tabuleiro tabu);
-//copia font para dest. dest=font.
-void copitab(tabuleiro *dest, tabuleiro *font);
 
 /* ---------------------------------------------------------------------- */
 /* codigo principal - main code */
@@ -722,25 +719,6 @@ int movi2lance(int *de, int *pa, char *m)
     return 1;
 }
 
-void copitab(tabuleiro *dest, tabuleiro *font)
-{
-    int i, j;
-    for(i = 0; i < 8; i++)
-        for(j = 0; j < 8; j++)
-            dest->tab[SQ(i, j)] = font->tab[SQ(i, j)];
-    dest->vez = font->vez;
-    dest->de = font->de;
-    dest->pa = font->pa;
-    dest->meionum = font->meionum;
-    dest->rei_pos[0] = font->rei_pos[0];
-    dest->rei_pos[1] = font->rei_pos[1];
-    dest->peao_pulou = font->peao_pulou;
-    dest->roqueb = font->roqueb;
-    dest->roquep = font->roquep;
-    dest->empate_50 = font->empate_50;
-    dest->especial = font->especial;
-}
-
 // gera lista de movimentos legais na lista lmov
 // geramodo:
 //           -1   GERA_TODOS: todos lances validos
@@ -787,7 +765,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 continue; //casa possui peca da mesma cor ou o proprio rei
                             if(ataca(ADV(tabu.vez), col, lin, tabu))
                                 continue; //adversario esta protegendo a casa
-                            copitab(&tabaux, &tabu);
+                            tabaux = tabu; // copia tabuleiro
                             tabaux.tab[SQ(i, j)] = VAZIA;
                             tabaux.tab[SQ(col, lin)] = DACOR(REI, tabu.vez);
                             tabaux.rei_pos[ICOR(tabu.vez)] = SQ(col, lin);
@@ -934,7 +912,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                     {
                         if(i == tabu.peao_pulou - 1 || i == tabu.peao_pulou + 1)  //este peao esta na coluna certa
                         {
-                            copitab(&tabaux, &tabu);  // tabaux = tabu
+                            tabaux = tabu; // copia tabuleiro  // tabaux = tabu
                             if(tabu.vez == BRANCO)
                             {
                                 if(j == 4)  //E tambem esta na linha certa. Peao branco vai comer enpassant!
@@ -972,7 +950,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         } //nao esta na coluna adjacente ao peao_pulou
                     } //nao peao_pulou.
                     //peao andando uma casa
-                    copitab(&tabaux, &tabu);  //tabaux = tabu;
+                    tabaux = tabu; // copia tabuleiro  //tabaux = tabu;
                     if(tabu.vez == BRANCO)
                     {
                         if(j + 1 < 8)
@@ -1030,7 +1008,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         } //passou da casa de promocao e caiu do tabuleiro!
                     }
                     //peao anda duas casas -----------
-                    copitab(&tabaux, &tabu);
+                    tabaux = tabu; // copia tabuleiro
                     if(tabu.vez == BRANCO)  //vez das brancas
                     {
                         if(j == 1)  //esta na linha inicial
@@ -1070,7 +1048,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         } //este peao ja mexeu antes
                     }
                     // peao comeu normalmente (i.e., nao eh en passant) -------------
-                    copitab(&tabaux, &tabu);
+                    tabaux = tabu; // copia tabuleiro
                     if(tabu.vez == BRANCO)  //vez das brancas
                     {
                         k = i - 1;
@@ -1154,7 +1132,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 continue;
                             if(!EHVAZIA(tabu.tab[SQ(i + col, j + lin)]) && COR(tabu.tab[SQ(i + col, j + lin)]) == tabu.vez)
                                 continue; //casa possui peca da mesma cor.
-                            copitab(&tabaux, &tabu);
+                            tabaux = tabu; // copia tabuleiro
                             tabaux.tab[SQ(i, j)] = VAZIA;
                             tabaux.tab[SQ(i + col, j + lin)] = DACOR(CAVALO, tabu.vez);
                             if(!xeque_rei_das(tabu.vez, tabaux))
@@ -1189,7 +1167,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 if(col >= 0 && col <= 7 && (EHVAZIA(tabu.tab[SQ(col, j)]) || COR(tabu.tab[SQ(col, j)]) != tabu.vez) && l == 0)  //gira col, mantem lin
                                 {
                                     //inclui esta casa na lista
-                                    copitab(&tabaux, &tabu);
+                                    tabaux = tabu; // copia tabuleiro
                                     tabaux.tab[SQ(i, j)] = VAZIA;
                                     tabaux.tab[SQ(col, j)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
@@ -1240,7 +1218,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 if(lin >= 0 && lin <= 7 && (EHVAZIA(tabu.tab[SQ(i, lin)]) || COR(tabu.tab[SQ(i, lin)]) != tabu.vez) && m == 0)  //gira lin, mantem col
                                 {
                                     //inclui esta casa na lista
-                                    copitab(&tabaux, &tabu);
+                                    tabaux = tabu; // copia tabuleiro
                                     tabaux.tab[SQ(i, j)] = VAZIA;
                                     tabaux.tab[SQ(i, lin)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
@@ -1306,7 +1284,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 while(col >= 0 && col <= 7 && lin >= 0 && lin <= 7 && (EHVAZIA(tabu.tab[SQ(col, lin)]) || COR(tabu.tab[SQ(col, lin)]) != tabu.vez) && flag == 0)
                                 {
                                     //inclui esta casa na lista
-                                    copitab(&tabaux, &tabu);
+                                    tabaux = tabu; // copia tabuleiro
                                     tabaux.tab[SQ(i, j)] = VAZIA;
                                     tabaux.tab[SQ(col, lin)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
@@ -2005,7 +1983,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
             lsucc = lsucc->prox;
             continue;
         }
-        copitab(&tab, &atual);
+        tab = atual; // copia tabuleiro
         (void) joga_em(&tab, *msucc, 1);
         //joga o lance atual, a funcao joga_em deve inserir no listab
         busca_totalnodonivel++;
@@ -3253,7 +3231,7 @@ void usa_livro(tabuleiro tabu)
     // Phase 2: evaluate each candidate with minimax
     for(i = 0; i < ncands; i++)
     {
-        copitab(&temp, &tabu);
+        temp = tabu; // copia tabuleiro
         movi2lance(&de, &pa, cands[i].move);
         if(valido(temp, de, pa, &mval))
         {
