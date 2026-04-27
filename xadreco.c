@@ -733,7 +733,8 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     int i, j, k, l, m, flag;
     int col, lin;
     int peca;
-    int pp, rr, ee, ff; //roque, especial e flag50;
+    int ee; //especial bitfield
+    int enp_col; //coluna do peao que pulou (en passant)
     int i0, i1, j0, j1; //limites do loop
 
     assert(tabu.vez == BRANCO || (tabu.vez == PRETO && "Invalid turn in geramov"));
@@ -884,23 +885,24 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                     break;
                 case PEAO:
                     //peao comeu en passant
-                    if(tabu.peao_pulou != -1)  //Existe peao do adv que pulou...
+                    if(tabu.especial & ESP_AMB_ENP_PULOU)  //Existe peao do adv que pulou...
                     {
-                        if(i == tabu.peao_pulou - 1 || i == tabu.peao_pulou + 1)  //este peao esta na coluna certa
+                        enp_col = tabu.especial & ESP_AMB_ENP_COL;
+                        if(i == enp_col - 1 || i == enp_col + 1)  //este peao esta na coluna certa
                         {
-                            tabaux = tabu; // copia tabuleiro  // tabaux = tabu
+                            tabaux = tabu; // copia tabuleiro
                             if(tabu.vez == BRANCO)
                             {
                                 if(j == 4)  //E tambem esta na linha certa. Peao branco vai comer enpassant!
                                 {
-                                    tabaux.tab[SQ(tabu.peao_pulou, 5)] = DACOR(PEAO, BRANCO);
-                                    tabaux.tab[SQ(tabu.peao_pulou, 4)] = VAZIA;
+                                    tabaux.tab[SQ(enp_col, 5)] = DACOR(PEAO, BRANCO);
+                                    tabaux.tab[SQ(enp_col, 4)] = VAZIA;
                                     tabaux.tab[SQ(i, 4)] = VAZIA;
-                                    if(!xeque_rei_das(BRANCO, tabaux))   //nao deixa rei branco em xeque
+                                    if(!xeque_rei_das(BRANCO, tabaux))
                                     {
-                                        ee = 3;
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(tabu.peao_pulou,5), /*peao*/ -1, /*roque*/1, /*ee*/ee, /*flag50*/3);
+                                        ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | ESP_MOV_ENP_COMEU;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,5), ee);
                                         if(geramodo == GERA_UNICO) // 6 - peao branco comeu en passant
                                             return 1;
                                     }
@@ -910,21 +912,21 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             {
                                 if(j == 3)  // Esta na linha certa. Peao preto vai comer enpassant!
                                 {
-                                    tabaux.tab[SQ(tabu.peao_pulou, 2)] = DACOR(PEAO, PRETO);
-                                    tabaux.tab[SQ(tabu.peao_pulou, 3)] = VAZIA;
+                                    tabaux.tab[SQ(enp_col, 2)] = DACOR(PEAO, PRETO);
+                                    tabaux.tab[SQ(enp_col, 3)] = VAZIA;
                                     tabaux.tab[SQ(i, 3)] = VAZIA;
                                     if(!xeque_rei_das(PRETO, tabaux))
                                     {
-                                        ee = 3;
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(tabu.peao_pulou,2), /*peao*/ -1, /*roque*/1, /*ee*/ee, /*flag50*/3);
+                                        ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | ESP_MOV_ENP_COMEU;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,2), ee);
                                         if(geramodo == GERA_UNICO) // 7 - peao preto comeu enpassant
                                             return 1;
-                                    } //deixa rei em xeque
-                                } //nao esta na fila correta
-                            } //fim do else da vez
-                        } //nao esta na coluna adjacente ao peao_pulou
-                    } //nao peao_pulou.
+                                    }
+                                }
+                            }
+                        }
+                    }
                     //peao andando uma casa
                     tabaux = tabu; // copia tabuleiro  //tabaux = tabu;
                     if(tabu.vez == BRANCO)
