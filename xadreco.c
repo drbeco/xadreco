@@ -1879,7 +1879,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         pula_vez = 1;
         tabull = atual; // copia tabuleiro
         tabull.vez = ADV(tabull.vez);
-        tabull.peao_pulou = -1;
+        tabull.especial &= ~ESP_AMB_ENP_PULOU;
         valull = minimax(tabull, prof + 1, alfax, betin, niv - 2, busca_quieta); //nao faz null-move em busca_quieta
         pula_vez = 0;
         if(valull >= betin)
@@ -1927,26 +1927,15 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     while(lsucc) // ----------------------------------------------------------------------------------------------------- laco de sucessores
     {
         msucc = (movimento *)lsucc->info;
-        if(busca_quieta && msucc->especial != 9)
+        if(busca_quieta && !(msucc->especial & ESP_AMB_CAPTURA))
         {
             lsucc = lsucc->prox;
             continue;
         }
         tab = atual; // copia tabuleiro
-        (void) joga_em(&tab, *msucc, 1);
-        //joga o lance atual, a funcao joga_em deve inserir no listab
+        joga_em(&tab, *msucc, 1);
         busca_totalnodonivel++;
-        /* busca_profflag = msucc->flag_50 + 1; //se for zero, fim da busca. */
-        //flag_50:0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu;
-        //flag_50== 2 ou 3 : houve captura :Liberou
-        //tab.situa:0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: sem resultado
-        //switch(tab.situa)
-        //{
-        //    case 0: break; //0:nada... Quem decide eh flag_50;
-        //    case 2: busca_profflag = 4; break; //2:Xeque!  Liberou
-        //    default: busca_profflag = 0; //situa: 1=Empate, 3,4=Mate, 5,6=Tempo. 7=sem resultado. Nao passar o nivel
-        //}
-        quieta = usa_quieta && (prof + 1 >= niv) && (msucc->especial == 9); //captura: filho entra em quiescencia
+        quieta = usa_quieta && (prof + 1 >= niv) && (msucc->especial & ESP_AMB_CAPTURA);
         if(debug == 2)
         {
             lance2movi(m, msucc->de, msucc->pa, msucc->especial);
@@ -3761,7 +3750,7 @@ void lst_parte(lista *l)
         m = (movimento *)n->info;
         //flag_50: 0=nada, 1=Moveu peao, 2=Comeu, 3=Peao comeu. Zera empate_50.
         //especial: 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque. 9=captura
-        if(m->flag_50 > 1 || m->especial)
+        if(m->especial & ESP_AMB_PARTE)
             lst_furafila(l, n);
         n = next;
     }
