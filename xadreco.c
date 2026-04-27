@@ -350,11 +350,11 @@ static const tabuleiro TAB_INICIO =
 // outros globais ------------------------------------
 //log file for debug==2
 static FILE *fmini; //minimax log file for debug==2
-static int ulivro = 0; //0: sem livro. 1: usa livro de aberturas (opcao -b)
+static int ulivro = 1; //1: usa livro livro.txt. 0: sem livro (-b none)
 static int usando_livro; //1:consulta o livro de aberturas livro.txt. 0:nao consulta
 static int randomchess = 0; //0: pensa para jogar. 1: joga ao acaso
-static int usa_nullmove = 0; //0: null-move desabilitado. 1: habilitado com -n
-static int usa_quieta = 0; //0: quiescencia desabilitada. 1: habilitada com -q
+static int usa_nullmove = 1; //1: null-move habilitado. 0: desabilitado com -n
+static int usa_quieta = 1; //1: quiescencia habilitada. 0: desabilitada com -q
 static int setboard = 0; //0: posicao normal. 1: posicao FEN carregada
 // busca: estado compartilhado entre minimax/profsuf/difclocks/xadreco_continua
 static int pula_vez = 0; //flag para evitar null-move recursivo
@@ -583,7 +583,7 @@ void opcoes(int argc, char *argv[])
 
     srand(time(NULL) + getpid());
 
-    /* Usage: xadreco [-h|-v] [-V|-VV] [-r seed] [-b bookfile] [-n] [-q] */
+    /* Usage: xadreco [-h|-v] [-V|-VV] [-r seed] [-b bookfile|-b none] [-n] [-q] */
     opterr = 0;
     while((opt = getopt(argc, argv, "vhVr:b:nq")) != EOF)
         switch(opt)
@@ -605,13 +605,14 @@ void opcoes(int argc, char *argv[])
                 break;
             case 'b':
                 strcpy(bookfname, optarg);
-                ulivro = 1;
+                if(!strcmp(optarg, "none"))
+                    ulivro = 0;
                 break;
             case 'n':
-                usa_nullmove = 1;
+                usa_nullmove = 0;
                 break;
             case 'q':
-                usa_quieta = 1;
+                usa_quieta = 0;
                 break;
             case '?':
             default:
@@ -631,8 +632,8 @@ void opcoes(int argc, char *argv[])
     printdbg(debug, "# xadreco: verbose level set at: %d\n", debug);
     printdbg(debug, "# xadreco: random: %s. seed: -r %d\n", randomchess ? "yes" : "no", seed);
     printdbg(debug, "# xadreco: book: -b %s\n", bookfname);
-    printdbg(debug, "# xadreco: null-move: %s (-n)\n", usa_nullmove ? "on" : "off");
-    printdbg(debug, "# xadreco: quiescencia: %s (-q)\n", usa_quieta ? "on" : "off");
+    printdbg(debug, "# xadreco: null-move: %s (-n disables)\n", usa_nullmove ? "on" : "off");
+    printdbg(debug, "# xadreco: quiescencia: %s (-q disables)\n", usa_quieta ? "on" : "off");
     if(ulivro && (f = fopen(bookfname, "r")))
         fclose(f);
     else if(ulivro)
