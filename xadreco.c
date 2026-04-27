@@ -264,45 +264,27 @@ typedef struct slista
 }
 lista;
 
-// Unificar (POSTPONE)
-// tabu.situa, tabu.empate_50, tabu.especial
-// movi.flag_50, movi.especial
-//
-//
-// tabu.roqueb, tabu.roquep
-// movi.roque
-// tabu.peao_pulou
-// movi.peao_pulou
+// Unificado (PLAN17)
 
 typedef struct stabuleiro
 {
-    int tab[TABSIZE]; //contem as pecas: brancas 1-6, pretas 9-14, vazia 0. SQ(col,lin)=col+lin*8
-    int vez; //contem BRANCO(0) ou PRETO(8)
-    int peao_pulou; //contem coluna do peao adversario que andou duas, ou -1 para 'nao pode comer enpassant'
-    int roqueb, roquep; //roque: 0:nao pode mais. 1:pode ambos. 2:mexeu Torre do Rei. Pode O-O-O. 3:mexeu Torre da Dama. Pode O-O.
-    float empate_50; //contador: quando chega a 50, empate.
-    int situa; //0:nada,1:Empate!,2:Xeque!,3:Brancas em mate,4:Pretas em mate,5 e 6: Tempo (Brancas e Pretas respec.) 7: * sem resultado
+    int tab[TABSIZE]; //pecas: brancas 1-6, pretas 9-14, vazia 0. SQ(col,lin)=col+lin*8
+    int vez; //BRANCO(0) ou PRETO(8)
     int de; //lance executado de=origem (0-63)
     int pa; //lance executado pa=destino (0-63)
-    int especial; //especial 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque 9=captura
-    int meionum; //meionum: meio-numero (ply/half-move): 0=inicio, 1=e2e4, 2=e7e5, 3=g1f3, 4=b8c6
-    int rei_pos[2]; // cache da posicao dos reis para xeque_rei_das()
-    // flags
+    int especial; //bitfield 26 bits: ESP_AMB (0-6), ESP_MOV (7-15), ESP_TAB (16-25)
+    int meioconta; //contador 50/75 lances: +1/ply, >=100 claimable, >=150 forced
+    int meionum; //meio-numero (ply/half-move): 0=inicio, 1=e2e4, 2=e7e5
+    int rei_pos[2]; //cache da posicao dos reis para xeque_rei_das()
 }
 tabuleiro;
 
 typedef struct smovimento
 {
-    //lance notacao inteira de/pa: a1=0, h1=7, a8=56, h8=63. SQ(col,row)=col+row*8, COL(sq)=sq&7, ROW(sq)=sq>>3 (0-63, indices de tab[64])
     int de; //lance notacao inteira: de=origem
     int pa; //lance notacao inteira: pa=destino
-    int peao_pulou; //coluna do peao que andou duas neste lance
-    // flags
-    int roque; //roque: 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-    int flag_50; //flag_50: 0=nada, 1=Moveu peao, 2=Comeu, 3=Peao comeu. Zera empate_50.
-    // flag_50 reseta apenas com movimento de peoes e capturas, nada mais (regra FIDE art.9.3)
-    int especial; //especial: 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque 9=captura
-    int valor_estatico; //valor estatico deste tabuleiro apos a execucao deste movimento
+    int especial; //bitfield 26 bits: ESP_AMB (0-6), ESP_MOV (7-15)
+    int valor_estatico; //valor estatico para ordenacao de lances
 }
 movimento;
 
