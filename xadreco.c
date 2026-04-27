@@ -1627,73 +1627,6 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result)
     return 0;
 } //fim da valido
 
-char situacao(tabuleiro tabu)
-{
-    // pega o tabuleiro e retorna: M,m,a,p,i,5,r,T,t,x
-    // tabu.situa:      retorno da situacao:
-    //       0                              -               tudo certo... nada a declarar
-    //       1                              a:              empate por afogamento
-    //       1                              p:              empate por xeque-perpetuo
-    //       1                              i:              empate por insuficiencia de material
-    //       1                              5:              empate apos 50 lances sem movimento de peao e captura
-    //       1                              r:              empate apos repetir uma mesma posicao 3 vezes
-    //       2                              x:              xeque
-    //      3,4                             M,m:            xeque-mate (nas Brancas e nas Pretas respec.)
-    //      5,6                             T,t:            o tempo acabou (das Brancas e das Pretas respec.)
-    //      7                               *:              {Game was unfinished}
-    int insuf_branca = 0, insuf_preta = 0;
-    int casa;
-    if(tabu.empate_50 >= 50.0)  //empate apos 50 lances sem captura ou movimento de peao
-        return ('5');
-    for(casa = 0; casa < TABSIZE; casa++)  //insuficiencia de material
-    {
-        switch(TIPO(tabu.tab[casa]))
-        {
-            case DAMA:
-            case TORRE:
-            case PEAO:
-                if(EHBRANCA(tabu.tab[casa]))
-                    insuf_branca += 3;
-                else
-                    insuf_preta += 3;
-                break;
-            case BISPO:
-                if(EHBRANCA(tabu.tab[casa]))
-                    insuf_branca += 2;
-                else
-                    insuf_preta += 2;
-                break;
-            case CAVALO:
-                if(EHBRANCA(tabu.tab[casa]))
-                    insuf_branca++;
-                else
-                    insuf_preta++;
-                break;
-        }
-        if(insuf_branca > 2 || insuf_preta > 2)
-            break;
-    }
-    if(insuf_branca < 3 && insuf_preta < 3)  //os dois estao com insuficiencia de material
-        return ('i');
-    //repeticao: detectada em tab_insere(), chamada por joga_em()
-    if(!geramov(tabu, NULL, GERA_UNICO))  //Sem lances: Mate ou Afogamento.
-    {
-        if(!xeque_rei_das(tabu.vez, tabu))
-            return ('a'); //empate por afogamento.
-        else
-            if(tabu.vez == BRANCO)
-                return ('M'); //as brancas estao em xeque-mate
-            else
-                return ('m'); //as pretas estao em xeque-mate
-    }
-    else //Tem lances
-    {
-        if(xeque_rei_das(tabu.vez, tabu))
-            return ('x');
-    }
-    return ('-'); //nada
-}
-
 // ------------------------------- busca: trio xadreco_inicia/continua/para --
 
 // prepara a busca: livro, geramov, inicializa contexto
@@ -3055,7 +2988,7 @@ void livro_linha(int mnum, char *linha)
         movi2lance(&de, &pa, m);
         if(!valido(tab, de, pa, &mval))
             break;
-        (void) joga_em(&tab, mval, 0);
+        joga_em(&tab, mval, 0);
         if(n / 5 >= mnum) //chegou na posicao atual! comeca inserir
             melhor.linha[melhor.tamanho++] = mval;
         n += 5;
@@ -3542,27 +3475,24 @@ void monta_fen(char *line, int *pos, tabuleiro *tabu)
     tabu->vez = (color[0] == 'w') ? BRANCO : PRETO;
 
     // campo 3: roque
-    tabu->roqueb = 0;
-    tabu->roquep = 0;
+    tabu->especial &= ~ESP_TAB_ROQUE;
     if(!strchr(castle, '-'))
     {
-        if(strchr(castle, 'K')) tabu->roqueb = 3;
-        if(strchr(castle, 'Q'))
-            tabu->roqueb = (tabu->roqueb == 3) ? 1 : 2;
-        if(strchr(castle, 'k')) tabu->roquep = 3;
-        if(strchr(castle, 'q'))
-            tabu->roquep = (tabu->roquep == 3) ? 1 : 2;
+        if(strchr(castle, 'K')) tabu->especial |= ESP_TAB_ROQUE_BRP;
+        if(strchr(castle, 'Q')) tabu->especial |= ESP_TAB_ROQUE_BRG;
+        if(strchr(castle, 'k')) tabu->especial |= ESP_TAB_ROQUE_PRP;
+        if(strchr(castle, 'q')) tabu->especial |= ESP_TAB_ROQUE_PRG;
     }
 
     // campo 4: en passant
-    tabu->peao_pulou = -1;
+    tabu->especial &= ~ESP_AMB_ENP_PULOU;
     if(!strchr(enpassant, '-'))
-        tabu->peao_pulou = enpassant[0] - 'a';
+        tabu->especial |= ESP_AMB_ENP_PULOU | (enpassant[0] - 'a');
 
-    // campo 5: halfmove clock (empate 50 lances)
-    tabu->empate_50 = atoi(halfmove);
+    // campo 5: halfmove clock
+    tabu->meioconta = atoi(halfmove);
 
-    // campo 6: fullmove number → meionum
+    // campo 6: fullmove number
     tabu->meionum = (atoi(fullmove) - 1) * 2 + (tabu->vez == PRETO ? 1 : 0);
 }
 
@@ -3803,8 +3733,7 @@ int tab_insere(tabuleiro tabu)
     {
         tabuleiro *t2 = (tabuleiro *)n->info;
         if(t2->vez == t->vez
-                && t2->roqueb == t->roqueb
-                && t2->roquep == t->roquep
+                && (t2->especial & ESP_TAB_ROQUE) == (t->especial & ESP_TAB_ROQUE)
                 && memcmp(t2->tab, t->tab, 64 * sizeof(int)) == 0)
         {
             count++;
