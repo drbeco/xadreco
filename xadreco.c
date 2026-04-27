@@ -1792,7 +1792,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     }
 
     // null-move pruning: passo a vez; se ainda assim excede betin/alfax, corta
-    if(usa_nullmove && niv - prof >= 3 && !pula_vez && !xeque_rei_das(atual.vez, atual) && !busca_quieta)
+    if(usa_nullmove && niv - prof >= 2 && !pula_vez && !xeque_rei_das(atual.vez, atual) && !busca_quieta)
     {
         pula_vez = 1;
         tabull = atual; // copia tabuleiro
@@ -1800,8 +1800,10 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         tabull.especial &= ~ESP_AMB_ENP_PULOU;
         valull = minimax(tabull, prof + 1, alfax, betin, niv - 2, busca_quieta); //nao faz null-move em busca_quieta
         pula_vez = 0;
-        if(valull >= betin)
+        if(atual.vez == BRANCO && valull >= betin)
             return betin;
+        if(atual.vez != BRANCO && valull <= alfax)
+            return alfax;
     }
 
     if(debug == 2)
