@@ -124,7 +124,7 @@
 #define EST_ATK_MENOR   10   /* multiplicador de ataques em bispo/cavalo */
 #define EST_ATK_PEAO     5   /* multiplicador de ataques em peao */
 #define EST_TERRITORIO  50   /* dama/torre em territorio inimigo */
-#define EST_PENDURADA    7   /* divisor da penalidade de peca pendurada */
+//#define EST_PENDURADA    7   /* divisor da penalidade de peca pendurada -- REMOVIDO PLAN17 */
 #define EST_MOB_BORDA    2   /* mobilidade em casa vazia na borda */
 #define EST_MOB_CENTRO   3   /* mobilidade em casa vazia no centro */
 #define EST_CENTRO_EXT   1   /* controle do centro externo (c3-f6) */
@@ -163,6 +163,50 @@
 #define EST_REI_FIM     30   /* bonus rei no centro no final de jogo */
 #define EST_DEV_CAVAL   15   /* penalidade cavalo nao desenvolvido */
 #define EST_DEV_BISPO   10   /* penalidade bispo nao desenvolvido */
+
+/* especial bitfield: 26 bits (AMB 0-6, MOV 7-15, TAB 16-25) */
+/* ESP_AMB: bits usados em ambos movimento e tabuleiro */
+#define ESP_AMB_ENP_COL      0x007     /* bits 0-2: coluna en passant 0-7 (valido quando PULOU) */
+#define ESP_AMB_ENP_PULOU    (1 << 3)  /* bit 3: peao pulou duas casas */
+#define ESP_AMB_CAPTURA      (1 << 4)  /* bit 4: captura */
+#define ESP_AMB_XEQUE_BR     (1 << 5)  /* bit 5: brancas em xeque */
+#define ESP_AMB_XEQUE_PR     (1 << 6)  /* bit 6: pretas em xeque */
+/* ESP_MOV: bits usados apenas no movimento */
+#define ESP_MOV_PEAO         (1 << 7)  /* bit 7: peao moveu */
+#define ESP_MOV_ENP_COMEU    (1 << 8)  /* bit 8: captura en passant */
+#define ESP_MOV_TORRE_R      (1 << 9)  /* bit 9: torre h moveu */
+#define ESP_MOV_TORRE_D      (1 << 10) /* bit 10: torre a moveu */
+#define ESP_MOV_REI          (1 << 11) /* bit 11: rei moveu (bit mais alto para teste de roque) */
+#define ESP_MOV_PROMO_Q      (1 << 12) /* bit 12: promocao dama */
+#define ESP_MOV_PROMO_N      (1 << 13) /* bit 13: promocao cavalo */
+#define ESP_MOV_PROMO_R      (1 << 14) /* bit 14: promocao torre */
+#define ESP_MOV_PROMO_B      (1 << 15) /* bit 15: promocao bispo */
+/* ESP_TAB: bits usados apenas no tabuleiro */
+#define ESP_TAB_ROQUE_BRP    (1 << 16) /* bit 16: brancas podem O-O */
+#define ESP_TAB_ROQUE_BRG    (1 << 17) /* bit 17: brancas podem O-O-O */
+#define ESP_TAB_ROQUE_PRP    (1 << 18) /* bit 18: pretas podem O-O */
+#define ESP_TAB_ROQUE_PRG    (1 << 19) /* bit 19: pretas podem O-O-O */
+#define ESP_TAB_MATE_BR      (1 << 20) /* bit 20: brancas em xeque-mate */
+#define ESP_TAB_MATE_PR      (1 << 21) /* bit 21: pretas em xeque-mate */
+#define ESP_TAB_PATA_AFOGA   (1 << 22) /* bit 22: empate por afogamento */
+#define ESP_TAB_PATA_MATERIAL (1 << 23) /* bit 23: empate por insuficiencia */
+#define ESP_TAB_PATA_REPETE  (1 << 24) /* bit 24: empate por repeticao */
+#define ESP_TAB_PATA_PROGRESSO (1 << 25) /* bit 25: empate 50/75 lances */
+/* mascaras de grupo */
+#define ESP_AMB_XEQUE     (ESP_AMB_XEQUE_BR | ESP_AMB_XEQUE_PR)
+#define ESP_MOV_TORRE     (ESP_MOV_TORRE_R | ESP_MOV_TORRE_D)
+#define ESP_MOV_ROQUE_PQN (ESP_MOV_REI | ESP_MOV_TORRE_R)
+#define ESP_MOV_ROQUE_GRD (ESP_MOV_REI | ESP_MOV_TORRE_D)
+#define ESP_MOV_ROQUE     (ESP_MOV_REI | ESP_MOV_TORRE)
+#define ESP_MOV_PROMO     (ESP_MOV_PROMO_Q | ESP_MOV_PROMO_N | ESP_MOV_PROMO_R | ESP_MOV_PROMO_B)
+#define ESP_TAB_ROQUE_BR  (ESP_TAB_ROQUE_BRP | ESP_TAB_ROQUE_BRG)
+#define ESP_TAB_ROQUE_PR  (ESP_TAB_ROQUE_PRP | ESP_TAB_ROQUE_PRG)
+#define ESP_TAB_ROQUE     (ESP_TAB_ROQUE_BR | ESP_TAB_ROQUE_PR)
+#define ESP_TAB_MATE      (ESP_TAB_MATE_BR | ESP_TAB_MATE_PR)
+#define ESP_TAB_PATA      (ESP_TAB_PATA_AFOGA | ESP_TAB_PATA_MATERIAL | ESP_TAB_PATA_REPETE | ESP_TAB_PATA_PROGRESSO)
+/* mascaras funcionais */
+#define ESP_MOV_ZERACONTA (ESP_AMB_CAPTURA | ESP_MOV_PEAO)
+#define ESP_AMB_PARTE     (ESP_AMB_CAPTURA | ESP_AMB_XEQUE | ESP_MOV_PROMO | ESP_MOV_PEAO)
 
 // Cores: brancas=0, pretas=bit3. Pecas: brancas 1-6, pretas 9-14, vazia 0.
 #define SQ(c, r)  ((c) + (r) * 8)            // dados i,j, calcula sq (0-63)
