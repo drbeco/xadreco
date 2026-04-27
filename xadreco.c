@@ -2197,7 +2197,6 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     int par_bispob = 0, par_bispop = 0; // conta par de bispos
     int par_cavalob = 0, par_cavalop = 0; // conta par de cavalos
     int qtdb, qtdp;
-    int peca_movida;
     int outpost, jj; // posto avancado de cavalo
     int no_rei, vizim_reib, pertim_reib, vizim_reip, pertim_reip; // ataques perto do rei, distancia de Manhattan
     int gapb, gapp, gap_aberto=0, gap_semib=0, gap_semip=0; // ilhas de peoes
@@ -2205,21 +2204,22 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     //coloca todas pecas do tabuleiro em ordem de valor
     int ordem[TABSIZE][SQINFO]; //64 casas, cada uma com 7 info: 0:casa, 1:reservado, 2:peca 3: qtdataquebranco, 4: menorb, 5: qtdataquepreto, 6: menorp
 
-    //levando em conta a situacao do tabuleiro
-    switch(tabu.situa)
+    //levando em conta a situacao do tabuleiro (bitfield)
+    if(tabu.especial & ESP_TAB_MATE)
     {
-        case 3: //Brancas tomaram mate. Sempre negativo (ruim para brancas).
+        if(tabu.especial & ESP_TAB_MATE_BR)
             return -XEQUEMATE + 20 * (niv + 1);
-        case 4: //Pretas tomaram mate. Sempre positivo (bom para brancas).
+        else
             return +XEQUEMATE - 20 * (niv + 1);
-        case 1: //Empatou
-            return 0;
-        //valor de uma posicao empatada.
-        case 2: //A posicao eh de XEQUE!
-            if(tabu.vez == BRANCO)
-                totp += EST_XEQUE;
-            else
-                totb += EST_XEQUE;
+    }
+    if(tabu.especial & ESP_TAB_PATA)
+        return 0;
+    if(tabu.especial & ESP_AMB_XEQUE)
+    {
+        if(tabu.vez == BRANCO)
+            totp += EST_XEQUE;
+        else
+            totb += EST_XEQUE;
     }
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c situacao: totb=%d totp=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp); // DEBUG-EVAL
@@ -2396,18 +2396,6 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c pecas: totb=%d totp=%d pecab=%d pecap=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp, pecab, pecap); // DEBUG-EVAL
 
     //--------------------------- lazy evaluation START ---------------------------
-
-    //hanging piece: se a peca que acabou de mover esta atacada, penaliza
-    peca_movida = TIPO(tabu.tab[tabu.pa]);
-    assert(COR(tabu.tab[tabu.pa]) == ADV(tabu.vez) && "peca no destino deve ser de quem moveu");
-    if(peca_movida != REI && peca_movida != 0 && ataca(tabu.vez, COL(tabu.pa), ROW(tabu.pa), tabu))
-    {
-        // peca pendurada: quem moveu perde valor. Absoluto: positivo = bom para brancas.
-        if(EHBRANCA(tabu.tab[tabu.pa]))
-            pecab -= val[peca_movida]/EST_PENDURADA; // ruim para brancas
-        else
-            pecap -= val[peca_movida]/EST_PENDURADA; // ruim para pretas
-    }
 
     //-------------------------------------------------------------------------------------------------------
     //ponto de vista branco (branco eh positivo, preto eh negativo). Absoluto: positivo = bom para brancas.
