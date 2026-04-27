@@ -124,7 +124,6 @@
 #define EST_ATK_MENOR   10   /* multiplicador de ataques em bispo/cavalo */
 #define EST_ATK_PEAO     5   /* multiplicador de ataques em peao */
 #define EST_TERRITORIO  50   /* dama/torre em territorio inimigo */
-//#define EST_PENDURADA    7   /* divisor da penalidade de peca pendurada -- REMOVIDO PLAN17 */
 #define EST_MOB_BORDA    2   /* mobilidade em casa vazia na borda */
 #define EST_MOB_CENTRO   3   /* mobilidade em casa vazia no centro */
 #define EST_CENTRO_EXT   1   /* controle do centro externo (c3-f6) */
@@ -264,8 +263,6 @@ typedef struct slista
 }
 lista;
 
-// Unificado (PLAN17)
-
 typedef struct stabuleiro
 {
     int tab[TABSIZE]; //pecas: brancas 1-6, pretas 9-14, vazia 0. SQ(col,lin)=col+lin*8
@@ -394,9 +391,6 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
 //retorna um lance do jogo de teste
 void testajogo(char *movinito, int mnum);
 //preenche a estrutura movimento usando arena e lst_insere
-//Argumentos:
-//   c0c1-c2c3: lance
-//   pp peao_pulou: nao -1 ou coluna do peao que andou duas neste lance
 //   ee especial: bitfield 26 bits ESP_AMB/ESP_MOV/ESP_TAB
 void enche_lmovi(lista *lmov, int de, int pa, int ee);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
@@ -463,7 +457,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
 int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor, int busca_quieta);
 //retorna um valor estatico que avalia uma posicao do tabuleiro. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 int estatico(tabuleiro tabu, int niv, int alfax, int betin);
-//joga o movimento movi em tabuleiro tabu. retorna situacao. Insere no listab se flag_hist==1
+//joga o movimento movi em tabuleiro tabu. Atualiza especial com bits ESP_TAB. Insere no listab se flag_hist==1
 int joga_em(tabuleiro *tabu, movimento movi, int flag_hist);
 
 // listas dinamicas com arena ------------------------------------------------------------
@@ -3673,8 +3667,6 @@ void lst_parte(lista *l)
     {
         next = n->prox;
         m = (movimento *)n->info;
-        //flag_50: 0=nada, 1=Moveu peao, 2=Comeu, 3=Peao comeu. Zera empate_50.
-        //especial: 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque. 9=captura
         if(m->especial & ESP_AMB_PARTE)
             lst_furafila(l, n);
         n = next;
