@@ -1156,122 +1156,83 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                         {
                             col = i + k;
                             lin = j + k;
-                            l = 0; //l=flag da horizontal para a primeira peca que trombar
-                            m = 0; //m=idem para a vertical
+                            l = 0;
+                            m = 0;
                             do
                             {
-                                if(col >= 0 && col <= 7 && (EHVAZIA(tabu.tab[SQ(col, j)]) || COR(tabu.tab[SQ(col, j)]) != tabu.vez) && l == 0)  //gira col, mantem lin
+                                if(col >= 0 && col <= 7 && (EHVAZIA(tabu.tab[SQ(col, j)]) || COR(tabu.tab[SQ(col, j)]) != tabu.vez) && l == 0)
                                 {
-                                    //inclui esta casa na lista
                                     tabaux = tabu; // copia tabuleiro
                                     tabaux.tab[SQ(i, j)] = VAZIA;
                                     tabaux.tab[SQ(col, j)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
-                                        rr = 1; //ainda pode fazer roque
-                                        if(peca == TORRE)  //mas, se for torre ...
+                                        ee = 0;
+                                        if(peca == TORRE)
                                         {
-                                            if(tabu.vez == BRANCO && j == 0)  //se for vez das brancas e linha 1
-                                            {
-                                                if(i == 0)  //e coluna a
-                                                    rr = 3; //mexeu TD
-                                                if(i == 7)  //ou coluna h
-                                                    rr = 2; //mexeu TR
-                                            }
-                                            if(tabu.vez == PRETO && j == 7)  //se for vez das pretas e linha 8
-                                            {
-                                                if(i == 0)  //e coluna a
-                                                    rr = 3; //mexeu TD
-                                                if(i == 7)  //ou coluna h
-                                                    rr = 2; //mexeu TR
-                                            }
+                                            if(i == 0) ee |= ESP_MOV_TORRE_D;
+                                            if(i == 7) ee |= ESP_MOV_TORRE_R;
                                         }
-                                        ff = 0; // nao muda flag50 (nao capturou) pmovi->flag_50=0;
                                         if(tabu.tab[SQ(col, j)] != VAZIA)
                                         {
-                                            ff = 2; //dama ou torre capturou peca adversaria.
+                                            ee |= ESP_AMB_CAPTURA;
                                             l = 1;
                                         }
-                                        //pp contem -1 ou coluna do peao que andou duas neste lance
-                                        //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-                                        //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque
-                                        //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        if(ee == 0 && ff > 1) ee = 9; // captura
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(col,j), /*peao*/ -1, /*roque*/rr, /*especial*/ ee, /*flag50*/ff);
+                                        if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                            ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(col,j), ee);
                                         if(geramodo == GERA_UNICO) // 15 - dama ou torre andou ou capturou na linha
                                             return 1;
                                     }
-                                    else //deixa rei em xeque
+                                    else
                                         if(tabu.tab[SQ(col, j)] != VAZIA)
-                                            //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
                                             l = 1;
                                 }
                                 else
-                                    //nao inclui mais nenhuma casa desta linha; A casa esta fora do tabuleiro, ou tem peca de mesma cor ou capturou
                                     l = 1;
-                                if(lin >= 0 && lin <= 7 && (EHVAZIA(tabu.tab[SQ(i, lin)]) || COR(tabu.tab[SQ(i, lin)]) != tabu.vez) && m == 0)  //gira lin, mantem col
+                                if(lin >= 0 && lin <= 7 && (EHVAZIA(tabu.tab[SQ(i, lin)]) || COR(tabu.tab[SQ(i, lin)]) != tabu.vez) && m == 0)
                                 {
-                                    //inclui esta casa na lista
                                     tabaux = tabu; // copia tabuleiro
                                     tabaux.tab[SQ(i, j)] = VAZIA;
                                     tabaux.tab[SQ(i, lin)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
-                                        rr = 1; //ainda pode fazer roque
-                                        if(peca == TORRE)  //mas, se for torre ...
+                                        ee = 0;
+                                        if(peca == TORRE)
                                         {
-                                            if(tabu.vez == BRANCO && j == 0)  //se for vez das brancas e linha 1
-                                            {
-                                                if(i == 0)  //e coluna a
-                                                    rr = 3; //mexeu TD
-                                                if(i == 7)  //ou coluna h
-                                                    rr = 2; //mexeu TR
-                                            }
-                                            if(tabu.vez == PRETO && j == 7)  //se for vez das pretas e linha 8
-                                            {
-                                                if(i == 0)  //e coluna a
-                                                    rr = 3; //mexeu TD
-                                                if(i == 7)  //ou coluna h
-                                                    rr = 2; //mexeu TR
-                                            }
+                                            if(i == 0) ee |= ESP_MOV_TORRE_D;
+                                            if(i == 7) ee |= ESP_MOV_TORRE_R;
                                         }
-                                        ff = 0;
                                         if(tabu.tab[SQ(i, lin)] != VAZIA)
                                         {
-                                            ff = 2; //dama ou torre capturou peca adversaria.
+                                            ee |= ESP_AMB_CAPTURA;
                                             m = 1;
                                         }
-                                        //pp contem -1 ou coluna do peao que andou duas neste lance
-                                        //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-                                        //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque
-                                        //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        if(ee == 0 && ff > 1) ee = 9; // captura
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,lin), /*peao*/ -1, /*roque*/rr, /*especial*/ ee, /*flag50*/ff);
+                                        if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                            ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,lin), ee);
                                         if(geramodo == GERA_UNICO) // 16 - dama ou torre andou ou capturou na coluna
                                             return 1;
                                     }
-                                    else //deixa rei em xeque
+                                    else
                                         if(tabu.tab[SQ(i, lin)] != VAZIA)
-                                            //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
                                             m = 1;
                                 }
-                                else //nao inclui mais nenhuma casa desta coluna; A casa esta fora do tabuleiro, ou tem peca de mesma cor ou capturou
+                                else
                                     m = 1;
                                 col += k;
                                 lin += k;
                             }
                             while(((col >= 0 && col <= 7) || (lin >= 0 && lin <= 7)) && (m == 0 || l == 0));
-                        } //roda o incremento
-                    } //a peca era bispo
+                        }
+                    }
                     if(peca != TORRE)  //anda na diagonal
                     {
                         col = i;
                         lin = j;
-                        flag = 0; // pode seguir na direcao
+                        flag = 0;
                         for(k = -1; k < 2; k += 2)
                             for(l = -1; l < 2; l += 2)
                             {
@@ -1279,43 +1240,35 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 lin += l;
                                 while(col >= 0 && col <= 7 && lin >= 0 && lin <= 7 && (EHVAZIA(tabu.tab[SQ(col, lin)]) || COR(tabu.tab[SQ(col, lin)]) != tabu.vez) && flag == 0)
                                 {
-                                    //inclui esta casa na lista
                                     tabaux = tabu; // copia tabuleiro
                                     tabaux.tab[SQ(i, j)] = VAZIA;
                                     tabaux.tab[SQ(col, lin)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
-                                        //preenche a estrutura movimento
-                                        //                                     if ((*nmovi) == -1)
-                                        //                                         return (movimento *) TRUE;
-                                        ff = 0; //flag50 nao altera
+                                        ee = 0;
                                         if(tabu.tab[SQ(col, lin)] != VAZIA)
                                         {
-                                            ff = 2; //dama ou bispo capturou peca adversaria.
+                                            ee |= ESP_AMB_CAPTURA;
                                             flag = 1;
                                         }
-                                        //pp contem -1 ou coluna do peao que andou duas neste lance
-                                        //rr 0:mexeu rei. 1:ainda pode. 2:mexeu TR. 3:mexeu TD.
-                                        //ee 0:nada. 1:roque pqn. 2:roque grd. 3:enpassant. promocao: 4=Dama, 5=Cavalo, 6=Torre, 7=Bispo. 8=xeque
-                                        //ff :0=nada,1=Moveu peao,2=Comeu,3=Peao Comeu. Zera empate_50;
-                                        ee = xeque_rei_das(ADV(tabu.vez), tabaux) * 8; // deu xeque
-                                        if(ee == 0 && ff > 1) ee = 9; // captura
-                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee)) // adiciona apenas lances especiais
-                                            enche_lmovi(lmov, SQ(i,j), SQ(col,lin), /*peao*/ -1, /*roque*/1, /*especial*/ ee, /*flag50*/ff);
+                                        if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                            ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                        if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
+                                            enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee);
                                         if(geramodo == GERA_UNICO) // 17 - dama ou bispo andou ou capturou
                                             return 1;
                                     }
-                                    else //deixa rei em xeque
-                                        if(tabu.tab[SQ(col, lin)] != VAZIA) //alem de nao acabar o xeque, nao pode mais seguir nessa direcao pois tem peca
+                                    else
+                                        if(tabu.tab[SQ(col, lin)] != VAZIA)
                                             flag = 1;
                                     col += k;
                                     lin += l;
-                                } //rodou toda a diagonal, ate tab acabar ou achar peca da mesma cor ou capturar
+                                }
                                 col = i;
                                 lin = j;
                                 flag = 0;
-                            } //for dos incrementos l, k
-                    } //peca era torre
+                            }
+                    }
                 case VAZIA:
                     break;
                 case NULA:
