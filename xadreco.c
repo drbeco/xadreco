@@ -403,7 +403,8 @@ void testapos(char *pieces, char *color, char *castle, char *enpassant, char *ha
 void testajogo(char *movinito, int mnum);
 //preenche a estrutura movimento usando arena e lst_insere
 //   ee especial: bitfield 26 bits ESP_AMB/ESP_MOV/ESP_TAB
-void enche_lmovi(lista *lmov, int de, int pa, int ee);
+//   score: valor_estatico inicial (composite MVV-LVA + bonuses)
+void enche_lmovi(lista *lmov, int de, int pa, int ee, int score);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
 //calcula diferenca de tempo em segundo do lance atual
@@ -3322,7 +3323,7 @@ void zera_pecas(tabuleiro *tabu)
 
 
 //preenche a estrutura movimento usando arena e lst_insere
-void enche_lmovi(lista *lmov, int de, int pa, int ee)
+void enche_lmovi(lista *lmov, int de, int pa, int ee, int score)
 {
     if(!lmov)
         return;
@@ -3332,7 +3333,7 @@ void enche_lmovi(lista *lmov, int de, int pa, int ee)
     m->de = de;
     m->pa = pa;
     m->especial = ee;
-    m->valor_estatico = 0;
+    m->valor_estatico = score;
     if(lst_insere(lmov, m, sizeof(movimento)))
         msgsai("# Erro arena cheia em enche_lmovi lst_insere", 40);
 }
