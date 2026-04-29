@@ -2254,6 +2254,8 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     int outpost, jj; // posto avancado de cavalo
     int no_rei, vizim_reib, pertim_reib, vizim_reip, pertim_reip; // ataques perto do rei, distancia de Manhattan
     int gapb, gapp, gap_aberto=0, gap_semib=0, gap_semip=0; // ilhas de peoes
+    int material_rel; //material side-relative para lazy eval
+    int resultado_abs, retorno; //retorno final: absoluto convertido para side-relative
 
     //coloca todas pecas do tabuleiro agrupadas por tipo (REI, DAMA, TORRE, BISPO, CAVALO, PEAO)
     int ordem[TABSIZE][SQINFO]; //64 casas, 7 info: 0:casa, 1:reservado, 2:peca, 3:qtd_atk_br, 4:menorb_TIPO, 5:qtd_atk_pr, 6:menorp_TIPO (NULA=nenhum)
@@ -2261,10 +2263,12 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     //levando em conta a situacao do tabuleiro (bitfield)
     if(tabu.especial & ESP_TAB_MATE)
     {
-        if(tabu.especial & ESP_TAB_MATE_BR)
-            return -XEQUEMATE + 20 * (niv + 1);
+        //side-relative: "estou em mate" = -XEQUEMATE, "adversario em mate" = +XEQUEMATE
+        if((tabu.especial & ESP_TAB_MATE_BR && tabu.vez == BRANCO) ||
+           (tabu.especial & ESP_TAB_MATE_PR && tabu.vez != BRANCO))
+            return -XEQUEMATE + 20 * (niv + 1); //estou em mate
         else
-            return +XEQUEMATE - 20 * (niv + 1);
+            return +XEQUEMATE - 20 * (niv + 1); //adversario em mate
     }
     if(tabu.especial & ESP_TAB_PATA)
         return 0;
@@ -2455,27 +2459,27 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c pecas: totb=%d totp=%d pecab=%d pecap=%d fase=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp, pecab, pecap, fase); // DEBUG-EVAL
 
     //--------------------------- lazy evaluation START ---------------------------
-
-    //-------------------------------------------------------------------------------------------------------
-    //ponto de vista branco (branco eh positivo, preto eh negativo). Absoluto: positivo = bom para brancas.
+    //material absoluto: positivo = bom para brancas
     material = (int)((1.0 + 75.0 / (float)(pecab + pecap)) * (float)(pecab - pecap));
-    //-------------------------------------------------------------------------------------------------------
+    //material side-relative: alfax/betin chegam side-relative em negamax
+    material_rel = (tabu.vez == BRANCO) ? material : -material;
 
-    //lazy: material even with best positional bonus can't beat alfax
-    if(material + MARGEM_PREGUICA <= alfax)
+    //lazy: material+bonus maximo nao alcanca alfax
+    if(material_rel + MARGEM_PREGUICA <= alfax)
     {
         if(debug == 2)
-            fprintf(fmini, "lazy: material+margin <= alfax (%+.2f <= %+.2f)\n", (material + MARGEM_PREGUICA) / 100.0, alfax / 100.0);
-        return (material + MARGEM_PREGUICA);
+            fprintf(fmini, "lazy: material+margin <= alfax (%+.2f <= %+.2f)\n", (material_rel + MARGEM_PREGUICA) / 100.0, alfax / 100.0);
+        return (material_rel + MARGEM_PREGUICA);
     }
-    //lazy: material even with worst positional penalty still beats betin
-    if(material - MARGEM_PREGUICA >= betin)
+    //lazy: material-penalidade maxima ainda passa betin
+    if(material_rel - MARGEM_PREGUICA >= betin)
     {
         if(debug == 2)
-            fprintf(fmini, "lazy: material-margin >= betin (%+.2f >= %+.2f)\n", (material - MARGEM_PREGUICA) / 100.0, betin / 100.0);
-        return (material - MARGEM_PREGUICA);
+            fprintf(fmini, "lazy: material-margin >= betin (%+.2f >= %+.2f)\n", (material_rel - MARGEM_PREGUICA) / 100.0, betin / 100.0);
+        return (material_rel - MARGEM_PREGUICA);
     }
     //--------------------------- lazy evaluation END ---------------------------
+
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c material+hanging+lazy: material=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', material); // DEBUG-EVAL
 
     // conta mobilidade --------------------------------------------
@@ -2903,12 +2907,14 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         }
     }
 
-    //prepara o retorno: absoluto, positivo = bom para brancas
+    //prepara o retorno: side-relative (positivo = bom para o lado a jogar)
+    resultado_abs = material + totb - totp; //absoluto: positivo = bom para brancas
+    retorno = (tabu.vez == BRANCO) ? resultado_abs : -resultado_abs;
     if(niv <= 1) // DEBUG-EVAL
         printdbg(debug, "# EVAL[%d] TOTAL %c%c%c%c: material=%d totb=%d totp=%d return=%d\n", // DEBUG-EVAL
                  niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', // DEBUG-EVAL
-                 material, totb, totp, material + totb - totp); // DEBUG-EVAL
-    return material + totb - totp;
+                 material, totb, totp, retorno); // DEBUG-EVAL
+    return retorno; // Xadreco maximiza, oponente minimiza
 }
 
 //para voltar um lance
@@ -3256,7 +3262,8 @@ void usa_livro(tabuleiro tabu)
             joga_em(&temp, mval, 0);
             lst_recria(&plmov);
             geramov(temp, plmov, GERA_TODOS);
-            cands[i].score = minimax(temp, 0, -LIMITE, LIMITE, 2, 2, busca_quieta);
+            //negamax: temp.vez eh o adversario apos o lance; negamos para ficar do nosso lado
+            cands[i].score = -minimax(temp, 0, -LIMITE, LIMITE, 2, 2, busca_quieta);
         }
         if(debug >= 2)
             printdbg(debug, "# xadreco livro: cand[%d] = %s score=%d linha: %s\n",
@@ -3264,11 +3271,11 @@ void usa_livro(tabuleiro tabu)
     }
 
     // Phase 3: sort by score (best for engine first)
+    // negamax: cands[].score ja side-relative ao engine (negado apos minimax) -> maior = melhor
     for(i = 0; i < ncands - 1; i++)
         for(j = i + 1; j < ncands; j++)
         {
-            if((tabu.vez == BRANCO && cands[j].score > cands[i].score) ||
-               (tabu.vez == PRETO  && cands[j].score < cands[i].score))
+            if(cands[j].score > cands[i].score)
             {
                 tmp = cands[i];
                 cands[i] = cands[j];
