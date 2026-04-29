@@ -2642,8 +2642,8 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
 
     gapb = gap_aberto + gap_semib; //conta colunas abertas e semi-abertas para brancas
     gapp = gap_aberto + gap_semip; //conta colunas abertas e semi-abertas para pretas
-    totb -= (gapb - gapp) * EST_GAP; //penalidade de ilhas de peoes brancos
-    totp -= (gapp - gapb) * EST_GAP; //penalidade de ilhas de peoes pretos
+    if(gapb > gapp) totb -= (gapb - gapp) * EST_GAP; //penalidade de ilhas de peoes brancos
+    if(gapp > gapb) totp -= (gapp - gapb) * EST_GAP; //penalidade de ilhas de peoes pretos
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c peoes estrutura+torres+gaps: totb=%d totp=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp); // DEBUG-EVAL
 
