@@ -94,7 +94,9 @@
 //estimativa da duracao do jogo
 #define TOTAL_MOVIMENTOS 50
 //margem para usar a estatica preguicosa
-#define MARGEM_PREGUICA 800
+#define MARGEM_PREGUICA 500
+//porcentagem de movimentos considerados nos nos internos (prof != 0); restante eh ignorado
+#define PORCENTO_MOVIMENTOS 0.86
 //usada para indicar que o tempo acabou, na busca minimax
 #define FIMTEMPO 106550
 //define o limite para a funcao de avaliacao estatica
@@ -1929,7 +1931,7 @@ void xadreco_para(busca *ctx)
 int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max, int busca_quieta)
 {
     movimento *msucc; // n->info, movimento considerado
-    int novo_valor, child_val;
+    int novo_valor, child_val, contamov = 0;
     int valull;
     tabuleiro tab, tabull;
     char m[TINYBUFF];
@@ -2056,6 +2058,9 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
         if(prof == 0)
             msucc->valor_estatico = (atual.vez == BRANCO) ? child_val : -child_val; // para lst_ordem (descending)
         lsucc = lsucc->prox;
+        contamov++;
+        if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)
+            break;
     } // while(lsucc) fim do laco de sucessores -----------------------------------------------------------------------------------------------------
 
     if(prof != 0)
