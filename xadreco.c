@@ -176,6 +176,12 @@
 #define ESP_MOV_TORRE_R      (1 << 9)  /* bit 9: torre h moveu */
 #define ESP_MOV_TORRE_D      (1 << 10) /* bit 10: torre a moveu */
 #define ESP_MOV_REI          (1 << 11) /* bit 11: rei moveu (bit mais alto para teste de roque) */
+
+#define ESP_MOV_CAVALO       (1 << 26) /* bit 26: cavalo moveu */
+#define ESP_MOV_BISPO        (1 << 27) /* bit 27: bispo moveu */
+#define ESP_MOV_DAMA         (1 << 28) /* bit 28: dama moveu */
+#define ESP_MOV_TORRE        (1 << 29) /* bit 29: torre moveu (qualquer torre, display) */
+
 #define ESP_MOV_PROMO_Q      (1 << 12) /* bit 12: promocao dama */
 #define ESP_MOV_PROMO_N      (1 << 13) /* bit 13: promocao cavalo */
 #define ESP_MOV_PROMO_R      (1 << 14) /* bit 14: promocao torre */
@@ -191,12 +197,13 @@
 #define ESP_TAB_PATA_MATERIAL (1 << 23) /* bit 23: empate por insuficiencia */
 #define ESP_TAB_PATA_REPETE  (1 << 24) /* bit 24: empate por repeticao */
 #define ESP_TAB_PATA_PROGRESSO (1 << 25) /* bit 25: empate 50/75 lances */
+
+
 /* mascaras de grupo */
 #define ESP_AMB_XEQUE     (ESP_AMB_XEQUE_BR | ESP_AMB_XEQUE_PR)
-#define ESP_MOV_TORRE     (ESP_MOV_TORRE_R | ESP_MOV_TORRE_D)
 #define ESP_MOV_ROQUE_PQN (ESP_MOV_REI | ESP_MOV_TORRE_R)
 #define ESP_MOV_ROQUE_GRD (ESP_MOV_REI | ESP_MOV_TORRE_D)
-#define ESP_MOV_ROQUE     (ESP_MOV_REI | ESP_MOV_TORRE)
+#define ESP_MOV_ROQUE     (ESP_MOV_REI | ESP_MOV_TORRE_R | ESP_MOV_TORRE_D)
 #define ESP_MOV_PROMO     (ESP_MOV_PROMO_Q | ESP_MOV_PROMO_N | ESP_MOV_PROMO_R | ESP_MOV_PROMO_B)
 #define ESP_TAB_ROQUE_BR  (ESP_TAB_ROQUE_BRP | ESP_TAB_ROQUE_BRG)
 #define ESP_TAB_ROQUE_PR  (ESP_TAB_ROQUE_PRP | ESP_TAB_ROQUE_PRG)
@@ -373,8 +380,10 @@ static filenta entra; //fila da string de entrada (thread)
 /* ---------------------------------------------------------------------- */
 /* prototipos gerais */ /* general prototypes */
 void mostra_tabu(tabuleiro tabu);
-//transforma lances int 0077 em char tipo a1h8
+//transforma lances int de/pa em char tipo a1h8
 void lance2movi(char *m, int de, int pa, int especial);
+//transforma lances int de/pa em char tipo Na1xh8+
+void fancy2movi(char *m, int de, int pa, int especial);
 //faz o contrario: char b1c3 em int 1022. Retorna falso se nao existe.
 int movi2lance(int *de, int *pa, char *m);
 //retorna o adversario: ADV(v) macro em defines
@@ -695,6 +704,62 @@ void lance2movi(char *m, int de, int pa, int espec)
     else if(espec & ESP_MOV_PROMO_N) m[pro] = 'n';
     else if(espec & ESP_MOV_PROMO_R) m[pro] = 'r';
     else if(espec & ESP_MOV_PROMO_B) m[pro] = 'b';
+}
+
+//transforma lances int de/pa em char tipo Na1xh8+
+void fancy2movi(char *m, int de, int pa, int espec)
+{
+    int i; // indice promocao Na1-b2p+
+    for(i=0; i<10; i++) m[i] = '\0';
+
+    i=0;
+    // roque (precisa rei + torre, nao apenas um deles)
+    if((espec & ESP_MOV_ROQUE) > ESP_MOV_REI)
+    {
+        if((espec & ESP_MOV_ROQUE_GRD) == ESP_MOV_ROQUE_GRD)
+        {
+            strcpy(m,"O-O-O");
+            i = 5;
+        }
+        else
+        {
+            strcpy(m,"O-O");
+            i = 3;
+        }
+    }
+    else
+    {
+        // Peca jogada
+        if(espec & ESP_MOV_PEAO)        m[i] = 'P';
+        else if(espec & ESP_MOV_CAVALO) m[i] = 'N';
+        else if(espec & ESP_MOV_BISPO)  m[i] = 'B';
+        else if(espec & ESP_MOV_TORRE)  m[i] = 'R';
+        else if(espec & ESP_MOV_DAMA)   m[i] = 'Q';
+        else if(espec & ESP_MOV_REI)    m[i] = 'K';
+        else                            m[i] = '?';
+        // Casa inicial
+        m[++i] = COL(de) + 'a';
+        m[++i] = ROW(de) + '1';
+        // Separador
+        if(espec & ESP_AMB_CAPTURA) //xizinho em captura
+            m[++i]='x';
+        else // move sem captura, tracinho
+            m[++i]='-';
+        // Casa final
+        m[++i] = COL(pa) + 'a';
+        m[++i] = ROW(pa) + '1';
+        ++i;
+        if(espec & ESP_MOV_ENP_COMEU) m[i] = 'e'; // captura en passant
+        if(espec & ESP_MOV_PROMO)
+        {
+            if(espec & ESP_MOV_PROMO_Q) m[i] = 'q'; // promoveu dama
+            else if(espec & ESP_MOV_PROMO_N) m[i] = 'n'; // promoveu cavalo
+            else if(espec & ESP_MOV_PROMO_R) m[i] = 'r'; // promoveu torre
+            else if(espec & ESP_MOV_PROMO_B) m[i] = 'b'; // promoveu bispo
+        }
+        if(espec & ESP_AMB_XEQUE) m[++i]='+';
+        else if(espec & ESP_TAB_MATE) m[++i]='#';
+    }
 }
 
 //transforma char de entrada em int de/pa (0-63)
@@ -1124,7 +1189,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             tabaux.tab[SQ(i + col, j + lin)] = DACOR(CAVALO, tabu.vez);
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
-                                ee = 0;
+                                ee = ESP_MOV_CAVALO;
                                 if(tabu.tab[SQ(col + i, lin + j)] != VAZIA)
                                     ee |= ESP_AMB_CAPTURA;
                                 if(xeque_rei_das(ADV(tabu.vez), tabaux))
@@ -1235,7 +1300,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     tabaux.tab[SQ(col, lin)] = DACOR(peca, tabu.vez);
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
-                                        ee = 0;
+                                        ee = (peca == DAMA) ? ESP_MOV_DAMA : ESP_MOV_BISPO;
                                         if(tabu.tab[SQ(col, lin)] != VAZIA)
                                         {
                                             ee |= ESP_AMB_CAPTURA;
