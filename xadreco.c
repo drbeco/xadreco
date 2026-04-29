@@ -1945,19 +1945,17 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
         return child_val;
     }
 
-    // null-move pruning: passo a vez; se ainda assim excede betin/alfax, corta
+    // null-move pruning: passo a vez; se ainda assim excede betin (do lado a jogar), corta
     if(usa_nullmove && niv - prof >= 2 && !pula_vez && !xeque_rei_das(atual.vez, atual) && !busca_quieta)
     {
         pula_vez = 1;
         tabull = atual; // copia tabuleiro
         tabull.vez = ADV(tabull.vez);
         tabull.especial &= ~ESP_AMB_ENP_PULOU;
-        valull = minimax(tabull, prof + 1, alfax, betin, niv - 2, nv_max, busca_quieta); //nao faz null-move em busca_quieta
+        valull = -minimax(tabull, prof + 1, -betin, -alfax, niv - 2, nv_max, busca_quieta); //negamax: negar resultado e trocar bounds
         pula_vez = 0;
-        if(atual.vez == BRANCO && valull >= betin)
+        if(valull >= betin)
             return betin;
-        if(atual.vez != BRANCO && valull <= alfax)
-            return alfax;
     }
 
     if(debug == 2)
@@ -1989,16 +1987,17 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
     }
 
 
-    // minimax classico: brancas maximizam, pretas minimizam
-    // alfax = lower bound (melhor para brancas), betin = upper bound (melhor para pretas)
-    // valores absolutos: positivo = bom para brancas
+    // negamax: cada no maximiza do seu ponto de vista. recursao usa -minimax(-betin, -alfax)
+    // alfax = piso garantido pelo lado a jogar, betin = teto que o adversario nunca cedera
+    // valores side-relative: positivo = bom para o lado a jogar
     if(busca_quieta)
     {
         novo_valor = estatico(atual, prof, alfax, betin);
     }
     else
-        novo_valor = (atual.vez == BRANCO) ? -LIMITE : +LIMITE; // best inicial
-    while(lsucc) // ----------------------------------------------------------------------------------------------------- laco de sucessores
+        novo_valor = -LIMITE; // sempre o pior para o lado a jogar
+    // --------------------------------------------------------------------- laco de sucessores
+    while(lsucc)
     {
         msucc = (movimento *)lsucc->info;
         if(busca_quieta && !(msucc->especial & ESP_AMB_CAPTURA))
@@ -2016,33 +2015,19 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
             lance2movi(m, msucc->de, msucc->pa, msucc->especial);
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, busca_totalnodonivel, m, COL(msucc->de), ROW(msucc->de), COL(msucc->pa), ROW(msucc->pa));
         }
-        child_val = minimax(tab, prof + 1, alfax, betin, niv, nv_max, quieta); // busca_quieta local com quieta para criancas
+        child_val = -minimax(tab, prof + 1, -betin, -alfax, niv, nv_max, quieta); // negamax: nega resultado, troca bounds
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
-        if(atual.vez == BRANCO) // MAXIMIZA
+        // ------------------------- negamax()
+        if(child_val > novo_valor)
         {
-            if(child_val > novo_valor)
-            {
-                novo_valor = child_val;
-                mel[prof].linha[0] = *msucc;
-                memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
-                mel[prof].tamanho = mel[prof + 1].tamanho + 1;
-            }
-            if(novo_valor > alfax)
-                alfax = novo_valor;
+            novo_valor = child_val;
+            mel[prof].linha[0] = *msucc;
+            memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
+            mel[prof].tamanho = mel[prof + 1].tamanho + 1;
         }
-        else // MINIMIZA
-        {
-            if(child_val < novo_valor)
-            {
-                novo_valor = child_val;
-                mel[prof].linha[0] = *msucc;
-                memcpy(&mel[prof].linha[1], &mel[prof + 1].linha[0], mel[prof + 1].tamanho * sizeof(movimento));
-                mel[prof].tamanho = mel[prof + 1].tamanho + 1;
-            }
-            if(novo_valor < betin)
-                betin = novo_valor;
-        }
-        // corte alfax-betin (comum a ambos)
+        if(novo_valor > alfax)
+            alfax = novo_valor;
+        // corte alfa-beta
         if(alfax >= betin)
         {
             if(debug == 2)
@@ -2053,7 +2038,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
             break;
         }
         if(prof == 0)
-            msucc->valor_estatico = (atual.vez == BRANCO) ? child_val : -child_val; // para lst_ordem (descending)
+            msucc->valor_estatico = child_val; // side-relative: ja correto para o lado a jogar
         lsucc = lsucc->prox;
         contamov++;
         if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)
