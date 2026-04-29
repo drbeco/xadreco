@@ -94,9 +94,7 @@
 //estimativa da duracao do jogo
 #define TOTAL_MOVIMENTOS 50
 //margem para usar a estatica preguicosa
-#define MARGEM_PREGUICA 400
-//a porcentagem de movimentos considerados, do total de opcoes
-#define PORCENTO_MOVIMENTOS 0.85
+#define MARGEM_PREGUICA 800
 //usada para indicar que o tempo acabou, na busca minimax
 #define FIMTEMPO 106550
 //define o limite para a funcao de avaliacao estatica
@@ -119,10 +117,10 @@
 
 /* estatico() bonificacoes e penalidades em centipawns */
 #define EST_XEQUE        5   /* bonus por dar xeque */
-#define EST_ATK_MAIOR   10   /* multiplicador de ataques em rei/dama/torre */
-#define EST_ATK_MENOR   10   /* multiplicador de ataques em bispo/cavalo */
+#define EST_ATK_MAIOR    8   /* multiplicador de ataques em rei/dama/torre */
+#define EST_ATK_MENOR    8   /* multiplicador de ataques em bispo/cavalo */
 #define EST_ATK_PEAO     5   /* multiplicador de ataques em peao */
-#define EST_TERRITORIO  50   /* dama/torre em territorio inimigo */
+#define EST_TERRITORIO  42   /* dama/torre em territorio inimigo */
 #define EST_MOB_BORDA    2   /* mobilidade em casa vazia na borda */
 #define EST_MOB_CENTRO   3   /* mobilidade em casa vazia no centro */
 #define EST_CENTRO_EXT   1   /* controle do centro externo (c3-f6) */
@@ -130,27 +128,27 @@
 #define EST_REI_VIZIM    3   /* ataque em casa vizinha ao rei inimigo (dist<=1) */
 #define EST_REI_PERTIM   2   /* ataque perto do rei inimigo (dist<=2) */
 #define EST_ATK_SALDO    7   /* multiplicador de saldo de ataques vs defesas */
-#define EST_ATK_BAIXO   30   /* bonus por atacante menor que peca atacada */
+#define EST_ATK_BAIXO   25   /* bonus por atacante menor que peca atacada */
 #define EST_CRAVADA      7   /* divisor da penalidade de peca cravada */
 #define EST_PEAO_R4      5   /* bonus peao avancado rank 4 */
 #define EST_PEAO_R5     15   /* bonus peao avancado rank 5 */
 #define EST_PEAO_R6     25   /* bonus peao avancado rank 6 */
 #define EST_PEAO_R7     35   /* bonus peao avancado rank 7 */
-#define EST_TORRE_DUP   40   /* torres dobradas na mesma coluna */
+#define EST_TORRE_DUP   36   /* torres dobradas na mesma coluna */
 #define EST_TORRE_ABRT  30   /* torre em coluna aberta */
 #define EST_TORRE_SEMI  15   /* torre em coluna semi-aberta */
-#define EST_PEAO_DUP    30   /* penalidade por peao dobrado (por extra) */
-#define EST_PEAO_ISOL   40   /* penalidade por peao isolado */
-#define EST_PEAO_PASS  160   /* bonus de peao passado */
+#define EST_PEAO_DUP    27   /* penalidade por peao dobrado (por extra) */
+#define EST_PEAO_ISOL   36   /* penalidade por peao isolado */
+#define EST_PEAO_PASS  140   /* bonus de peao passado */
 #define EST_PASS_PROT   20   /* bonus peao passado protegido */
 #define EST_PASS_TORRE  50   /* torre amiga atras de peao passado */
 #define EST_PASS_INIM   50   /* torre inimiga na coluna do peao passado */
-#define EST_PEAO_ATRAS  60   /* penalidade peao atrasado */
+#define EST_PEAO_ATRAS  50   /* penalidade peao atrasado */
 #define EST_GAP         10   /* penalidade por diferenca de gaps (ilhas) */
 #define EST_PAR_BISPO   20   /* bonus par de bispos (maximo, escalado por peoes) */
 #define EST_BISPO_VANT   5   /* bonus por vantagem de bispos */
 #define EST_PAR_CAVAL   20   /* penalidade par de cavalos (maximo, escalado) */
-#define EST_OUTPOST     60   /* bonus cavalo em posto avancado */
+#define EST_OUTPOST     50   /* bonus cavalo em posto avancado */
 #define EST_DAMA_CASA   40   /* bonus dama na casa inicial (abertura) */
 #define EST_ROQUE_PQN   60   /* bonus roque pequeno */
 #define EST_ROQUE_GRD   40   /* bonus roque grande */
@@ -1931,7 +1929,7 @@ void xadreco_para(busca *ctx)
 int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max, int busca_quieta)
 {
     movimento *msucc; // n->info, movimento considerado
-    int novo_valor, child_val, contamov = 0;
+    int novo_valor, child_val;
     int valull;
     tabuleiro tab, tabull;
     char m[TINYBUFF];
@@ -2058,9 +2056,6 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
         if(prof == 0)
             msucc->valor_estatico = (atual.vez == BRANCO) ? child_val : -child_val; // para lst_ordem (descending)
         lsucc = lsucc->prox;
-        contamov++;
-        if(prof != 0 && contamov > llmov->qtd * PORCENTO_MOVIMENTOS + 1)
-            break;
     } // while(lsucc) fim do laco de sucessores -----------------------------------------------------------------------------------------------------
 
     if(prof != 0)
