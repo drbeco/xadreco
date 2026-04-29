@@ -789,8 +789,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     int col, lin;
     int peca;
     int ee; //especial bitfield
+    int score; //valor_estatico composite (MVV-LVA + bonuses) por movimento
     int enp_col; //coluna do peao que pulou (en passant)
     const int promo[] = {ESP_MOV_PROMO_Q, ESP_MOV_PROMO_N, ESP_MOV_PROMO_R, ESP_MOV_PROMO_B};
+    const int promo_val[] = {900, 300, 500, 325}; //paralelo a promo[]: val[DAMA], val[CAVALO], val[TORRE], val[BISPO]
     int i0, i1, j0, j1; //limites do loop
     int jfila; //fila inicial das torres (0 brancas, 7 pretas)
 
@@ -831,12 +833,19 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
                                 ee = ESP_MOV_REI;
+                                score = 0;
                                 if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                {
                                     ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                    score += 30;
+                                }
                                 if(tabu.tab[SQ(col, lin)] != VAZIA)
+                                {
                                     ee |= ESP_AMB_CAPTURA;
+                                    score += 10 * val[TIPO(tabu.tab[SQ(col, lin)])] - val[REI];
+                                }
                                 if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                    enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee);
+                                    enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee, score);
                                 if(geramodo == GERA_UNICO) // 1 - rei anda
                                     return 1;
                             }
@@ -862,8 +871,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(flag == 0)
                                     {
                                         ee = ESP_MOV_REI | ESP_MOV_TORRE_R;
+                                        score = 40; //roque: candy
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(4,0), SQ(6,0), ee);
+                                            enche_lmovi(lmov, SQ(4,0), SQ(6,0), ee, score);
                                         if(geramodo == GERA_UNICO) // 2 - roque pequeno branco
                                             return 1;
                                     }
@@ -883,8 +893,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(flag == 0)
                                     {
                                         ee = ESP_MOV_REI | ESP_MOV_TORRE_D;
+                                        score = 40; //roque: candy
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(4,0), SQ(2,0), ee);
+                                            enche_lmovi(lmov, SQ(4,0), SQ(2,0), ee, score);
                                         if(geramodo == GERA_UNICO) // 3 - roque grande branco
                                             return 1;
                                     }
@@ -911,8 +922,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(flag == 0)
                                     {
                                         ee = ESP_MOV_REI | ESP_MOV_TORRE_R;
+                                        score = 40; //roque: candy
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(4,7), SQ(6,7), ee);
+                                            enche_lmovi(lmov, SQ(4,7), SQ(6,7), ee, score);
                                         if(geramodo == GERA_UNICO) // 4 - roque pequeno preto
                                             return 1;
                                     }
@@ -932,8 +944,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(flag == 0)
                                     {
                                         ee = ESP_MOV_REI | ESP_MOV_TORRE_D;
+                                        score = 40; //roque: candy
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(4,7), SQ(2,7), ee);
+                                            enche_lmovi(lmov, SQ(4,7), SQ(2,7), ee, score);
                                         if(geramodo == GERA_UNICO) // 5 - roque grande preto
                                             return 1;
                                     }
@@ -959,8 +972,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(!xeque_rei_das(BRANCO, tabaux))
                                     {
                                         ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | ESP_MOV_ENP_COMEU;
+                                        score = 10 * val[PEAO] - val[PEAO]; //P x P = 900
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,5), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,5), ee, score);
                                         if(geramodo == GERA_UNICO) // 6 - peao branco comeu en passant
                                             return 1;
                                     }
@@ -976,8 +990,9 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(!xeque_rei_das(PRETO, tabaux))
                                     {
                                         ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | ESP_MOV_ENP_COMEU;
+                                        score = 10 * val[PEAO] - val[PEAO]; //P x P = 900
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,2), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,2), ee, score);
                                         if(geramodo == GERA_UNICO) // 7 - peao preto comeu enpassant
                                             return 1;
                                     }
@@ -1002,17 +1017,22 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         for(k = 0; k < 4; k++)
                                         {
                                             ee = ESP_MOV_PEAO | promo[k];
+                                            score = promo_val[k]; //promocao sem captura
                                             if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee);
+                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee, score);
                                         }
                                     }
                                     else //nao promoveu
                                     {
                                         ee = ESP_MOV_PEAO;
+                                        score = 10 * abs((j + 1) - jfila); //avanco branco
                                         if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        {
                                             ee |= ESP_AMB_XEQUE_PR;
+                                            score += 30;
+                                        }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee, score);
                                     }
                                     if(geramodo == GERA_UNICO) // 8 - peao branco andou uma casa
                                         return 1;
@@ -1035,17 +1055,22 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         for(k = 0; k < 4; k++)
                                         {
                                             ee = ESP_MOV_PEAO | promo[k];
+                                            score = promo_val[k]; //promocao sem captura
                                             if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee);
+                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee, score);
                                         }
                                     }
                                     else //nao promoveu
                                     {
                                         ee = ESP_MOV_PEAO;
+                                        score = 10 * abs((j - 1) - jfila); //avanco preto
                                         if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        {
                                             ee |= ESP_AMB_XEQUE_BR;
+                                            score += 30;
+                                        }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee, score);
                                     }
                                     if(geramodo == GERA_UNICO) // 9 - peao preto andou uma casa
                                         return 1;
@@ -1066,10 +1091,14 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 if(!xeque_rei_das(BRANCO, tabaux))
                                 {
                                     ee = ESP_MOV_PEAO | ESP_AMB_ENP_PULOU | (i & ESP_AMB_ENP_COL);
+                                    score = 10 * abs(3 - jfila); //avanco duplo branco = 30
                                     if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                    {
                                         ee |= ESP_AMB_XEQUE_PR;
+                                        score += 30;
+                                    }
                                     if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                        enche_lmovi(lmov, SQ(i,1), SQ(i,3), ee);
+                                        enche_lmovi(lmov, SQ(i,1), SQ(i,3), ee, score);
                                     if(geramodo == GERA_UNICO) // 10 - peao branco andou duas casas
                                         return 1;
                                 }
@@ -1087,10 +1116,14 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                 if(!xeque_rei_das(PRETO, tabaux))
                                 {
                                     ee = ESP_MOV_PEAO | ESP_AMB_ENP_PULOU | (i & ESP_AMB_ENP_COL);
+                                    score = 10 * abs(4 - jfila); //avanco duplo preto = 30
                                     if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                    {
                                         ee |= ESP_AMB_XEQUE_BR;
+                                        score += 30;
+                                    }
                                     if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                        enche_lmovi(lmov, SQ(i,6), SQ(i,4), ee);
+                                        enche_lmovi(lmov, SQ(i,6), SQ(i,4), ee, score);
                                     if(geramodo == GERA_UNICO) // 11 - peao preto andou duas casas
                                         return 1;
                                 }
@@ -1117,17 +1150,22 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         for(m = 0; m < 4; m++)
                                         {
                                             ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | promo[m];
+                                            score = 10 * val[TIPO(tabu.tab[SQ(k, j+1)])] - val[PEAO] + promo_val[m];
                                             if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee);
+                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee, score);
                                         }
                                     }
                                     else //comeu sem promover
                                     {
                                         ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA;
+                                        score = 10 * val[TIPO(tabu.tab[SQ(k, j+1)])] - val[PEAO];
                                         if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        {
                                             ee |= ESP_AMB_XEQUE_PR;
+                                            score += 30;
+                                        }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee, score);
                                     }
                                     if(geramodo == GERA_UNICO) // 12 - peao branco comeu normalmente
                                         return 1;
@@ -1155,17 +1193,22 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         for(m = 0; m < 4; m++)
                                         {
                                             ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | promo[m];
+                                            score = 10 * val[TIPO(tabu.tab[SQ(k, j-1)])] - val[PEAO] + promo_val[m];
                                             if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee);
+                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee, score);
                                         }
                                     }
                                     else //comeu sem promover
                                     {
                                         ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA;
+                                        score = 10 * val[TIPO(tabu.tab[SQ(k, j-1)])] - val[PEAO];
                                         if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        {
                                             ee |= ESP_AMB_XEQUE_BR;
+                                            score += 30;
+                                        }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee, score);
                                     }
                                     if(geramodo == GERA_UNICO) // 13 - peao preto comeu normalmente
                                         return 1;
@@ -1192,12 +1235,19 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                             if(!xeque_rei_das(tabu.vez, tabaux))
                             {
                                 ee = ESP_MOV_CAVALO;
+                                score = 0;
                                 if(tabu.tab[SQ(col + i, lin + j)] != VAZIA)
+                                {
                                     ee |= ESP_AMB_CAPTURA;
+                                    score += 10 * val[TIPO(tabu.tab[SQ(col+i, lin+j)])] - val[CAVALO];
+                                }
                                 if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                {
                                     ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                    score += 30;
+                                }
                                 if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                    enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), ee);
+                                    enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), ee, score);
                                 if(geramodo == GERA_UNICO) // 14 - cavalo anda ou captura
                                     return 1;
                             }
@@ -1225,6 +1275,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
                                         ee = 0;
+                                        score = 0;
                                         if(peca == TORRE)
                                         {
                                             if(i == 0 && j == jfila) ee |= ESP_MOV_TORRE_D;
@@ -1236,12 +1287,16 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         if(tabu.tab[SQ(col, j)] != VAZIA)
                                         {
                                             ee |= ESP_AMB_CAPTURA;
+                                            score += 10 * val[TIPO(tabu.tab[SQ(col, j)])] - val[peca];
                                             l = 1;
                                         }
                                         if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        {
                                             ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                            score += 30;
+                                        }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(col,j), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(col,j), ee, score);
                                         if(geramodo == GERA_UNICO) // 15 - dama ou torre andou ou capturou na linha
                                             return 1;
                                     }
@@ -1259,6 +1314,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
                                         ee = 0;
+                                        score = 0;
                                         if(peca == TORRE)
                                         {
                                             if(i == 0 && j == jfila) ee |= ESP_MOV_TORRE_D;
@@ -1270,12 +1326,16 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         if(tabu.tab[SQ(i, lin)] != VAZIA)
                                         {
                                             ee |= ESP_AMB_CAPTURA;
+                                            score += 10 * val[TIPO(tabu.tab[SQ(i, lin)])] - val[peca];
                                             m = 1;
                                         }
                                         if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        {
                                             ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                            score += 30;
+                                        }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,lin), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,lin), ee, score);
                                         if(geramodo == GERA_UNICO) // 16 - dama ou torre andou ou capturou na coluna
                                             return 1;
                                     }
@@ -1309,15 +1369,20 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     if(!xeque_rei_das(tabu.vez, tabaux))
                                     {
                                         ee = (peca == DAMA) ? ESP_MOV_DAMA : ESP_MOV_BISPO;
+                                        score = 0;
                                         if(tabu.tab[SQ(col, lin)] != VAZIA)
                                         {
                                             ee |= ESP_AMB_CAPTURA;
+                                            score += 10 * val[TIPO(tabu.tab[SQ(col, lin)])] - val[peca];
                                             flag = 1;
                                         }
                                         if(xeque_rei_das(ADV(tabu.vez), tabaux))
+                                        {
                                             ee |= (tabu.vez == BRANCO) ? ESP_AMB_XEQUE_PR : ESP_AMB_XEQUE_BR;
+                                            score += 30;
+                                        }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee, score);
                                         if(geramodo == GERA_UNICO) // 17 - dama ou bispo andou ou capturou
                                             return 1;
                                     }
