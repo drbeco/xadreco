@@ -378,8 +378,8 @@ static movimento dbg_quiet_linha[MAX_PROF]; //DEBUG-QUIESCENT
 static int dbg_quiet_printed = 0; //DEBUG-QUIESCENT
 static int busca_totalnodo = 0; //total de nodos analisados para fazer um lance
 static int busca_totalnodonivel = 0; //total de nodos analisados em um nivel da arvore
-static time_t busca_tinimov; //tempo de inicio do lance
-static double busca_tempo_move; //tempo por lance em segundos
+static struct timespec busca_tinimov; //tempo de inicio do lance (CLOCK_MONOTONIC)
+static int busca_tempo_move; //tempo por lance em milissegundos
 static int busca_seldepth = 0; //profundidade maxima atingida (incluindo quiescencia)
 static int fase = 0; //fase do jogo (0..256), computada por estatico, lida por profsuf
 
@@ -417,8 +417,8 @@ void testajogo(char *movinito, int mnum);
 void enche_lmovi(lista *lmov, int de, int pa, int ee, int score);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
-//calcula diferenca de tempo em segundo do lance atual
-double difclocks(void);
+//tempo decorrido desde o inicio do lance, em milissegundos
+int passoutempo(void);
 // joga aleatorio!
 char randommove(tabuleiro *tabu);
 /* imprime o help e termina */
@@ -442,7 +442,7 @@ void opcoes(int argc, char *argv[]);
 // handshake do protocolo: "xboard" ou "quit". Retorna 1=ok, 0=quit
 int cumprimento(char *line);
 // busca: trio de funcoes para aprofundamento iterativo
-void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, double max_time);
+void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, int tempomax);
 int  xadreco_continua(busca *ctx); // retorna 1=continuar, 0=terminou
 void xadreco_para(busca *ctx);     // cleanup (sem output de lance)
 
@@ -1575,7 +1575,7 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
 {
     int pos;
     int wtime, btime, winc, binc, nivel, movetime, infinite, movestogo, moves_left;
-    double mytime, myinc, tempo_move_max;
+    int mytime, myinc, tempo_move_max;
     char movinito[SMALLBUFF];
 
     pos = 0;
@@ -1670,24 +1670,24 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
         }
 
         if(movetime > 0)
-            busca_tempo_move = movetime / 1000.0;
+            busca_tempo_move = movetime;
         else if(wtime > 0 || btime > 0)
         {
-            mytime = (tabu->vez == BRANCO) ? wtime / 1000.0 : btime / 1000.0;
-            myinc = (tabu->vez == BRANCO) ? winc / 1000.0 : binc / 1000.0;
+            mytime = (tabu->vez == BRANCO) ? wtime : btime;
+            myinc = (tabu->vez == BRANCO) ? winc : binc;
             moves_left = movestogo > 0 ? movestogo : TOTAL_MOVIMENTOS - tabu->meionum / 2;
             if(moves_left < 10) moves_left = 10;
             busca_tempo_move = mytime / moves_left + myinc;
-            tempo_move_max = mytime / 4.0;
+            tempo_move_max = mytime / 4;
             if(busca_tempo_move > tempo_move_max) busca_tempo_move = tempo_move_max;
-            if(busca_tempo_move < 0.5) busca_tempo_move = 0.5;
+            if(busca_tempo_move < 500) busca_tempo_move = 500;
         }
 
-        if(infinite) busca_tempo_move = 999999.0;
+        if(infinite) busca_tempo_move = 604800000; // 7 dias em ms
 
         xadreco_inicia(ctx, tabu, nivel, busca_tempo_move);
         *buscando = 1;
-        printdbg(debug, "# xadreco: go depth=%d time=%.1fs\n", nivel, busca_tempo_move);
+        printdbg(debug, "# xadreco: go depth=%d time=%dms\n", nivel, busca_tempo_move);
         return 1;
     }
 
@@ -1776,15 +1776,15 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result)
 // ------------------------------- busca: trio xadreco_inicia/continua/para --
 
 // prepara a busca: livro, geramov, inicializa contexto
-void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, double max_time)
+void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, int tempomax)
 {
     int i, moveto;
     movimento *msucc;
     no *lsucc;
 
     melhor = (resultado){0};
-    busca_tempo_move = max_time;
-    busca_tinimov = time(NULL);
+    busca_tempo_move = tempomax;
+    clock_gettime(CLOCK_MONOTONIC, &busca_tinimov);
 
     busca_seldepth = 0;
     dbg_quiet_printed = 0; //DEBUG-QUIESCENT
@@ -1820,12 +1820,12 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, double max_time)
         geramov(*tabu, plmov, GERA_TODOS);
         busca_totalnodo = 0;
 
-        // primeiro lance: joga rapido, metade do tempo, maximo 10s
+        // primeiro lance: metade do tempo, maximo 8s, minimo 500ms
         if(tabu->meionum <= 1)
         {
-            busca_tempo_move /= 2.0;
-            if(busca_tempo_move > 8.0) busca_tempo_move = 8.0;
-            if(busca_tempo_move < 0.5) busca_tempo_move = 0.5;
+            busca_tempo_move /= 2;
+            if(busca_tempo_move > 8000) busca_tempo_move = 8000; // tempo em milisegundos = 8 segundos
+            if(busca_tempo_move < 500) busca_tempo_move = 500; // meio segundo
         }
 
         // randomchess: sorteia um lance da lista
@@ -1871,7 +1871,7 @@ int xadreco_continua(busca *ctx)
     ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv, ctx->nv_max, busca_quieta);
     if(mel[0].tamanho == 0)
         return 0;
-    if(difclocks() < busca_tempo_move)
+    if(passoutempo() < busca_tempo_move)
     {
         // salva resultado da iteracao completa (mais profunda = mais precisa)
         memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
@@ -1889,7 +1889,7 @@ int xadreco_continua(busca *ctx)
     {
         printf("info depth %d seldepth %d score cp %d time %d nodes %d pv ",
                ctx->nv, busca_seldepth, (ctx->tabu->vez == BRANCO) ? ctx->val : -ctx->val,
-               (int)(difclocks() * 1000), busca_totalnodo);
+               passoutempo(), busca_totalnodo);
         for(i = 0; i < mel[0].tamanho; i++)
         {
             lance2movi(movinito, mel[0].linha[i].de, mel[0].linha[i].pa, mel[0].linha[i].especial);
@@ -1901,7 +1901,7 @@ int xadreco_continua(busca *ctx)
     else
         printdbg(debug, "# xadreco: PV vazio nesta iteracao\n");
 
-    if(!ctx->nv_max && difclocks() > busca_tempo_move)
+    if(!ctx->nv_max && passoutempo() > busca_tempo_move)
     {
         if(mel[0].tamanho == 0)
             printdbg(debug, "# xadreco: tempo estourado, sem PV\n");
@@ -2104,7 +2104,7 @@ int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
         return 1;
     }
     //busca por tempo (nv_max == 0): aborta se estourou
-    if(!nv_max && difclocks() >= busca_tempo_move)
+    if(!nv_max && passoutempo() >= busca_tempo_move)
     {
         mel[prof].tamanho = 0;
         *valor = estatico(atual, prof, alfax, betin);
@@ -3348,8 +3348,8 @@ void inicia(tabuleiro *tabu)
     lst_recria(&pltab);
     usando_livro = 1;
     setboard = 0;
-    busca_tempo_move = 3.0;
-    busca_tinimov = 0;
+    busca_tempo_move = 3500;
+    busca_tinimov = (struct timespec){0};
     busca_totalnodo = 0;
     busca_totalnodonivel = 0;
 }
@@ -3472,11 +3472,13 @@ void *tem_entrada(void *n __attribute__((unused)))
     return NULL;
 }
 
-// retorna tempo decorrido desde o inicio do lance, em segundos
-double difclocks(void)
+// retorna tempo decorrido desde o inicio do lance, em milissegundos
+int passoutempo(void)
 {
-    time_t tmp = time(NULL);
-    return difftime(tmp, busca_tinimov);
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (now.tv_sec - busca_tinimov.tv_sec) * 1000
+         + (now.tv_nsec - busca_tinimov.tv_nsec) / 1000000;
 }
 
 char randommove(tabuleiro *tabu)
