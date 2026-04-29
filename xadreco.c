@@ -1792,10 +1792,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, int tempomax)
     ctx->nv = 1;
     ctx->val = 0;
     ctx->nv_max = nv_max;
-    if(tabu->vez == BRANCO)
-        ctx->melhorvalor = -LIMITE; // brancas quer o maximo
-    else
-        ctx->melhorvalor = +LIMITE; // pretas quer o minimo
+    ctx->melhorvalor = -LIMITE; // negamax: lado a jogar sempre quer maximizar do seu ponto de vista
 
     if(debug == 2)  //nivel extra de debug
     {
@@ -1888,7 +1885,7 @@ int xadreco_continua(busca *ctx)
     if(mel[0].tamanho > 0)
     {
         printf("info depth %d seldepth %d score cp %d time %d nodes %d pv ",
-               ctx->nv, busca_seldepth, (ctx->tabu->vez == BRANCO) ? ctx->val : -ctx->val,
+               ctx->nv, busca_seldepth, ctx->val, // negamax: ja side-relative, sem conversao
                passoutempo(), busca_totalnodo);
         for(i = 0; i < mel[0].tamanho; i++)
         {
