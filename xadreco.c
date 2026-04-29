@@ -1557,8 +1557,14 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
         if(tokenizer(line, &pos, movinito))
         {
             if(!strcmp(movinito, "moves"))
+            {
                 while(tokenizer(line, &pos, movinito))
-                    joga_movinito(movinito, tabu);
+                    if(!joga_movinito(movinito, tabu))
+                    {
+                        printdbg(debug, "# xadreco: position: illegal move '%s' — stopping\n", movinito);
+                        break;
+                    }
+            }
             else
                 printdbg(debug, "# xadreco: position: unexpected '%s' (expected 'moves')\n", movinito);
         }
