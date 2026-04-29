@@ -792,8 +792,10 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
     int enp_col; //coluna do peao que pulou (en passant)
     const int promo[] = {ESP_MOV_PROMO_Q, ESP_MOV_PROMO_N, ESP_MOV_PROMO_R, ESP_MOV_PROMO_B};
     int i0, i1, j0, j1; //limites do loop
+    int jfila; //fila inicial das torres (0 brancas, 7 pretas)
 
     assert(tabu.vez == BRANCO || (tabu.vez == PRETO && "Invalid turn in geramov"));
+    jfila = (tabu.vez == BRANCO) ? 0 : 7;
     if(geramodo >= 0) // GERA_DESTE: gera apenas da casa geramodo (0-63)
     {
         i0 = i1 = COL(geramodo);
@@ -1225,9 +1227,12 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ee = 0;
                                         if(peca == TORRE)
                                         {
-                                            if(i == 0) ee |= ESP_MOV_TORRE_D;
-                                            if(i == 7) ee |= ESP_MOV_TORRE_R;
+                                            if(i == 0 && j == jfila) ee |= ESP_MOV_TORRE_D;
+                                            if(i == 7 && j == jfila) ee |= ESP_MOV_TORRE_R;
+                                            ee |= ESP_MOV_TORRE; // qualquer torre (display)
                                         }
+                                        else
+                                            ee |= ESP_MOV_DAMA;
                                         if(tabu.tab[SQ(col, j)] != VAZIA)
                                         {
                                             ee |= ESP_AMB_CAPTURA;
@@ -1256,9 +1261,12 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ee = 0;
                                         if(peca == TORRE)
                                         {
-                                            if(i == 0) ee |= ESP_MOV_TORRE_D;
-                                            if(i == 7) ee |= ESP_MOV_TORRE_R;
+                                            if(i == 0 && j == jfila) ee |= ESP_MOV_TORRE_D;
+                                            if(i == 7 && j == jfila) ee |= ESP_MOV_TORRE_R;
+                                            ee |= ESP_MOV_TORRE; // qualquer torre (display)
                                         }
+                                        else
+                                            ee |= ESP_MOV_DAMA;
                                         if(tabu.tab[SQ(i, lin)] != VAZIA)
                                         {
                                             ee |= ESP_AMB_CAPTURA;
