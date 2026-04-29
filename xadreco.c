@@ -306,7 +306,7 @@ typedef struct sbusca
     tabuleiro *tabu;     // ponteiro para o tabuleiro do jogo (nao copia)
     int nv;              // nivel atual do aprofundamento iterativo
     int val;             // valor retornado pela ultima iteracao
-    int max_depth;       // profundidade maxima (sd N)
+    int nv_max;          // profundidade maxima (sd N)
     int melhorvalor;     // melhor valor encontrado
 } busca;
 
@@ -442,7 +442,7 @@ void opcoes(int argc, char *argv[]);
 // handshake do protocolo: "xboard" ou "quit". Retorna 1=ok, 0=quit
 int cumprimento(char *line);
 // busca: trio de funcoes para aprofundamento iterativo
-void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time);
+void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, double max_time);
 int  xadreco_continua(busca *ctx); // retorna 1=continuar, 0=terminou
 void xadreco_para(busca *ctx);     // cleanup (sem output de lance)
 
@@ -474,9 +474,9 @@ int igual_strlances_strlinha(char *strlances, char *strlinha);
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
 int geramov(tabuleiro tabu, lista *lmov, int geramodo);
 //retorna (int) valor. Escreve mel[prof] com a melhor linha.
-int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_quieta);
+int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max, int busca_quieta);
 //retorna verdadeiro se (prof>=niv) ou (prof>=MAX_PROF) ou (tempo estourou)
-int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor, int busca_quieta);
+int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int niv_max, int *valor, int busca_quieta);
 //retorna um valor estatico que avalia uma posicao do tabuleiro. Niv: o nivel de distancia do tabuleiro real para a copia examinada
 int estatico(tabuleiro tabu, int niv, int alfax, int betin);
 //joga o movimento movi em tabuleiro tabu. Atualiza especial com bits ESP_TAB. Insere no listab se flag_hist==1
@@ -1683,7 +1683,6 @@ int comando_proto(char *line, tabuleiro *tabu, int *buscando, busca *ctx)
             if(busca_tempo_move < 0.5) busca_tempo_move = 0.5;
         }
 
-        nivel = nivel > 0 ? nivel : MAX_PROF;
         if(infinite) busca_tempo_move = 999999.0;
 
         xadreco_inicia(ctx, tabu, nivel, busca_tempo_move);
@@ -1777,7 +1776,7 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result)
 // ------------------------------- busca: trio xadreco_inicia/continua/para --
 
 // prepara a busca: livro, geramov, inicializa contexto
-void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
+void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, double max_time)
 {
     int i, moveto;
     movimento *msucc;
@@ -1792,7 +1791,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
     ctx->tabu = tabu;
     ctx->nv = 1;
     ctx->val = 0;
-    ctx->max_depth = max_depth;
+    ctx->nv_max = nv_max;
     if(tabu->vez == BRANCO)
         ctx->melhorvalor = -LIMITE; // brancas quer o maximo
     else
@@ -1867,9 +1866,9 @@ int xadreco_continua(busca *ctx)
     if(debug == 2)
     {
         fprintf(fmini, "#\n#\n# *************************************************************");
-        fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfax=%d, betin=%d, nv=%d)", -LIMITE, LIMITE, ctx->nv);
+        fprintf(fmini, "#\n# minimax(*tabu, prof=0, alfax=%d, betin=%d, nv=%d, nv_max=%d, quieta=%d)", -LIMITE, LIMITE, ctx->nv, ctx->nv_max, busca_quieta);
     }
-    ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv, busca_quieta);
+    ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv, ctx->nv_max, busca_quieta);
     if(mel[0].tamanho == 0)
         return 0;
     if(difclocks() < busca_tempo_move)
@@ -1902,7 +1901,7 @@ int xadreco_continua(busca *ctx)
     else
         printdbg(debug, "# xadreco: PV vazio nesta iteracao\n");
 
-    if((difclocks() > busca_tempo_move && debug != 2) || (debug == 2 && ctx->nv == 5))
+    if(!ctx->nv_max && difclocks() > busca_tempo_move)
     {
         if(mel[0].tamanho == 0)
             printdbg(debug, "# xadreco: tempo estourado, sem PV\n");
@@ -1911,7 +1910,7 @@ int xadreco_continua(busca *ctx)
     }
     if(abs(ctx->val) >= XEQUEMATE)
         return 0;
-    if(ctx->nv >= ctx->max_depth)
+    if(ctx->nv_max > 0 && ctx->nv >= ctx->nv_max)
         return 0;
     ctx->nv++; // busca em amplitude: aumenta um nivel.
     return 1;
@@ -1929,7 +1928,7 @@ void xadreco_para(busca *ctx)
 //tabuleiro atual, profundidade zero, limite maximo de estatico (betin ou uso), limite minimo de estatico (alfax ou passo), nivel da busca
 // Max quer mais, e tem piso alfa garantido. Nao aceita menos. Se o presente < alfa, corta.
 // Min quer menos, e tem teto beta garantido. Nao aceita mais. Se o presente > beta, corta.
-int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_quieta)
+int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max, int busca_quieta)
 {
     movimento *msucc; // n->info, movimento considerado
     int novo_valor, child_val, contamov = 0;
@@ -1944,7 +1943,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     assert(prof >= 0 && alfax <= betin && "Invalid minimax parameters");
     mel[prof].tamanho = 0; // inicializa PV vazio (evita dados stale de iteracao anterior)
 
-    if(profsuf(atual, prof, alfax, betin, niv, &child_val, busca_quieta))
+    if(profsuf(atual, prof, alfax, betin, niv, nv_max, &child_val, busca_quieta))
     {
         return child_val;
     }
@@ -1956,7 +1955,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         tabull = atual; // copia tabuleiro
         tabull.vez = ADV(tabull.vez);
         tabull.especial &= ~ESP_AMB_ENP_PULOU;
-        valull = minimax(tabull, prof + 1, alfax, betin, niv - 2, busca_quieta); //nao faz null-move em busca_quieta
+        valull = minimax(tabull, prof + 1, alfax, betin, niv - 2, nv_max, busca_quieta); //nao faz null-move em busca_quieta
         pula_vez = 0;
         if(atual.vez == BRANCO && valull >= betin)
             return betin;
@@ -2020,7 +2019,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
             lance2movi(m, msucc->de, msucc->pa, msucc->especial);
             fprintf(fmini, "#\n# nivel %d, %d-lance %s (%d%d%d%d):", prof, busca_totalnodonivel, m, COL(msucc->de), ROW(msucc->de), COL(msucc->pa), ROW(msucc->pa));
         }
-        child_val = minimax(tab, prof + 1, alfax, betin, niv, quieta); // busca_quieta local com quieta para criancas
+        child_val = minimax(tab, prof + 1, alfax, betin, niv, nv_max, quieta); // busca_quieta local com quieta para criancas
         lst_remove(pltab);  //retira o ultimo tabuleiro da lista
         if(atual.vez == BRANCO) // MAXIMIZA
         {
@@ -2071,7 +2070,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
     return novo_valor;
 }
 
-int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor, int busca_quieta)
+int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max, int *valor, int busca_quieta)
 {
     int quieta_max;
 
@@ -2097,11 +2096,18 @@ int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor
         *valor = estatico(atual, prof, alfax, betin);
         return 1;
     }
-    //retorna sem analisar... Deve desconsiderar o lance
-    if(difclocks() >= busca_tempo_move && debug != 2)
+    //limite maximo de profundidade em go depth nv_max
+    if(nv_max > 0 && prof >= nv_max)
+    {
+        mel[prof - 1].tamanho = 0;
+        *valor = estatico(atual, prof, alfax, betin);
+        return 1;
+    }
+    //busca por tempo (nv_max == 0): aborta se estourou
+    if(!nv_max && difclocks() >= busca_tempo_move)
     {
         mel[prof].tamanho = 0;
-        *valor = estatico(atual, prof, alfax, betin); //-FIMTEMPO;
+        *valor = estatico(atual, prof, alfax, betin);
         return 1;
     }
 
@@ -3268,7 +3274,7 @@ void usa_livro(tabuleiro tabu)
             joga_em(&temp, mval, 0);
             lst_recria(&plmov);
             geramov(temp, plmov, GERA_TODOS);
-            cands[i].score = minimax(temp, 0, -LIMITE, LIMITE, 2, busca_quieta);
+            cands[i].score = minimax(temp, 0, -LIMITE, LIMITE, 2, 2, busca_quieta);
         }
         if(debug >= 2)
             printdbg(debug, "# xadreco livro: cand[%d] = %s score=%d linha: %s\n",
