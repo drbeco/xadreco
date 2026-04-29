@@ -111,7 +111,6 @@
 // GERA_DESTE variavel geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
 // profundidade maxima de busca (limita mel[] e melhor)
 #define MAX_PROF  64
-#define QUIETA_MAX 12 // profundidade maxima da busca da quiescencia alem do niv
 #define BIGBUFF   4096
 #define SMALLBUFF 256
 #define TINYBUFF  32
@@ -324,6 +323,16 @@ enum piece_identity
     VAZIA = 0, PEAO = 1, CAVALO = 2, BISPO = 3, TORRE = 4, DAMA = 5, REI = 6, NULA = 7
 };
 
+// fase do jogo: 256 = posicao inicial (todas pecas), 0 = final puro
+// limites usados para decisoes dependentes de fase (avaliacao, qsearch cap)
+enum fases_jogo
+{
+    INICIO   = 256,  // posicao inicial (fase maxima)
+    ABERTURA = 192,  // limite inferior da abertura (abaixo: meio-jogo)
+    MEIOJOGO =  64,  // limite inferior do meio-jogo (abaixo: final)
+    FINAL    =   0   // fase minima (so reis e poucos peoes)
+};
+
 static int val[] = {0, 100, 300, 325, 500, 900, 400}; // centipawn por TIPO (rei=400 cp aprox 2 pecas menores)
 
 /* ---------------------------------------------------------------------- */
@@ -372,6 +381,7 @@ static int busca_totalnodonivel = 0; //total de nodos analisados em um nivel da 
 static time_t busca_tinimov; //tempo de inicio do lance
 static double busca_tempo_move; //tempo por lance em segundos
 static int busca_seldepth = 0; //profundidade maxima atingida (incluindo quiescencia)
+static int fase = 0; //fase do jogo (0..256), computada por estatico, lida por profsuf
 
 static char bookfname[SMALLBUFF] = "livro.txt"; //nome do arquivo de aberturas
 static int debug = 0; //0:sem debug, 1:-v debug, 2:-vv debug minimax
@@ -2063,6 +2073,8 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
 
 int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor, int busca_quieta)
 {
+    int quieta_max;
+
     if(prof > busca_seldepth) busca_seldepth = prof; // maior quando busca_quieta
     if(prof >= 24 && !dbg_quiet_printed) //DEBUG-QUIESCENT
     { //DEBUG-QUIESCENT
@@ -2102,8 +2114,9 @@ int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor
             return 1;
         }
     }
-    //quiescencia: limite de profundidade extra para busca de capturas
-    if(prof >= niv + QUIETA_MAX)
+    //quiescencia: limite dinamico baseado na fase (12 abertura -> 20 final)
+    quieta_max = 12 + (INICIO - fase) * 8 / INICIO;
+    if(prof >= niv + quieta_max)
     {
         mel[prof].tamanho = 0;
         *valor = estatico(atual, prof, alfax, betin);
@@ -2279,6 +2292,10 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
 
     //levando em conta o valor material de cada peca,
 
+    //fase: acumulada nos loops por tipo abaixo (DAMA/TORRE/BISPO/CAVALO)
+    //  pesos: peao=0, cavalo=1, bispo=1, torre=2, dama=4, rei=0; total 24 = abertura cheia
+    fase = 0;
+
     //acha os reis.
     k = 0;
     for(k = 0; k < 2; k++)
@@ -2308,21 +2325,17 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             ordem[k][2] = peca;
             ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
+            fase += 4; //peso da dama
             if(EHBRANCA(peca))
             {
                 //caso peca branca
                 //pretas ganham 5 pontos por ataque nela
                 totp += ordem[k][5] * EST_ATK_MAIOR;
-                //dama branca no ataque ganha bonus
-                if(j > 4 && tabu.meionum > 30)
-                    totb += EST_TERRITORIO;
                 pecab += val[TIPO(peca)];
             }
             else
             {
                 totb += ordem[k][3] * EST_ATK_MAIOR;
-                if(j < 3 && tabu.meionum > 30)
-                    totp += EST_TERRITORIO;
                 pecap += val[TIPO(peca)];
             }
             k++;
@@ -2340,6 +2353,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             ordem[k][2] = peca;
             ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
+            fase += 2; //peso da torre
             if(EHBRANCA(peca))
             {
                 //caso peca branca
@@ -2372,6 +2386,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             ordem[k][2] = peca;
             ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
+            fase += 1; //peso do bispo
             if(EHBRANCA(peca))
             {
                 //caso peca branca
@@ -2401,6 +2416,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
             ordem[k][2] = peca;
             ordem[k][3] = qataca(BRANCO, i, j, tabu, &ordem[k][4]);
             ordem[k][5] = qataca(PRETO, i, j, tabu, &ordem[k][6]);
+            fase += 1; //peso do cavalo
             if(EHBRANCA(peca))
             {
                 totp += ordem[k][5] * EST_ATK_MENOR; //caso peca branca, pretas ganham pontos ao atacar ela
@@ -2446,7 +2462,9 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         ordem[k][0] = -1; //sinaliza o fim
     //ordem[][] preenchida: kings em [0,1], depois damas, torres, bispos, cavalos, peoes --------------
 
-    if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c pecas: totb=%d totp=%d pecab=%d pecap=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp, pecab, pecap); // DEBUG-EVAL
+    fase = (fase * INICIO) / 24; //normaliza para 0..256 (Stockfish convention)
+
+    if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c pecas: totb=%d totp=%d pecab=%d pecap=%d fase=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp, pecab, pecap, fase); // DEBUG-EVAL
 
     //--------------------------- lazy evaluation START ---------------------------
 
@@ -2768,6 +2786,24 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
 
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c outpost: totb=%d totp=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp); // DEBUG-EVAL
+
+    //bonus dama no territorio inimigo a partir do meio-jogo (movido de dentro do loop DAMA)
+    //ordem[][] preenchida em ordem de tipo (REI[0,1], DAMA, TORRE, ...): para no primeiro nao-DAMA
+    for(k = 2; k < 64 && ordem[k][0] != -1; k++)
+    {
+        if(TIPO(ordem[k][2]) != DAMA)
+            break; //passou do bloco de damas
+        if(EHBRANCA(ordem[k][2]))
+        {
+            if(ordem[k][1] > 4 && fase < ABERTURA)
+                totb += EST_TERRITORIO;
+        }
+        else
+        {
+            if(ordem[k][1] < 3 && fase < ABERTURA)
+                totp += EST_TERRITORIO;
+        }
+    }
 
     //bonificacao para quem nao mexeu a dama na abertura
     //TODO usar flag para lembrar se ja mexeu, senao vai e volta
