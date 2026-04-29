@@ -317,7 +317,7 @@ enum piece_identity
     VAZIA = 0, PEAO = 1, CAVALO = 2, BISPO = 3, TORRE = 4, DAMA = 5, REI = 6, NULA = 7
 };
 
-static int val[] = {0, 100, 300, 325, 500, 900, 10000}; // centipawn lookup by TIPO index
+static int val[] = {0, 100, 300, 325, 500, 900, 400}; // centipawn por TIPO (rei=400 cp aprox 2 pecas menores)
 
 /* ---------------------------------------------------------------------- */
 /* globals */
@@ -2092,8 +2092,8 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     int no_rei, vizim_reib, pertim_reib, vizim_reip, pertim_reip; // ataques perto do rei, distancia de Manhattan
     int gapb, gapp, gap_aberto=0, gap_semib=0, gap_semip=0; // ilhas de peoes
 
-    //coloca todas pecas do tabuleiro em ordem de valor
-    int ordem[TABSIZE][SQINFO]; //64 casas, cada uma com 7 info: 0:casa, 1:reservado, 2:peca 3: qtdataquebranco, 4: menorb, 5: qtdataquepreto, 6: menorp
+    //coloca todas pecas do tabuleiro agrupadas por tipo (REI, DAMA, TORRE, BISPO, CAVALO, PEAO)
+    int ordem[TABSIZE][SQINFO]; //64 casas, 7 info: 0:casa, 1:reservado, 2:peca, 3:qtd_atk_br, 4:menorb_TIPO, 5:qtd_atk_pr, 6:menorp_TIPO (NULA=nenhum)
 
     //levando em conta a situacao do tabuleiro (bitfield)
     if(tabu.especial & ESP_TAB_MATE)
@@ -2282,7 +2282,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
 
     if(k < 64)
         ordem[k][0] = -1; //sinaliza o fim
-    //as pecas agora estao em ordem de valor --------------
+    //ordem[][] preenchida: kings em [0,1], depois damas, torres, bispos, cavalos, peoes --------------
 
     if(niv <= 1) printdbg(debug, "# EVAL[%d] %c%c%c%c pecas: totb=%d totp=%d pecab=%d pecap=%d\n", niv, COL(tabu.de)+'a', ROW(tabu.de)+'1', COL(tabu.pa)+'a', ROW(tabu.pa)+'1', totb, totp, pecab, pecap); // DEBUG-EVAL
 
@@ -2365,7 +2365,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
                 totp += (ordem[k][5] - ordem[k][3]) * EST_ATK_SALDO;
             else
                 totb += (ordem[k][3] - ordem[k][5] + 1) * EST_ATK_SALDO;
-            if(ordem[k][6] < val[TIPO(peca)])
+            if(ordem[k][6] < TIPO(peca))
                 totp += EST_ATK_BAIXO;
         }
         else
@@ -2380,7 +2380,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
                 totb += (ordem[k][3] - ordem[k][5]) * EST_ATK_SALDO;
             else
                 totp += (ordem[k][5] - ordem[k][3] + 1) * EST_ATK_SALDO;
-            if(ordem[k][4] < val[TIPO(peca)])
+            if(ordem[k][4] < TIPO(peca))
                 totb += EST_ATK_BAIXO;
         }
     }
@@ -2397,20 +2397,20 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
     {
         if(ordem[k][0] == -1) //todas pecas podem ser cravadas, exceto Rei
             break;
-        i = ordem[k][0]; //as pecas estao em ordem de valor
+        i = ordem[k][0]; //k=0,1 sao reis (pulados); k>=2 sao demais pecas
         j = ordem[k][1];
         peca = ordem[k][2];
         tabu.tab[SQ(i, j)] = VAZIA; //imagina se essa peca nao existisse?
         if(EHBRANCA(peca))
         {
             qtdp = qataca(PRETO, i, j, tabu, &menorp);
-            if(qtdp > ordem[k][5] && menorp < val[TIPO(peca)])
+            if(qtdp > ordem[k][5] && menorp < TIPO(peca))
                 totb -= (val[TIPO(peca)] / EST_CRAVADA);
         }
         else
         {
             qtdb = qataca(BRANCO, i, j, tabu, &menorb);
-            if(qtdb > ordem[k][3] && menorb < val[TIPO(peca)])
+            if(qtdb > ordem[k][3] && menorb < TIPO(peca))
                 totp -= (val[TIPO(peca)] / EST_CRAVADA);
         }
         tabu.tab[SQ(i, j)] = peca; //recoloca a peca no lugar.
@@ -2575,7 +2575,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         if(EHBRANCA(ordem[k][2]))
         {
             // defendido por peao e sem peoes inimigos para atacar
-            if(ordem[k][3] > 0 && ordem[k][4] == val[PEAO])  // peao branco defende
+            if(ordem[k][3] > 0 && ordem[k][4] == PEAO)  // peao branco defende
             {
                 outpost = 1;
                 for(jj = j; jj < 7 && outpost; jj++)
@@ -2590,7 +2590,7 @@ int estatico(tabuleiro tabu, int niv, int alfax, int betin)
         else
         {
             // defendido por peao e sem peoes inimigos para atacar
-            if(ordem[k][5] > 0 && ordem[k][6] == val[PEAO])
+            if(ordem[k][5] > 0 && ordem[k][6] == PEAO)
             {
                 outpost = 1;
                 for(jj = j; jj > 0 && outpost; jj--)
@@ -2744,11 +2744,11 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
     //retorna o numero de ataques que a "cor" faz na casa(col,lin)
     //cor==brancas   => brancas atacam casa(col,lin)
     //cor==pretas    => pretas  atacam casa(col,lin)
-    //menor == e a menor peca da "cor" que ataca a casa (less valued piece attacking the square)
+    //menor == TIPO da menor peca da "cor" que ataca a casa (NULA = nenhum atacante)
     int icol, ilin, casacol, casalin;
     int total = 0;
     int p; // peca encontrada na direcao
-    *menor = val[REI];
+    *menor = NULA;
     //torre ou dama atacam a casa...
     for(icol = col - 1; icol >= 0; icol--)  //desce coluna
     {
@@ -2758,8 +2758,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             total++;
             p = TIPO(tabu.tab[SQ(icol, lin)]);
-            if(val[p] < *menor)
-                *menor = val[p];
+            if(p < *menor)
+                *menor = p;
         }
         break;
     }
@@ -2771,8 +2771,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             total++;
             p = TIPO(tabu.tab[SQ(icol, lin)]);
-            if(val[p] < *menor)
-                *menor = val[p];
+            if(p < *menor)
+                *menor = p;
         }
         break;
     }
@@ -2784,8 +2784,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             total++;
             p = TIPO(tabu.tab[SQ(col, ilin)]);
-            if(val[p] < *menor)
-                *menor = val[p];
+            if(p < *menor)
+                *menor = p;
         }
         break;
     }
@@ -2797,8 +2797,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
         {
             total++;
             p = TIPO(tabu.tab[SQ(col, ilin)]);
-            if(val[p] < *menor)
-                *menor = val[p];
+            if(p < *menor)
+                *menor = p;
         }
         break;
     }
@@ -2814,8 +2814,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             if(tabu.tab[SQ(col + icol, lin + ilin)] == DACOR(CAVALO, cor))
             {
                 total++;
-                if(val[CAVALO] < *menor)
-                    *menor = val[CAVALO];
+                if(CAVALO < *menor)
+                    *menor = CAVALO;
             }
         }
     // bispo ou dama atacam casa...
@@ -2838,12 +2838,12 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
                 {
                     total++;
                     p = TIPO(tabu.tab[SQ(casacol, casalin)]);
-                    if(val[p] < *menor)
-                        *menor = val[p];
+                    if(p < *menor)
+                        *menor = p;
                 }
         } // proxima diagonal
     // ataque de rei...
-    // nao preciso colocar como *menor, pois e a maior e ja comeca com ele
+    // rei pode ser o unico atacante: atualiza *menor se nada menor o precedeu
     for(icol = col - 1; icol <= col + 1; icol++)
         for(ilin = lin - 1; ilin <= lin + 1; ilin++)
         {
@@ -2854,6 +2854,8 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             if(tabu.tab[SQ(icol, ilin)] == DACOR(REI, cor))
             {
                 total++;
+                if(REI < *menor)
+                    *menor = REI;
                 break;
             }
         }
@@ -2867,15 +2869,15 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             if(col - 1 >= 0)
                 if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, BRANCO))
                 {
-                    if(val[PEAO] < *menor)
-                        *menor = val[PEAO];
+                    if(PEAO < *menor)
+                        *menor = PEAO;
                     total++;
                 }
             if(col + 1 <= 7)
                 if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, BRANCO))
                 {
-                    if(val[PEAO] < *menor)
-                        *menor = val[PEAO];
+                    if(PEAO < *menor)
+                        *menor = PEAO;
                     total++;
                 }
         }
@@ -2888,21 +2890,21 @@ int qataca(int cor, int col, int lin, tabuleiro tabu, int *menor)
             if(col - 1 >= 0)
                 if(tabu.tab[SQ(col - 1, ilin)] == DACOR(PEAO, PRETO))
                 {
-                    if(val[PEAO] < *menor)
-                        *menor = val[PEAO];
+                    if(PEAO < *menor)
+                        *menor = PEAO;
                     total++;
                 }
             if(col + 1 <= 7)
                 if(tabu.tab[SQ(col + 1, ilin)] == DACOR(PEAO, PRETO))
                 {
-                    if(val[PEAO] < *menor)
-                        *menor = val[PEAO];
+                    if(PEAO < *menor)
+                        *menor = PEAO;
                     total++;
                 }
         }
     }
     if(total == 0)  //ninguem ataca (no attacks)
-        *menor = 0;
+        *menor = NULA;  //sentinel: nenhum atacante
     return total;
 }
 
