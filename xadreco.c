@@ -111,7 +111,7 @@
 // GERA_DESTE variavel geramodo 0-63: gera apenas lances da casa 'deste' (otimiza valido)
 // profundidade maxima de busca (limita mel[] e melhor)
 #define MAX_PROF  64
-#define QUIETA_MAX MAX_PROF // profundidade maxima da busca da quiescencia alem do niv
+#define QUIETA_MAX 12 // profundidade maxima da busca da quiescencia alem do niv
 #define BIGBUFF   4096
 #define SMALLBUFF 256
 #define TINYBUFF  32
@@ -358,6 +358,8 @@ static int usa_quieta = 1; //1: quiescencia habilitada. 0: desabilitada com -q
 static int setboard = 0; //0: posicao normal. 1: posicao FEN carregada
 // busca: estado compartilhado entre minimax/profsuf/difclocks/xadreco_continua
 static int pula_vez = 0; //flag para evitar null-move recursivo
+static movimento dbg_quiet_linha[MAX_PROF]; //DEBUG-QUIESCENT
+static int dbg_quiet_printed = 0; //DEBUG-QUIESCENT
 static int busca_totalnodo = 0; //total de nodos analisados para fazer um lance
 static int busca_totalnodonivel = 0; //total de nodos analisados em um nivel da arvore
 static time_t busca_tinimov; //tempo de inicio do lance
@@ -1631,6 +1633,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int max_depth, double max_time)
     busca_tinimov = time(NULL);
 
     busca_seldepth = 0;
+    dbg_quiet_printed = 0; //DEBUG-QUIESCENT
     ctx->tabu = tabu;
     ctx->nv = 1;
     ctx->val = 0;
@@ -1854,6 +1857,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
         }
         tab = atual; // copia tabuleiro
         joga_em(&tab, *msucc, 1);
+        dbg_quiet_linha[prof] = *msucc; //DEBUG-QUIESCENT
         busca_totalnodonivel++;
         quieta = usa_quieta && (prof + 1 >= niv) && (msucc->especial & ESP_AMB_CAPTURA);
         if(debug == 2)
@@ -1915,6 +1919,19 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int busca_
 int profsuf(tabuleiro atual, int prof, int alfax, int betin, int niv, int *valor, int busca_quieta)
 {
     if(prof > busca_seldepth) busca_seldepth = prof; // maior quando busca_quieta
+    if(prof >= 24 && !dbg_quiet_printed) //DEBUG-QUIESCENT
+    { //DEBUG-QUIESCENT
+        int dbg_i; //DEBUG-QUIESCENT
+        char dbg_m[16]; //DEBUG-QUIESCENT
+        fprintf(stderr, "# DEBUG-QUIESCENT prof=%d line: ", prof); //DEBUG-QUIESCENT
+        for(dbg_i = 0; dbg_i < prof; dbg_i++) //DEBUG-QUIESCENT
+        { //DEBUG-QUIESCENT
+            fancy2movi(dbg_m, dbg_quiet_linha[dbg_i].de, dbg_quiet_linha[dbg_i].pa, dbg_quiet_linha[dbg_i].especial); //DEBUG-QUIESCENT
+            fprintf(stderr, "%s ", dbg_m); //DEBUG-QUIESCENT
+        } //DEBUG-QUIESCENT
+        fprintf(stderr, "\n"); //DEBUG-QUIESCENT
+        dbg_quiet_printed = 1; //DEBUG-QUIESCENT
+    } //DEBUG-QUIESCENT
 
     //limite absoluto de profundidade: protege mel[prof] de overflow
     if(prof >= MAX_PROF)
