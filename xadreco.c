@@ -3801,19 +3801,56 @@ void lst_recria(lista **pl)
         msgsai("# Erro arena cheia em lst_recria (impossivel)", 39);
 }
 
-// particiona: capturas e especiais primeiro
+// particiona em 4 tiers por valor_estatico (relativo a media local):
+//   pass 0: computa media dos scores positivos
+//   pass 1: baixos (0 < score < media/2) -> head
+//   pass 2: medios (media/2 <= score < media) -> head
+//   pass 3: altos (score >= media) -> head (fica no topo, LIFO furafila)
+// resultado: [altos] [medios] [baixos] [zeros]
 void lst_parte(lista *l)
 {
     no *n, *next;
     movimento *m;
-    n = l->cabeca;
-    while(n)
+    int pass;
+    int soma = 0, qtd = 0, media = 0;
+
+    for(pass = 0; pass < 4; pass++)
     {
-        next = n->prox;
-        m = (movimento *)n->info;
-        if(m->especial & ESP_AMB_PARTE)
-            lst_furafila(l, n);
-        n = next;
+        n = l->cabeca;
+        while(n)
+        {
+            next = n->prox; //captura ANTES de furafila
+            m = (movimento *)n->info;
+            switch(pass)
+            {
+                case 0: //computa media dos positivos
+                    if(m->valor_estatico > 0)
+                    {
+                        soma += m->valor_estatico;
+                        qtd++;
+                    }
+                    break;
+                case 1: //baixos: 0 < score < media/2
+                    if(m->valor_estatico > 0 && m->valor_estatico < media/2)
+                        lst_furafila(l, n);
+                    break;
+                case 2: //medios: media/2 <= score < media
+                    if(m->valor_estatico >= media/2 && m->valor_estatico < media)
+                        lst_furafila(l, n);
+                    break;
+                case 3: //altos: score >= media
+                    if(m->valor_estatico >= media)
+                        lst_furafila(l, n);
+                    break;
+            }
+            n = next;
+        }
+        if(pass == 0)
+        {
+            if(qtd == 0) return; //nenhum positivo: lista intocada
+            media = soma / qtd;
+            if(media < 2) return; //media degenerada
+        }
     }
 }
 
