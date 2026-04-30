@@ -386,6 +386,67 @@ static int busca_tempo_move; //tempo por lance em milissegundos
 static int busca_seldepth = 0; //profundidade maxima atingida (incluindo quiescencia)
 static int fase = 0; //fase do jogo (0..256), computada por estatico, lida por profsuf
 
+static int bench_mode = 0; //1: roda benchmark (-m) e sai; 0: modo UCI normal
+
+// 25 posicoes FEN para benchmark (-m): mistura de aberturas, meio-jogo, finais, taticas, regressoes
+static const char *FEN_TESTS[] = {
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
+    "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 10",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+    "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
+    "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+    "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
+    "3r3k/2r4p/1p1b3r/3q1pp1/ppP1p1P1/1P2P1QP/P5KR/3R3R b - - 0 27",
+    "2r3k1/pp2bppp/4p1n1/2P5/1P1Bb3/3RBN2/q4PPP/3Q2K1 b - - 0 24",
+    "r3kbnr/pp1q1ppp/2nb4/3pp3/3PP3/2N2N2/PPPB1PPP/R2QKB1R w KQkq - 4 7",
+    "8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1",
+    "4k3/8/4K3/4P3/8/8/8/8 w - - 0 1",
+    "8/8/8/3p4/3P4/3K4/8/3k4 w - - 0 1",
+    "8/8/3k4/8/8/8/8/4Q1K1 w - - 0 1",
+    "4k3/8/4K3/8/8/8/3R4/8 w - - 0 1",
+    "7k/8/8/8/8/8/4P3/4K3 w - - 0 1",
+    "8/8/2k5/p7/8/4P3/4K3/8 w - - 0 1",
+    "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1",
+    "r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 1 1",
+    "rn2kbnr/pN3ppp/1qp5/4pb2/3P4/8/PPP2PPP/R1BQKBNR w KQkq - 1 7",
+    "r1bq1rk1/pp2bppp/2n2n2/2pp4/3P4/2NB1N1P/PPP2PP1/R1BQ1RK1 w - - 0 9",
+    "5rk1/p1pq1pbp/2np2p1/4p1Pn/2P5/1PNB1P2/PB1QP2P/2KR3R w - - 0 12",
+    "4r2k/1pq3pp/p1n5/2P1Bp1Q/8/8/PP3PPP/3R2K1 w - - 0 23"
+};
+// referencia stockfish 17.1 @ 900ms (depth ~16-17): top1, top2, top3 ou NULL
+static const char *FEN_TESTS_TOP[][3] = {
+    {"e2e4",  "g1f3", NULL},
+    {"a2a4",  "f1c4", "g1f3"},
+    {"d2d4",  "f1b5", "f1c4"},
+    {"a2a3",  "c2c3", "d2d3"},
+    {"d5e6",  "e2a6", NULL},
+    {"b4f4",  NULL,   NULL},
+    {"c4c5",  "d2d4", NULL},
+    {"d7c8r", "e1g1", "h1f1"},
+    {"c3d5",  NULL,   NULL},
+    {"d5e6",  "d5g8", "d6g3"},
+    {"e4d3",  NULL,   NULL},
+    {"d4e5",  "e4d5", "f3e5"},
+    {"a1b1",  NULL,   NULL},
+    {"e6d6",  NULL,   NULL},
+    {"d3c3",  "d3e3", NULL},
+    {"e1a5",  "e1b1", "e1d2"},
+    {"e6f6",  NULL,   NULL},
+    {"e1d2",  NULL,   NULL},
+    {"e2d1",  "e2d2", "e2d3"},
+    {"b2b4",  "f1b5", "f1c4"},
+    {"d5f6",  NULL,   NULL},
+    {"b7c5",  NULL,   NULL},
+    {"d4c5",  "f1e1", NULL},
+    {"c1b1",  "c3d5", "c3e4"},
+    {"h5e8",  NULL,   NULL}
+};
+#define BENCH_COUNT (sizeof(FEN_TESTS) / sizeof(FEN_TESTS[0]))
+#define BENCH_DEPTH 6
+
 static char bookfname[SMALLBUFF] = "livro.txt"; //nome do arquivo de aberturas
 static int debug = 0; //0:sem debug, 1:-v debug, 2:-vv debug minimax
 static filenta entra; //fila da string de entrada (thread)
@@ -448,6 +509,7 @@ int cumprimento(char *line);
 void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, int tempomax);
 int  xadreco_continua(busca *ctx); // retorna 1=continuar, 0=terminou
 void xadreco_para(busca *ctx);     // cleanup (sem output de lance)
+void benchmark(tabuleiro *tabu);   // roda 25 posicoes em profundidade fixa, imprime stats
 
 // entrada de dados nao-bloqueante para Linux e Windows
 void *tem_entrada(void *);
@@ -535,6 +597,14 @@ int main(int argc, char *argv[])
     opcoes(argc, argv); // laco do getopt
 
     //------------------------------------------------------------------------------
+    // modo benchmark (-m): roda 25 posicoes em profundidade fixa e sai
+    if(bench_mode)
+    {
+        benchmark(&tabu);
+        exit(EXIT_SUCCESS);
+    }
+
+    //------------------------------------------------------------------------------
     // inicializando o leitor paralelo de entrada
     entra.ocupada=0; // pede entrada
     pthread_create(&penta, NULL, tem_entrada, NULL);
@@ -608,9 +678,9 @@ void opcoes(int argc, char *argv[])
 
     srand(time(NULL) + getpid());
 
-    /* Usage: xadreco [-h|-v] [-V|-VV] [-r seed] [-b bookfile|-b none] [-n] [-q] */
+    /* Usage: xadreco [-h|-v] [-V|-VV] [-r seed] [-b bookfile|-b none] [-n] [-q] [-m] */
     opterr = 0;
-    while((opt = getopt(argc, argv, "vhVr:b:nq")) != EOF)
+    while((opt = getopt(argc, argv, "vhVr:b:nqm")) != EOF)
         switch(opt)
         {
             case 'h':
@@ -638,6 +708,9 @@ void opcoes(int argc, char *argv[])
                 break;
             case 'q':
                 usa_quieta = 0;
+                break;
+            case 'm':
+                bench_mode = 1;
                 break;
             case '?':
             default:
@@ -1872,9 +1945,10 @@ int xadreco_continua(busca *ctx)
     ctx->val = minimax(*ctx->tabu, 0, -LIMITE, +LIMITE, ctx->nv, ctx->nv_max, busca_quieta);
     if(mel[0].tamanho == 0)
         return 0;
-    if(passoutempo() < busca_tempo_move)
+    if(ctx->nv_max > 0 || passoutempo() < busca_tempo_move)
     {
         // salva resultado da iteracao completa (mais profunda = mais precisa)
+        // depth-based (nv_max>0): salva sempre. time-based: so se ainda dentro do tempo
         memcpy(melhor.linha, mel[0].linha, mel[0].tamanho * sizeof(movimento));
         melhor.tamanho = mel[0].tamanho;
         melhor.valor = ctx->val;
@@ -1923,6 +1997,75 @@ void xadreco_para(busca *ctx)
     melhor.valor = ctx->melhorvalor;
     if(debug == 2)
         fclose(fmini);
+}
+
+// benchmark: roda BENCH_DEPTH em cada FEN_TESTS e imprime fingerprint de nodos/tempo/nps
+// para cada posicao, marca top1/2/3 se a bestmove casa com FEN_TESTS_TOP[i][0..2]
+void benchmark(tabuleiro *tabu)
+{
+    long total_nodes = 0;
+    long total_ms = 0;
+    int dt;
+    int i, k, top;
+    int top_count[4] = {0, 0, 0, 0}; //[0]=sem match, [1]=top1, [2]=top2, [3]=top3
+    int pos;
+    char m[16];
+    char fen_buf[BIGBUFF];
+    busca ctx;
+
+    printf("xadreco bench v" VERSION " (%lu positions, depth %d)\n",
+           (unsigned long)BENCH_COUNT, BENCH_DEPTH);
+
+    for(i = 0; i < (int)BENCH_COUNT; i++)
+    {
+        //monta_fen consome do buffer via tokenizer; precisa de copia mutavel
+        strcpy(fen_buf, FEN_TESTS[i]);
+        pos = 0;
+        inicia(tabu);
+        monta_fen(fen_buf, &pos, tabu);
+
+        //busca a profundidade fixa (tempomax=0 = sem limite de tempo; nv_max manda)
+        //xadreco_inicia reseta busca_tinimov, entao passoutempo() apos a busca
+        //retorna o tempo decorrido desde o inicio do search (nao precisa t0)
+        xadreco_inicia(&ctx, tabu, BENCH_DEPTH, 0);
+        while(xadreco_continua(&ctx));
+        xadreco_para(&ctx);
+        dt = passoutempo();
+
+        //bestmove: primeira jogada da PV
+        if(melhor.tamanho > 0)
+            lance2movi(m, melhor.linha[0].de, melhor.linha[0].pa, melhor.linha[0].especial);
+        else
+            strcpy(m, "----");
+
+        //compara bestmove com referencia stockfish
+        top = 0;
+        for(k = 0; k < 3; k++)
+        {
+            if(FEN_TESTS_TOP[i][k] && strcmp(m, FEN_TESTS_TOP[i][k]) == 0)
+            {
+                top = k + 1;
+                break;
+            }
+        }
+        top_count[top]++;
+
+        printf("position %d: %d nodes %d ms (%d nps) bestmove %s top %c\n",
+               i + 1, busca_totalnodo, dt,
+               dt > 0 ? (busca_totalnodo * 1000 / dt) : 0,
+               m, top ? '0' + top : 'n');
+
+        total_nodes += busca_totalnodo;
+        total_ms += dt;
+    }
+
+    printf("==========================================================\n");
+    printf("TOTAL: %ld nodes %ld ms (%ld nps)\n",
+           total_nodes, total_ms,
+           total_ms > 0 ? (total_nodes * 1000 / total_ms) : 0);
+    printf("matches: top1=%d top2=%d top3=%d none=%d (out of %lu)\n",
+           top_count[1], top_count[2], top_count[3], top_count[0],
+           (unsigned long)BENCH_COUNT);
 }
 
 //--------------------------------------------------------------------------

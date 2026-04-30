@@ -11,7 +11,7 @@
 SHELL=/bin/bash -o pipefail
 
 MAJOR ?= 9
-MINOR ?= 7
+MINOR ?= 9
 DEBUG ?= 0
 BUILD = $(shell date +"%g%m%d.%H%M%S")
 DEFSYM = $(subst .,_,$(BUILD))
