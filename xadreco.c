@@ -180,6 +180,7 @@
 #define ESP_MOV_BISPO        (1 << 27) /* bit 27: bispo moveu */
 #define ESP_MOV_DAMA         (1 << 28) /* bit 28: dama moveu */
 #define ESP_MOV_TORRE        (1 << 29) /* bit 29: torre moveu (qualquer torre, display) */
+#define ESP_MOV_MATADOR      (1 << 30) /* bit 30: lance matador (killer): causou corte beta recente */
 
 #define ESP_MOV_PROMO_Q      (1 << 12) /* bit 12: promocao dama */
 #define ESP_MOV_PROMO_N      (1 << 13) /* bit 13: promocao cavalo */
@@ -211,7 +212,8 @@
 #define ESP_TAB_PATA      (ESP_TAB_PATA_AFOGA | ESP_TAB_PATA_MATERIAL | ESP_TAB_PATA_REPETE | ESP_TAB_PATA_PROGRESSO)
 /* mascaras funcionais */
 #define ESP_MOV_ZERACONTA (ESP_AMB_CAPTURA | ESP_MOV_PEAO)
-#define ESP_AMB_PARTE     (ESP_AMB_CAPTURA | ESP_AMB_XEQUE | ESP_MOV_PROMO | ESP_MOV_PEAO)
+#define ESP_AMB_PARTE     (ESP_AMB_CAPTURA | ESP_AMB_XEQUE | ESP_MOV_PROMO | ESP_MOV_PEAO | ESP_MOV_MATADOR)
+#define NAOMATA           -1 /* prof sentinel para geramov: nao consultar matador (chamadas fora da busca) */
 
 // Cores: brancas=0, pretas=bit3. Pecas: brancas 1-6, pretas 9-14, vazia 0.
 #define SQ(c, r)  ((c) + (r) * 8)            // dados i,j, calcula sq (0-63)
@@ -374,6 +376,7 @@ static int usa_quieta = 1; //1: quiescencia habilitada. 0: desabilitada com -q
 static int setboard = 0; //0: posicao normal. 1: posicao FEN carregada
 // busca: estado compartilhado entre minimax/profsuf/difclocks/xadreco_continua
 static int pula_vez = 0; //flag para evitar null-move recursivo
+static movimento matador[MAX_PROF][2]; //killers por profundidade (lances quietos que causaram corte beta)
 static movimento dbg_quiet_linha[MAX_PROF]; //DEBUG-QUIESCENT
 static int dbg_quiet_printed = 0; //DEBUG-QUIESCENT
 static int busca_totalnodo = 0; //total de nodos analisados para fazer um lance
@@ -414,7 +417,7 @@ void testajogo(char *movinito, int mnum);
 //preenche a estrutura movimento usando arena e lst_insere
 //   ee especial: bitfield 26 bits ESP_AMB/ESP_MOV/ESP_TAB
 //   score: valor_estatico inicial (composite MVV-LVA + bonuses)
-void enche_lmovi(lista *lmov, int de, int pa, int ee, int score);
+void enche_lmovi(lista *lmov, int de, int pa, int ee, int score, int prof);
 //mensagem antes de sair do programa (por falta de memoria etc, ou tudo ok)
 void msgsai(char *msg, int error);
 //tempo decorrido desde o inicio do lance, em milissegundos
@@ -472,7 +475,7 @@ void livro_linha(int mnum, char *linha);
 int igual_strlances_strlinha(char *strlances, char *strlinha);
 // computador joga ----------------------------------------------------------
 //retorna lista de lances possiveis, ordenados por xeque e captura. Deveria ser uma ordem melhor aqui.
-int geramov(tabuleiro tabu, lista *lmov, int geramodo);
+int geramov(tabuleiro tabu, lista *lmov, int geramodo, int prof);
 //retorna (int) valor. Escreve mel[prof] com a melhor linha.
 int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max, int busca_quieta);
 //retorna verdadeiro se (prof>=niv) ou (prof>=MAX_PROF) ou (tempo estourou)
@@ -792,7 +795,7 @@ int movi2lance(int *de, int *pa, char *m)
 //           -3   GERA_CAPTU: gera apenas capturas e xeques
 //        0..63   GERA_DESTE: confere legalidade de um movimento
 // retorna 1 se ha movimentos, 0 se nao ha
-int geramov(tabuleiro tabu, lista *lmov, int geramodo)
+int geramov(tabuleiro tabu, lista *lmov, int geramodo, int prof)
 {
     /* IFDEBUG("geramov()"); */
     tabuleiro tabaux;
@@ -856,7 +859,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     score += 10 * val[TIPO(tabu.tab[SQ(col, lin)])] - val[REI];
                                 }
                                 if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                    enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee, score);
+                                    enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee, score, prof);
                                 if(geramodo == GERA_UNICO) // 1 - rei anda
                                     return 1;
                             }
@@ -884,7 +887,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ee = ESP_MOV_REI | ESP_MOV_TORRE_R;
                                         score = 40; //roque: candy
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(4,0), SQ(6,0), ee, score);
+                                            enche_lmovi(lmov, SQ(4,0), SQ(6,0), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 2 - roque pequeno branco
                                             return 1;
                                     }
@@ -906,7 +909,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ee = ESP_MOV_REI | ESP_MOV_TORRE_D;
                                         score = 40; //roque: candy
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(4,0), SQ(2,0), ee, score);
+                                            enche_lmovi(lmov, SQ(4,0), SQ(2,0), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 3 - roque grande branco
                                             return 1;
                                     }
@@ -935,7 +938,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ee = ESP_MOV_REI | ESP_MOV_TORRE_R;
                                         score = 40; //roque: candy
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(4,7), SQ(6,7), ee, score);
+                                            enche_lmovi(lmov, SQ(4,7), SQ(6,7), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 4 - roque pequeno preto
                                             return 1;
                                     }
@@ -957,7 +960,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ee = ESP_MOV_REI | ESP_MOV_TORRE_D;
                                         score = 40; //roque: candy
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(4,7), SQ(2,7), ee, score);
+                                            enche_lmovi(lmov, SQ(4,7), SQ(2,7), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 5 - roque grande preto
                                             return 1;
                                     }
@@ -985,7 +988,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | ESP_MOV_ENP_COMEU;
                                         score = 10 * val[PEAO] - val[PEAO]; //P x P = 900
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,5), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,5), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 6 - peao branco comeu en passant
                                             return 1;
                                     }
@@ -1003,7 +1006,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | ESP_MOV_ENP_COMEU;
                                         score = 10 * val[PEAO] - val[PEAO]; //P x P = 900
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,2), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(enp_col,2), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 7 - peao preto comeu enpassant
                                             return 1;
                                     }
@@ -1030,7 +1033,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             ee = ESP_MOV_PEAO | promo[k];
                                             score = promo_val[k]; //promocao sem captura
                                             if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee, score);
+                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee, score, prof);
                                         }
                                     }
                                     else //nao promoveu
@@ -1043,7 +1046,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             score += 30;
                                         }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j+1), ee, score, prof);
                                     }
                                     if(geramodo == GERA_UNICO) // 8 - peao branco andou uma casa
                                         return 1;
@@ -1068,7 +1071,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             ee = ESP_MOV_PEAO | promo[k];
                                             score = promo_val[k]; //promocao sem captura
                                             if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee, score);
+                                                enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee, score, prof);
                                         }
                                     }
                                     else //nao promoveu
@@ -1081,7 +1084,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             score += 30;
                                         }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,j-1), ee, score, prof);
                                     }
                                     if(geramodo == GERA_UNICO) // 9 - peao preto andou uma casa
                                         return 1;
@@ -1109,7 +1112,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         score += 30;
                                     }
                                     if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                        enche_lmovi(lmov, SQ(i,1), SQ(i,3), ee, score);
+                                        enche_lmovi(lmov, SQ(i,1), SQ(i,3), ee, score, prof);
                                     if(geramodo == GERA_UNICO) // 10 - peao branco andou duas casas
                                         return 1;
                                 }
@@ -1134,7 +1137,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                         score += 30;
                                     }
                                     if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                        enche_lmovi(lmov, SQ(i,6), SQ(i,4), ee, score);
+                                        enche_lmovi(lmov, SQ(i,6), SQ(i,4), ee, score, prof);
                                     if(geramodo == GERA_UNICO) // 11 - peao preto andou duas casas
                                         return 1;
                                 }
@@ -1163,7 +1166,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | promo[m];
                                             score = 10 * val[TIPO(tabu.tab[SQ(k, j+1)])] - val[PEAO] + promo_val[m];
                                             if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee, score);
+                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee, score, prof);
                                         }
                                     }
                                     else //comeu sem promover
@@ -1176,7 +1179,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             score += 30;
                                         }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j+1), ee, score, prof);
                                     }
                                     if(geramodo == GERA_UNICO) // 12 - peao branco comeu normalmente
                                         return 1;
@@ -1206,7 +1209,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             ee = ESP_MOV_PEAO | ESP_AMB_CAPTURA | promo[m];
                                             score = 10 * val[TIPO(tabu.tab[SQ(k, j-1)])] - val[PEAO] + promo_val[m];
                                             if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee, score);
+                                                enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee, score, prof);
                                         }
                                     }
                                     else //comeu sem promover
@@ -1219,7 +1222,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             score += 30;
                                         }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(k,j-1), ee, score, prof);
                                     }
                                     if(geramodo == GERA_UNICO) // 13 - peao preto comeu normalmente
                                         return 1;
@@ -1258,7 +1261,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                     score += 30;
                                 }
                                 if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                    enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), ee, score);
+                                    enche_lmovi(lmov, SQ(i,j), SQ(col+i,lin+j), ee, score, prof);
                                 if(geramodo == GERA_UNICO) // 14 - cavalo anda ou captura
                                     return 1;
                             }
@@ -1307,7 +1310,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             score += 30;
                                         }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(col,j), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(col,j), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 15 - dama ou torre andou ou capturou na linha
                                             return 1;
                                     }
@@ -1346,7 +1349,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             score += 30;
                                         }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(i,lin), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(i,lin), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 16 - dama ou torre andou ou capturou na coluna
                                             return 1;
                                     }
@@ -1393,7 +1396,7 @@ int geramov(tabuleiro tabu, lista *lmov, int geramodo)
                                             score += 30;
                                         }
                                         if(geramodo != GERA_CAPTU || (geramodo == GERA_CAPTU && ee))
-                                            enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee, score);
+                                            enche_lmovi(lmov, SQ(i,j), SQ(col,lin), ee, score, prof);
                                         if(geramodo == GERA_UNICO) // 17 - dama ou bispo andou ou capturou
                                             return 1;
                                     }
@@ -1755,7 +1758,7 @@ int valido(tabuleiro tabu, int de, int pa, movimento *result)
     arena_inicia(&aval, 64 * 1024);
     if(lst_cria(&aval, &llval))
         msgsai("# Erro arena cheia em valido() lst_cria", 39);
-    geramov(tabu, llval, GERA_DESTE); // de (0-63) como geramodo: gera apenas desta casa
+    geramov(tabu, llval, GERA_DESTE, NAOMATA); // de (0-63) como geramodo: gera apenas desta casa
 
     lsucc = llval->cabeca;
     while(lsucc)
@@ -1787,6 +1790,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, int tempomax)
     clock_gettime(CLOCK_MONOTONIC, &busca_tinimov);
 
     busca_seldepth = 0;
+    memset(matador, 0, sizeof(matador)); //zera matadores antes de cada busca
     dbg_quiet_printed = 0; //DEBUG-QUIESCENT
     ctx->tabu = tabu;
     ctx->nv = 1;
@@ -1814,7 +1818,7 @@ void xadreco_inicia(busca *ctx, tabuleiro *tabu, int nv_max, int tempomax)
     if(melhor.tamanho == 0)
     {
         lst_recria(&plmov);
-        geramov(*tabu, plmov, GERA_TODOS);
+        geramov(*tabu, plmov, GERA_TODOS, 0); // raiz: prof=0
         busca_totalnodo = 0;
 
         // primeiro lance: metade do tempo, maximo 8s, minimo 500ms
@@ -1970,7 +1974,7 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
         saved = plmov->a->usado;  //bookmark
         if(lst_cria(plmov->a, &llmov))
             msgsai("# Erro arena cheia em minimax lst_cria", 39);
-        geramov(atual, llmov, GERA_TODOS); // gerar lista de lances para tabuleiro imaginario
+        geramov(atual, llmov, GERA_TODOS, prof); // gerar lista de lances para tabuleiro imaginario; prof para matador
         lsucc = llmov->cabeca;
     }
 
@@ -2030,6 +2034,13 @@ int minimax(tabuleiro atual, int prof, int alfax, int betin, int niv, int nv_max
         // corte alfa-beta
         if(alfax >= betin)
         {
+            //matador: lance quieto que causou o corte vai para o slot 0; slot 0 anterior desce para 1
+            if(prof < MAX_PROF && !(msucc->especial & ESP_AMB_CAPTURA) &&
+               (matador[prof][0].de != msucc->de || matador[prof][0].pa != msucc->pa))
+            {
+                matador[prof][1] = matador[prof][0];
+                matador[prof][0] = *msucc;
+            }
             if(debug == 2)
             {
                 lance2movi(m, msucc->de, msucc->pa, msucc->especial);
@@ -2219,7 +2230,7 @@ void joga_em(tabuleiro *tabu, movimento movi, int flag_hist)
         tabu->especial |= ESP_TAB_PATA_MATERIAL;
         return;
     }
-    if(!geramov(*tabu, NULL, GERA_UNICO))
+    if(!geramov(*tabu, NULL, GERA_UNICO, NAOMATA))
     {
         if(!xeque_rei_das(tabu->vez, *tabu))
             tabu->especial |= ESP_TAB_PATA_AFOGA;
@@ -3261,7 +3272,7 @@ void usa_livro(tabuleiro tabu)
         {
             joga_em(&temp, mval, 0);
             lst_recria(&plmov);
-            geramov(temp, plmov, GERA_TODOS);
+            geramov(temp, plmov, GERA_TODOS, NAOMATA); // book: nao consulta matador
             //negamax: temp.vez eh o adversario apos o lance; negamos para ficar do nosso lado
             cands[i].score = -minimax(temp, 0, -LIMITE, LIMITE, 2, 2, busca_quieta);
         }
@@ -3354,13 +3365,20 @@ void zera_pecas(tabuleiro *tabu)
 
 
 //preenche a estrutura movimento usando arena e lst_insere
-void enche_lmovi(lista *lmov, int de, int pa, int ee, int score)
+void enche_lmovi(lista *lmov, int de, int pa, int ee, int score, int prof)
 {
     if(!lmov)
         return;
     movimento *m = (movimento *)arena_aloca(lmov->a, sizeof(movimento));
     if(!m)
         msgsai("# Erro arena cheia em enche_lmovi", 37);
+    //matador: lance quieto que casa com matador[prof] recebe bit ESP_MOV_MATADOR
+    if(prof >= 0 && prof < MAX_PROF && !(ee & ESP_AMB_CAPTURA))
+    {
+        if((de == matador[prof][0].de && pa == matador[prof][0].pa) ||
+           (de == matador[prof][1].de && pa == matador[prof][1].pa))
+            ee |= ESP_MOV_MATADOR;
+    }
     m->de = de;
     m->pa = pa;
     m->especial = ee;
@@ -3479,7 +3497,7 @@ char randommove(tabuleiro *tabu)
 
     melhor = (resultado){0};
     lst_recria(&plmov);
-    geramov(*tabu, plmov, GERA_TODOS);  //gera os sucessores
+    geramov(*tabu, plmov, GERA_TODOS, NAOMATA);  //gera os sucessores
     if(plmov->qtd == 0)
     {
         printdbg(debug, "# xadreco: empty randommove - geramov() gave 0 moves back\n");
@@ -3834,12 +3852,11 @@ void lst_recria(lista **pl)
         msgsai("# Erro arena cheia em lst_recria (impossivel)", 39);
 }
 
-// particiona em 4 tiers por valor_estatico (relativo a media local):
-//   pass 0: computa media dos scores positivos
-//   pass 1: baixos (0 < score < media/2) -> head
-//   pass 2: medios (media/2 <= score < media) -> head
-//   pass 3: altos (score >= media) -> head (fica no topo, LIFO furafila)
-// resultado: [altos] [medios] [baixos] [zeros]
+// particiona em 3 tiers por valor_estatico + ESP_AMB_PARTE:
+//   pass 0: computa media dos positivos E manda ESP_AMB_PARTE para head (mesma passada)
+//   pass 1: baixos (0 < score < media) -> head (empurra PARTE leftover para tras)
+//   pass 2: altos (score >= media) -> head (fica no topo, LIFO furafila)
+// resultado: [altos] [baixos] [matadores e outros score=0 PARTE] [zeros]
 void lst_parte(lista *l)
 {
     no *n, *next;
@@ -3847,7 +3864,7 @@ void lst_parte(lista *l)
     int pass;
     int soma = 0, qtd = 0, media = 0;
 
-    for(pass = 0; pass < 4; pass++)
+    for(pass = 0; pass < 3; pass++)
     {
         n = l->cabeca;
         while(n)
@@ -3856,22 +3873,20 @@ void lst_parte(lista *l)
             m = (movimento *)n->info;
             switch(pass)
             {
-                case 0: //computa media dos positivos
+                case 0: //computa media dos positivos E PARTE -> head (mesma passada)
                     if(m->valor_estatico > 0)
                     {
                         soma += m->valor_estatico;
                         qtd++;
                     }
-                    break;
-                case 1: //baixos: 0 < score < media/2
-                    if(m->valor_estatico > 0 && m->valor_estatico < media/2)
+                    if(m->especial & ESP_AMB_PARTE)
                         lst_furafila(l, n);
                     break;
-                case 2: //medios: media/2 <= score < media
-                    if(m->valor_estatico >= media/2 && m->valor_estatico < media)
+                case 1: //baixos: 0 < score < media
+                    if(m->valor_estatico > 0 && m->valor_estatico < media)
                         lst_furafila(l, n);
                     break;
-                case 3: //altos: score >= media
+                case 2: //altos: score >= media
                     if(m->valor_estatico >= media)
                         lst_furafila(l, n);
                     break;
@@ -3880,7 +3895,7 @@ void lst_parte(lista *l)
         }
         if(pass == 0)
         {
-            if(qtd == 0) return; //nenhum positivo: lista intocada
+            if(qtd == 0) return; //nenhum positivo: PARTE ja no head, encerra
             media = soma / qtd;
             if(media < 2) return; //media degenerada
         }
